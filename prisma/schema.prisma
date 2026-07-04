@@ -1,0 +1,160 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  STUDENT
+  FACULTY
+  ADMIN
+}
+
+enum EducationLevel {
+  JHS
+  SHS
+  COLLEGE
+  GRADUATE
+}
+
+enum QuestionType {
+  SCALE_1_TO_5
+  SCALE_0_TO_4
+  RADIO_EXPECTATION
+  CHECKBOX_AREAS
+  TEXT_LONG
+}
+
+model Department {
+  id          String         @id @default(cuid())
+  name        String         @unique // e.g., "Computer Studies", "SHS-Academic"
+  level       EducationLevel
+  sections    Section[]
+  professors  Professor[]
+  templates   Template[]
+  users       User[]
+  evaluations Evaluation[]
+}
+
+model Section {
+  id           String      @id @default(cuid())
+  name         String      // e.g., "4-A", "Grade 7-St. Jude"
+  departmentId String
+  department   Department  @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  professors   Professor[] @relation("SectionToProfessor")
+  evaluations  Evaluation[]
+}
+
+model User {
+  id           String      @id @default(cuid())
+  email        String      @unique
+  name         String?
+  role         Role        @default(STUDENT)
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id])
+  username     String?     @unique
+  password     String?
+  createdAt    DateTime    @default(now())
+}
+
+model Professor {
+  id           String       @id @default(cuid())
+  email        String       @unique
+  name         String
+  departmentId String
+  department   Department   @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  sections     Section[]    @relation("SectionToProfessor")
+  evaluations  Evaluation[]
+  aiSummaries  AiSummary[]
+}
+
+model Template {
+  id           String       @id @default(cuid())
+  title        String       // e.g., "SHS Faculty Evaluation Form 2026"
+  level        EducationLevel
+  departmentId String?
+  department   Department?  @relation(fields: [departmentId], references: [id])
+  clusters     Cluster[]
+  evaluations  Evaluation[]
+  isActive     Boolean      @default(false)
+}
+
+model Cluster {
+  id         String      @id @default(cuid())
+  templateId String
+  title      String      // e.g., "Cluster 1: Communication Skills"
+  order      Int
+  template   Template    @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  criteria   Criterion[]
+}
+
+model Criterion {
+  id          String       @id @default(cuid())
+  clusterId   String
+  question    String       // The actual evaluation question text
+  type        QuestionType
+  options     Json?        // Stores choices for checkboxes/expectations dynamically
+  order       Int
+  cluster     Cluster      @relation(fields: [clusterId], references: [id], onDelete: Cascade)
+  answers     Answer[]
+}
+
+model EvaluationReceipt {
+  id           String   @id @default(cuid())
+  studentEmail String
+  professorId  String
+  sectionId    String
+  academicYear String
+  semester     String
+  createdAt    DateTime @default(now())
+
+  @@unique([studentEmail, professorId, sectionId, academicYear, semester])
+}
+
+model Evaluation {
+  id           String      @id @default(cuid())
+  sectionId    String
+  professorId  String
+  departmentId String
+  templateId   String
+  academicYear String
+  semester     String
+  section      Section     @relation(fields: [sectionId], references: [id])
+  professor    Professor   @relation(fields: [professorId], references: [id])
+  department   Department  @relation(fields: [departmentId], references: [id])
+  template     Template    @relation(fields: [templateId], references: [id])
+  answers      Answer[]
+  createdAt    DateTime    @default(now())
+}
+
+model SystemSetting {
+  id            String @id @default("active")
+  academicYear  String @default("2026-2027")
+  semester      String @default("1st")
+}
+
+model Answer {
+  id           String     @id @default(cuid())
+  evaluationId String
+  criterionId  String
+  score        Int?       // Handles 0-4 or 1-5 scale marks
+  textVal      String?    // Handles custom textual input comments
+  jsonVal      Json?      // Handles choice arrays selected via checkboxes
+  evaluation   Evaluation @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+  criterion    Criterion  @relation(fields: [criterionId], references: [id])
+}
+
+model AiSummary {
+  id          String    @id @default(cuid())
+  professorId String
+  academicYear String
+  semester     String
+  summaryText String    @db.Text
+  ratingScore Float     // AI generated qualitative aggregate metric
+  updatedAt   DateTime  @updatedAt
+  professor   Professor @relation(fields: [professorId], references: [id], onDelete: Cascade)
+
+  @@unique([professorId, academicYear, semester])
+}
