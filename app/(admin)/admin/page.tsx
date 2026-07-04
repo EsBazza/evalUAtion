@@ -97,6 +97,16 @@ export default function AdminDashboard() {
   };
 
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const tab = params.get('tab');
+      if (tab === 'logs' || tab === 'settings' || tab === 'rankings') {
+        setActiveView(tab as ActiveView);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
     loadData();
   }, [activeView]);
 
@@ -204,15 +214,18 @@ export default function AdminDashboard() {
       <div className="max-w-7xl mx-auto space-y-8">
         
         {/* Header & Navigation */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 pb-6 border-b border-slate-200">
-          <div>
-            <h1 className="text-3xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-              <span className="bg-indigo-600 text-white px-3 py-1 rounded-xl text-2xl font-extrabold shadow-sm">UA</span>
-              evalUAtion Admin Portal
-            </h1>
-            <p className="text-sm text-slate-500 mt-1.5">Manage institutional departments, templates, and faculty ratings</p>
+        <div className="border-b border-slate-200 pb-4 space-y-4">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+              <h1 className="text-3xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+                <span className="bg-indigo-600 text-white px-3 py-1 rounded-xl text-2xl font-extrabold shadow-sm">UA</span>
+                evalUAtion Admin Portal
+              </h1>
+              <p className="text-sm text-slate-500 mt-1.5">Manage institutional departments, templates, and faculty ratings</p>
+            </div>
           </div>
-          <div className="flex flex-wrap gap-2">
+          
+          <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-100/80">
             {[
               { id: 'rankings', label: 'Rankings Ledger' },
               { id: 'departments', label: 'Faculty & Dept Manage', href: '/admin/management' },
@@ -234,7 +247,14 @@ export default function AdminDashboard() {
               return (
                 <button 
                   key={tab.id}
-                  onClick={() => { setActiveView(tab.id as ActiveView); setMessage(''); }}
+                  onClick={() => { 
+                    setActiveView(tab.id as ActiveView); 
+                    setMessage(''); 
+                    if (typeof window !== 'undefined') {
+                      const newUrl = tab.id === 'rankings' ? '/admin' : `/admin?tab=${tab.id}`;
+                      window.history.pushState(null, '', newUrl);
+                    }
+                  }}
                   className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl transition-all duration-200 border ${
                     activeView === tab.id 
                       ? 'bg-slate-900 border-slate-900 text-white shadow-sm' 

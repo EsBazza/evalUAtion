@@ -158,21 +158,47 @@ export default function FacultyDepartmentManagement() {
     <div className="min-h-screen bg-slate-50/50 py-10 px-4 sm:px-6">
       <div className="max-w-7xl mx-auto space-y-8">
         
-        {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-6 border-b border-gray-200">
-          <div>
-            <h1 className="text-3xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-              <span className="bg-indigo-600 text-white px-3 py-1 rounded-xl text-2xl font-extrabold shadow-sm">UA</span>
-              Faculty & Department Management
-            </h1>
-            <p className="text-sm text-slate-500 mt-1.5">Configure year levels, sections, and link faculty instructors to courses</p>
+        {/* Header & Navigation */}
+        <div className="border-b border-slate-200 pb-4 space-y-4">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+              <h1 className="text-3xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+                <span className="bg-indigo-600 text-white px-3 py-1 rounded-xl text-2xl font-extrabold shadow-sm">UA</span>
+                evalUAtion Admin Portal
+              </h1>
+              <p className="text-sm text-slate-500 mt-1.5">Configure year levels, sections, and link faculty instructors to courses</p>
+            </div>
           </div>
-          <Link 
-            href="/admin"
-            className="px-4 py-2 text-xs font-bold bg-white border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 uppercase tracking-wider transition-all"
-          >
-            Back to Dashboard
-          </Link>
+          
+          <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-100/80">
+            {[
+              { id: 'rankings', label: 'Rankings Ledger', href: '/admin' },
+              { id: 'departments', label: 'Faculty & Dept Manage', active: true },
+              { id: 'templates', label: 'Manage Templates', href: '/admin/templates' },
+              { id: 'logs', label: 'Activity Logs', href: '/admin?tab=logs' },
+              { id: 'settings', label: 'System Settings', href: '/admin?tab=settings' }
+            ].map((tab) => {
+              if (tab.active) {
+                return (
+                  <button 
+                    key={tab.id}
+                    className="px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl transition-all duration-200 border bg-slate-900 border-slate-900 text-white shadow-sm"
+                  >
+                    {tab.label}
+                  </button>
+                );
+              }
+              return (
+                <Link 
+                  key={tab.id}
+                  href={tab.href || '#'}
+                  className="px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl transition-all duration-200 border bg-white border-slate-200/60 text-slate-600 hover:bg-slate-50 flex items-center"
+                >
+                  {tab.label}
+                </Link>
+              );
+            })}
+          </div>
         </div>
 
         {/* Global Messages */}
