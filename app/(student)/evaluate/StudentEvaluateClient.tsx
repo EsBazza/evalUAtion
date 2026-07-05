@@ -111,6 +111,7 @@ export default function StudentEvaluateClient({ studentEmail }: StudentEvaluateC
   
   // Wizard states
   const [wizardStep, setWizardStep] = useState<1 | 2 | 3>(1); // 1: Selection, 2: Questionnaire, 3: Summary
+  const [questionnairePage, setQuestionnairePage] = useState(1); // Paginated questionnaire step
   const [selectedProf, setSelectedProf] = useState<any | null>(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -124,6 +125,8 @@ export default function StudentEvaluateClient({ studentEmail }: StudentEvaluateC
   });
 
   const evaluationForm = useForm({
+    mode: "onChange",
+    shouldUnregister: true,
     defaultValues: {
       answers: {} as Record<string, { score?: number; textVal?: string; jsonVal?: any }>
     }
@@ -141,6 +144,7 @@ export default function StudentEvaluateClient({ studentEmail }: StudentEvaluateC
       setTemplate(null);
       setValue('departmentId', '');
       setValue('sectionId', '');
+      evaluationForm.reset(); // Clear old answers!
 
       if (selectedLevel === 'JHS' || selectedLevel === 'SHS') {
         getDepartments(selectedLevel as any).then((deps) => {
@@ -160,6 +164,7 @@ export default function StudentEvaluateClient({ studentEmail }: StudentEvaluateC
       setProfessors([]);
       setTemplate(null);
       setValue('sectionId', '');
+      evaluationForm.reset(); // Clear old answers!
       getSections(selectedDepartmentId).then(setSections);
     }
   }, [selectedDepartmentId, setValue]);
@@ -167,6 +172,7 @@ export default function StudentEvaluateClient({ studentEmail }: StudentEvaluateC
   useEffect(() => {
     if (selectedSectionId) {
       getProfessorsBySection(selectedSectionId).then(setProfessors);
+      evaluationForm.reset(); // Clear old answers!
       
       if (selectedLevel === 'JHS' || selectedLevel === 'SHS') {
         getDepartments(selectedLevel as any).then((deps) => {
@@ -215,6 +221,7 @@ export default function StudentEvaluateClient({ studentEmail }: StudentEvaluateC
       evaluationForm.reset();
       setSelectedProf(null);
       setWizardStep(1);
+      setQuestionnairePage(1);
       setShowConfirmModal(false);
     } catch (err: any) {
       toast.error(err.message || "Failed to submit evaluation.");
@@ -225,7 +232,7 @@ export default function StudentEvaluateClient({ studentEmail }: StudentEvaluateC
 
   return (
     <div className="min-h-screen bg-slate-50/50 py-10 px-4 sm:px-6">
-      <div className="max-w-4xl mx-auto space-y-8">
+      <div className="max-w-5xl mx-auto space-y-8">
         
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-6 border-b border-gray-200">
@@ -392,6 +399,7 @@ export default function StudentEvaluateClient({ studentEmail }: StudentEvaluateC
                               if (!isCompleted) {
                                 setSelectedProf(prof);
                                 setWizardStep(2);
+                                setQuestionnairePage(1);
                               }
                             }}
                             className={`p-4 border rounded-2xl text-left transition-all ${
@@ -420,60 +428,185 @@ export default function StudentEvaluateClient({ studentEmail }: StudentEvaluateC
           )}
 
           {/* STEP 2: Fill Questionnaire */}
-          {wizardStep === 2 && selectedProf && template && (
-            <motion.div 
-              key="step-2"
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 10 }}
-              className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden"
-            >
-              <div className="p-6 border-b border-slate-100 bg-slate-50/40 flex justify-between items-center">
-                <div>
-                  <span className="text-xs font-bold text-slate-500 uppercase tracking-widest block">STEP 2: QUESTIONNAIRE</span>
-                  <h3 className="text-lg font-black text-slate-900">Evaluating: {selectedProf.name}</h3>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedProf(null);
-                    setWizardStep(1);
-                  }}
-                  className="px-3.5 py-1.5 border border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-slate-100 text-xs font-bold rounded-xl transition"
-                >
-                  ← Back
-                </button>
-              </div>
+          {wizardStep === 2 && selectedProf && template && (() => {
+            const midIndex = Math.ceil(template.clusters.length / 2);
+            const isPaginated = template.clusters.length > 2;
+            const page1Clusters = isPaginated ? template.clusters.slice(0, midIndex) : template.clusters;
+            const page2Clusters = isPaginated ? template.clusters.slice(midIndex) : [];
+            const currentClusters = (!isPaginated || questionnairePage === 1) ? page1Clusters : page2Clusters;
 
-              <form onSubmit={handleReview} className="p-6 space-y-6">
-                <div className="space-y-6">
-                  {template.clusters.map((cluster: any) => (
-                    <div key={cluster.id} className="space-y-4">
-                      <h4 className="text-md font-extrabold text-slate-900 border-l-4 border-indigo-600 pl-3 tracking-wide uppercase text-xs">
-                        {cluster.title}
-                      </h4>
-                      {cluster.criteria.map((criterion: any) => (
-                        <DynamicQuestionRenderer 
-                          key={criterion.id} 
-                          question={criterion} 
-                          control={evaluationForm.control} 
-                        />
-                      ))}
-                    </div>
-                  ))}
-                </div>
+            const getPageFieldNames = (clustersOnPage: any[]) => {
+              const fields: string[] = [];
+              clustersOnPage.forEach((cluster) => {
+                cluster.criteria.forEach((crit: any) => {
+                  if (crit.type === 'SCALE_1_TO_5' || crit.type === 'SCALE_0_TO_4') {
+                    fields.push(`answers.${crit.id}.score`);
+                  } else if (crit.type === 'TEXT_LONG' || crit.type === 'RADIO_EXPECTATION') {
+                    fields.push(`answers.${crit.id}.textVal`);
+                  } else if (crit.type === 'CHECKBOX_AREAS') {
+                    fields.push(`answers.${crit.id}.jsonVal`);
+                  }
+                });
+              });
+              return fields;
+            };
 
-                <div className="flex justify-end pt-6 border-t">
-                  <button 
-                    type="submit" 
-                    className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-600/10 hover:shadow-indigo-600/20 hover:-translate-y-0.5 active:translate-y-0 transition-all text-sm cursor-pointer"
+            const handleNextPage = async () => {
+              const fieldsToValidate = getPageFieldNames(page1Clusters);
+              // @ts-ignore
+              const isValid = await evaluationForm.trigger(fieldsToValidate);
+              if (isValid) {
+                setQuestionnairePage(2);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              } else {
+                toast.error("Please answer all required questions on this page before proceeding.");
+                setTimeout(() => {
+                  const firstError = document.querySelector('.text-red-500');
+                  if (firstError) {
+                    firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  }
+                }, 50);
+              }
+            };
+
+            const handleFormSubmit = async (e: React.FormEvent) => {
+              e.preventDefault();
+              if (isPaginated && questionnairePage === 1) {
+                await handleNextPage();
+                return;
+              }
+              
+              const allFields = getPageFieldNames(template.clusters);
+              // @ts-ignore
+              const isValid = await evaluationForm.trigger(allFields);
+              if (isValid) {
+                setWizardStep(3);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              } else {
+                toast.error("Please ensure all questions are answered properly.");
+                setTimeout(() => {
+                  const firstError = document.querySelector('.text-red-500');
+                  if (firstError) {
+                    firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  }
+                }, 50);
+              }
+            };
+
+            return (
+              <motion.div 
+                key={`step-2-${selectedProf.id}`}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 10 }}
+                className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden"
+              >
+                <div className="p-6 border-b border-slate-100 bg-slate-50/40 flex justify-between items-center">
+                  <div>
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-widest block">
+                      STEP 2: QUESTIONNAIRE {isPaginated ? `(Page ${questionnairePage} of 2)` : ''}
+                    </span>
+                    <h3 className="text-lg font-black text-slate-900">Evaluating: {selectedProf.name}</h3>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (isPaginated && questionnairePage === 2) {
+                        setQuestionnairePage(1);
+                      } else {
+                        evaluationForm.reset(); // Clear old answers!
+                        setSelectedProf(null);
+                        setWizardStep(1);
+                      }
+                    }}
+                    className="px-3.5 py-1.5 border border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-slate-100 text-xs font-bold rounded-xl transition"
                   >
-                    Review Answers →
+                    ← Back
                   </button>
                 </div>
-              </form>
-            </motion.div>
-          )}
+
+                <div className="p-6 space-y-6">
+                  {isPaginated && (
+                    <div className="flex gap-2 p-3.5 bg-indigo-50/30 border border-indigo-100/50 rounded-2xl items-center justify-between">
+                      <span className="text-xs font-bold text-indigo-950">Form Progress: Page {questionnairePage} of 2</span>
+                      <div className="flex gap-1.5">
+                        <div className={`h-2.5 w-10 rounded-full transition-all duration-300 ${questionnairePage === 1 ? 'bg-indigo-600' : 'bg-emerald-500'}`} />
+                        <div className={`h-2.5 w-10 rounded-full transition-all duration-300 ${questionnairePage === 2 ? 'bg-indigo-600' : 'bg-slate-200'}`} />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Introductory Letter */}
+                  {(!isPaginated || questionnairePage === 1) && (
+                    <div className="bg-indigo-50/35 border border-indigo-100/60 rounded-2xl p-5 sm:p-6 mb-6 space-y-3 relative overflow-hidden">
+                      <div className="absolute top-0 right-0 p-4 opacity-[0.03] pointer-events-none select-none text-indigo-950 text-8xl font-black">
+                        UA
+                      </div>
+                      <h4 className="text-sm font-bold text-indigo-950 flex items-center gap-2">
+                        <span className="text-base">✉️</span> Dear Student,
+                      </h4>
+                      <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-medium italic">
+                        Please accomplish this instrument with all sincerity and honesty. Your objective assessment is counted for the further improvement of instruction. Rest assured that your responses will be held strictly confidential and will not in any manner affect your grade in the subject. The summary of the results of this evaluation will only be made available to the instructor being evaluated in the next semester.
+                      </p>
+                      <div className="flex justify-between items-center pt-2 border-t border-indigo-100/40 text-[11px] font-bold text-indigo-800">
+                        <span>Thank You.</span>
+                        <span className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-indigo-950/60">
+                          🔒 Strictly Confidential
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="space-y-6">
+                    {currentClusters.map((cluster: any) => (
+                      <div key={cluster.id} className="space-y-4">
+                        <h4 className="text-sm font-extrabold text-slate-900 border-l-4 border-indigo-600 pl-3 tracking-wide uppercase">
+                          {cluster.title}
+                        </h4>
+                        {cluster.criteria.map((criterion: any) => (
+                          <DynamicQuestionRenderer 
+                            key={criterion.id} 
+                            question={criterion} 
+                            control={evaluationForm.control} 
+                          />
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="flex justify-between items-center pt-6 border-t">
+                    {isPaginated && questionnairePage === 2 ? (
+                      <button 
+                        type="button" 
+                        onClick={() => setQuestionnairePage(1)}
+                        className="px-5 py-2.5 bg-white border border-slate-200 text-slate-655 hover:bg-slate-50 font-bold rounded-xl text-sm transition"
+                      >
+                        ← Previous Page
+                      </button>
+                    ) : <div />}
+
+                    {isPaginated && questionnairePage === 1 ? (
+                      <button 
+                        type="button" 
+                        onClick={handleNextPage}
+                        className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-600/10 hover:shadow-indigo-600/20 hover:-translate-y-0.5 active:translate-y-0 transition-all text-sm cursor-pointer"
+                      >
+                        Next Page →
+                      </button>
+                    ) : (
+                      <button 
+                        type="button" 
+                        onClick={handleFormSubmit}
+                        className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-600/10 hover:shadow-indigo-600/20 hover:-translate-y-0.5 active:translate-y-0 transition-all text-sm cursor-pointer"
+                      >
+                        Review Answers →
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </motion.div>
+            );
+          })()}
 
           {/* STEP 3: Review Answers Summary */}
           {wizardStep === 3 && selectedProf && template && (
