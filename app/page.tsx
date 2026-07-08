@@ -41,7 +41,6 @@ export default async function HomePage() {
               <h2 className="text-[35px] font-black text-[#002366] tracking-wider uppercase leading-none">Assumption</h2>
             </div>
           </div>
-
           {/* Welcome message / Session status header */}
           {!session ? (
             <div className="space-y-2.5">
@@ -57,6 +56,17 @@ export default async function HomePage() {
               <p className="text-xs text-slate-500 font-medium leading-relaxed max-w-sm">
                 Please sign in with your official University Google account to access your dashboard.
               </p>
+
+              {/* Brand Title (visible only on mobile/tablet, centered and large) */}
+              <div className="flex flex-col items-center justify-center text-center pt-8 pb-4 md:hidden select-none w-full">
+                <h1 className="font-black uppercase tracking-tighter text-[26vw] xs:text-[24vw] sm:text-[8rem] leading-[0.8] flex flex-col items-center w-full">
+                  <span className="text-[#002366] w-full text-center">EVAL</span>
+                  <span className="flex justify-center w-full">
+                    <span className="text-[#FFBD00]">UA</span>
+                    <span className="text-[#002366]">TE</span>
+                  </span>
+                </h1>
+              </div>
             </div>
           ) : (
             <div className="space-y-2.5">
@@ -102,7 +112,7 @@ export default async function HomePage() {
                     href="/evaluate"
                     className="inline-block w-full text-center py-3 px-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all shadow-lg shadow-emerald-900/20 hover:shadow-emerald-700/35 hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
                   >
-                    Go to Student evalUAtion
+                    Go to Student evalUAte
                   </Link>
                 )}
 
@@ -143,7 +153,7 @@ export default async function HomePage() {
         </div>
 
         {/* BACKGROUND TEXT FOR LEFT PANEL (Split Word "eval") */}
-        <div className="absolute top-1/2 right-0 translate-y-[-50%] pointer-events-none select-none hidden lg:block z-0 pr-0">
+        <div className="absolute top-1/2 right-0 translate-y-[-50%] pointer-events-none select-none hidden md:block z-0 pr-0">
           <span
             className="text-right font-black uppercase tracking-tighter text-[7.5rem] xl:text-[8.5rem] 2xl:text-[9.5rem] leading-none bg-[linear-gradient(rgba(0,35,102,0.65),rgba(0,35,102,0.65)),url('/bg.jpg')] bg-clip-text text-transparent bg-cover bg-center bg-fixed select-none"
           >
@@ -155,7 +165,7 @@ export default async function HomePage() {
       {/* RIGHT COLUMN: Landscape Presentation (Visual / Split Typography) */}
       <div className="hidden md:flex flex-1 flex-col justify-between p-12 relative bg-black/10 group overflow-hidden">
         {/* Overlay of dark blue in the right side */}
-        <div className="absolute inset-0 bg-gradient-to-tr from-[#001133]/90 via-[#002366]/65 to-black/35 pointer-events-none z-0 group-hover:opacity-90 transition-opacity duration-700" />
+        <div className="absolute inset-0 bg-gradient-to-tr from-[#001133]/90 via-[#002366]/65 to-black/35 pointer-events-none z-0" />
 
         {/* Top Menu Navigation */}
         <div className="flex justify-end gap-6 z-10 text-[10px] font-black text-white/70 tracking-wider">
@@ -163,9 +173,9 @@ export default async function HomePage() {
         </div>
 
         {/* Bottom Narrative / Tagline */}
-        <div className="z-10 max-w-sm transition-all duration-500 transform group-hover:translate-y-[-6px]">
-          <span className="text-[10px] font-bold text-[#FFBD00] tracking-widest uppercase mb-1.5 block transition-colors duration-500 group-hover:text-white">01 / academic excellence</span>
-          <h3 className="text-white text-base font-extrabold tracking-tight leading-relaxed transition-colors duration-500 group-hover:text-[#FFBD00]">
+        <div className="z-10 max-w-sm">
+          <span className="text-[10px] font-bold text-[#FFBD00] tracking-widest uppercase mb-1.5 block">01 / academic excellence</span>
+          <h3 className="text-white text-base font-extrabold tracking-tight leading-relaxed">
             Empowering University of the Assumption students and faculty with secure, dynamic, and anonymous evaluations.
           </h3>
         </div>
@@ -175,18 +185,15 @@ export default async function HomePage() {
           ASSUMPTION • EXCELLENCE
         </div>
 
-        {/* BACKGROUND TEXT FOR RIGHT PANEL (Split Word "UAtion") */}
-        <div className="absolute top-1/2 left-0 translate-y-[-50%] pointer-events-none select-none hidden lg:block z-0 pl-0 transition-all duration-700 ease-out group-hover:translate-x-4">
-          <span className="relative text-left font-black uppercase tracking-tighter text-[7.5rem] xl:text-[8.5rem] 2xl:text-[9.5rem] leading-none select-none flex transition-all duration-700 ease-out group-hover:tracking-tight group-hover:scale-102">
-            {/* Ambient Bloom Glow */}
-            <span className="absolute inset-0 select-none pointer-events-none opacity-0 group-hover:opacity-25 blur-3xl transition-opacity duration-700 flex">
-              <span className="text-[#FFBD00]">UA</span>
-              <span className="text-white">tion</span>
+        {/* BACKGROUND TEXT FOR RIGHT PANEL (Split Word "UAte") */}
+        <div className="absolute top-1/2 left-0 translate-y-[-50%] pointer-events-none select-none hidden md:block z-0 pl-0">
+          <span className="text-left font-black uppercase tracking-tighter text-[7.5rem] xl:text-[8.5rem] 2xl:text-[9.5rem] leading-none select-none flex">
+            <span className="inline-block text-[#FFBD00] transition-transform duration-500 ease-out group-hover:translate-y-[-18px]">
+              UA
             </span>
-            
-            {/* Foreground Text */}
-            <span className="text-[#FFBD00] transition-colors duration-700 group-hover:text-[#FFC72C]">UA</span>
-            <span className="text-white transition-colors duration-700 group-hover:text-slate-100">tion</span>
+            <span className="inline-block text-white">
+              te
+            </span>
           </span>
         </div>
       </div>
