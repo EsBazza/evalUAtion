@@ -2,6 +2,7 @@
 
 import { signIn } from 'next-auth/react';
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { KeyRound, Mail, ShieldAlert, X } from 'lucide-react';
 
 export default function AdminLoginButton() {
@@ -45,45 +46,45 @@ export default function AdminLoginButton() {
           setUsername('');
           setPassword('');
         }}
-        className="text-xs text-slate-500 hover:text-slate-300 underline transition-colors cursor-pointer select-none"
+        className="text-[10px] font-bold text-slate-500 hover:text-[#FFBD00] uppercase tracking-widest transition-colors cursor-pointer select-none"
       >
         Credentials Sign In (Admin / Dev)
       </button>
 
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-sm p-4 animate-fade-in">
+      {showModal && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950 p-4 animate-fade-in">
           {/* Overlay click to close */}
           <div className="fixed inset-0" onClick={() => setShowModal(false)} />
           
           {/* Modal Container */}
-          <div className="relative bg-white border border-slate-200 rounded-3xl shadow-2xl max-w-md w-full overflow-hidden text-left z-10 animate-scale-up">
+          <div className="relative bg-slate-900 border border-white/10 rounded-3xl shadow-2xl max-w-md w-full overflow-hidden text-left z-10 animate-scale-up">
             
             {/* Header */}
-            <div className="p-6 pb-4 bg-slate-900 text-white relative">
+            <div className="p-6 pb-5 bg-gradient-to-r from-[#002366] to-[#001440] text-white relative border-b border-white/5">
               <button 
                 onClick={() => setShowModal(false)}
-                className="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors p-1 rounded-full hover:bg-slate-800"
+                className="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors p-1.5 rounded-full hover:bg-white/10"
               >
                 <X className="w-5 h-5" />
               </button>
-              <div className="w-12 h-12 bg-indigo-600 text-white rounded-xl flex items-center justify-center text-2xl font-black mb-3 shadow-md shadow-indigo-600/10">
-                UA
+              <div className="w-12 h-12 bg-white/5 border border-white/10 rounded-full flex items-center justify-center mb-3">
+                <img src="/ua-logo.png" alt="UA Logo" className="w-8 h-8 object-contain rounded-full" />
               </div>
-              <h3 className="text-lg font-black tracking-tight">Admin Portal Access</h3>
-              <p className="text-slate-400 text-xs mt-0.5">Please sign in with your administrative credentials</p>
+              <h3 className="text-lg font-black tracking-tight uppercase">Admin Portal Access</h3>
+              <p className="text-slate-300/80 text-[10px] font-bold uppercase tracking-wider mt-0.5">Please sign in with administrative credentials</p>
             </div>
 
             {/* Content */}
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               {error && (
-                <div className="p-3 bg-red-50 border border-red-100 text-red-700 rounded-xl text-xs font-semibold flex items-center gap-2 animate-fade-in">
-                  <ShieldAlert className="w-4 h-4 shrink-0 text-red-500" />
+                <div className="p-3 bg-[#D2143A]/10 border border-[#D2143A]/30 text-red-400 rounded-xl text-xs font-semibold flex items-center gap-2 animate-fade-in">
+                  <ShieldAlert className="w-4 h-4 shrink-0 text-[#D2143A]" />
                   <span>{error}</span>
                 </div>
               )}
 
               <div>
-                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+                <label className="block text-[9px] font-bold text-[#FFBD00] uppercase tracking-wider mb-1.5">
                   Username
                 </label>
                 <div className="relative">
@@ -95,7 +96,7 @@ export default function AdminLoginButton() {
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     placeholder="masteradmin"
-                    className="w-full pl-10 pr-4 py-2 border rounded-xl text-sm bg-slate-50/50 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-semibold text-slate-800"
+                    className="w-full pl-10 pr-4 py-2.5 border border-white/10 rounded-xl text-sm bg-black/20 focus:outline-none focus:ring-2 focus:ring-[#FFBD00]/30 focus:border-[#FFBD00]/50 transition-all font-semibold text-white placeholder-slate-500"
                     disabled={isLoading}
                     required
                   />
@@ -103,7 +104,7 @@ export default function AdminLoginButton() {
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+                <label className="block text-[9px] font-bold text-[#FFBD00] uppercase tracking-wider mb-1.5">
                   Password
                 </label>
                 <div className="relative">
@@ -115,18 +116,18 @@ export default function AdminLoginButton() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="w-full pl-10 pr-4 py-2 border rounded-xl text-sm bg-slate-50/50 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-semibold text-slate-800"
+                    className="w-full pl-10 pr-4 py-2.5 border border-white/10 rounded-xl text-sm bg-black/20 focus:outline-none focus:ring-2 focus:ring-[#FFBD00]/30 focus:border-[#FFBD00]/50 transition-all font-semibold text-white placeholder-slate-500"
                     disabled={isLoading}
                     required
                   />
                 </div>
               </div>
 
-              <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+              <div className="flex justify-end gap-2 pt-4 border-t border-white/5">
                 <button 
                   type="button" 
                   onClick={() => setShowModal(false)}
-                  className="px-4 py-2 bg-white border border-slate-200 text-slate-600 font-bold text-xs rounded-xl hover:bg-slate-50 transition-all"
+                  className="px-4 py-2.5 bg-transparent border border-white/10 text-slate-300 font-bold text-xs uppercase tracking-wider rounded-xl hover:bg-white/5 hover:text-white transition-all cursor-pointer"
                   disabled={isLoading}
                 >
                   Cancel
@@ -134,14 +135,15 @@ export default function AdminLoginButton() {
                 <button 
                   type="submit" 
                   disabled={isLoading}
-                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl transition-all shadow-md shadow-indigo-600/10 active:scale-[0.98] disabled:opacity-50 cursor-pointer"
+                  className="px-5 py-2.5 bg-gradient-to-r from-[#002366] to-[#001440] hover:from-[#002d80] hover:to-[#002366] text-white border border-[#FFBD00]/20 hover:border-[#FFBD00]/50 font-bold text-xs uppercase tracking-wider rounded-xl transition-all shadow-md shadow-[#002366]/20 active:scale-[0.98] disabled:opacity-50 cursor-pointer"
                 >
                   {isLoading ? 'Signing In...' : 'Sign In'}
                 </button>
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );

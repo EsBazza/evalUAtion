@@ -126,7 +126,7 @@ export default function StudentEvaluateClient({ studentEmail }: StudentEvaluateC
 
   const evaluationForm = useForm({
     mode: "onChange",
-    shouldUnregister: true,
+    shouldUnregister: false,
     defaultValues: {
       answers: {} as Record<string, { score?: number; textVal?: string; jsonVal?: any }>
     }
@@ -149,6 +149,7 @@ export default function StudentEvaluateClient({ studentEmail }: StudentEvaluateC
       if (selectedLevel === 'JHS' || selectedLevel === 'SHS') {
         getDepartments(selectedLevel as any).then((deps) => {
           if (deps.length > 0) {
+            setValue('departmentId', deps[0].id);
             getSections(deps[0].id).then(setSections);
           }
         });
