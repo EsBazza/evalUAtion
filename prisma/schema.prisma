@@ -158,3 +158,16 @@ model AiSummary {
 
   @@unique([professorId, academicYear, semester])
 }
+
+model SecureEvaluation {
+  id             String   @id @default(uuid())
+  facultyId      String
+  periodId       String
+  encryptedData  Bytes    // AES-GCM ciphertext of {scores, comments}
+  iv             Bytes
+  authTag        Bytes
+  submissionHash String   @unique // HMAC of studentId+facultyId+periodId, prevents duplicates without storing identity
+  createdAt      DateTime @default(now())
+
+  @@index([facultyId, periodId])
+}
