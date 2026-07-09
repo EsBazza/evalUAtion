@@ -59,6 +59,22 @@ export default function TemplatesDashboard() {
     loadTemplates();
   }, []);
 
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.kebab-container')) {
+        setActiveKebabId(null);
+      }
+    };
+
+    if (activeKebabId) {
+      document.addEventListener('click', handleOutsideClick);
+    }
+    return () => {
+      document.removeEventListener('click', handleOutsideClick);
+    };
+  }, [activeKebabId]);
+
   const handleCreateTemplate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
@@ -474,62 +490,62 @@ export default function TemplatesDashboard() {
                       )}
                     </td>
                     <td className="p-4 text-right relative">
-                      <div className="inline-block text-left">
+                      <div className="inline-block text-left kebab-container">
                         <button 
-                          onClick={() => setActiveKebabId(activeKebabId === temp.id ? null : temp.id)}
-                          className="px-2.5 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg text-slate-600 hover:text-slate-900 transition-all font-bold text-xs cursor-pointer"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveKebabId(activeKebabId === temp.id ? null : temp.id);
+                          }}
+                          className="px-2.5 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg text-slate-600 hover:text-slate-905 transition-all font-bold text-xs cursor-pointer"
                         >
                           Actions ⋮
                         </button>
                         
                         {activeKebabId === temp.id && (
-                          <>
-                            <div className="fixed inset-0 z-10" onClick={() => setActiveKebabId(null)} />
-                            <div className={`absolute right-0 w-44 bg-white border border-slate-200 rounded-xl shadow-lg py-1.5 z-20 animate-fade-in text-left ${
-                              isLastRow && sortedTemplates.length > 1 ? 'bottom-full mb-1' : 'mt-1'
-                            }`}>
-                              <Link 
-                                href={`/admin/templates/${temp.id}`}
-                                className="block w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition"
-                              >
-                                Open Builder
-                              </Link>
-                              
-                              {temp.isActive ? (
-                                <button 
-                                  onClick={() => {
-                                    setActiveKebabId(null);
-                                    handleDeactivate(temp.id);
-                                  }}
-                                  className="w-full text-left px-4 py-2.5 text-xs font-bold text-ua-red hover:bg-ua-red/5 transition cursor-pointer"
-                                >
-                                  Deactivate
-                                </button>
-                              ) : (
-                                <button 
-                                  onClick={() => {
-                                    setActiveKebabId(null);
-                                    handleOpenSetActiveModal(temp);
-                                  }}
-                                  className="w-full text-left px-4 py-2.5 text-xs font-bold text-ua-blue hover:bg-ua-blue/5 transition cursor-pointer"
-                                >
-                                  Set Active
-                                </button>
-                              )}
-                              
-                              <div className="border-t border-slate-100 my-1" />
-                              
+                          <div className={`absolute right-0 w-44 bg-white border border-slate-200 rounded-xl shadow-lg py-1.5 z-20 animate-fade-in text-left ${
+                            isLastRow && sortedTemplates.length > 1 ? 'bottom-full mb-1' : 'mt-1'
+                          }`}>
+                            <Link 
+                              href={`/admin/templates/${temp.id}`}
+                              className="block w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition"
+                            >
+                              Open Builder
+                            </Link>
+                            
+                            {temp.isActive ? (
                               <button 
                                 onClick={() => {
                                   setActiveKebabId(null);
-                                  handleDeleteTemplate(temp.id);
+                                  handleDeactivate(temp.id);
                                 }}
                                 className="w-full text-left px-4 py-2.5 text-xs font-bold text-ua-red hover:bg-ua-red/5 transition cursor-pointer"
                               >
-                                Delete
+                                Deactivate
                               </button>
-                            </div>
-                          </>
+                            ) : (
+                              <button 
+                                onClick={() => {
+                                  setActiveKebabId(null);
+                                  handleOpenSetActiveModal(temp);
+                                }}
+                                className="w-full text-left px-4 py-2.5 text-xs font-bold text-ua-blue hover:bg-ua-blue/5 transition cursor-pointer"
+                              >
+                                Set Active
+                              </button>
+                            )}
+                            
+                            <div className="border-t border-slate-100 my-1" />
+                            
+                            <button 
+                              onClick={() => {
+                                setActiveKebabId(null);
+                                handleDeleteTemplate(temp.id);
+                              }}
+                              className="w-full text-left px-4 py-2.5 text-xs font-bold text-ua-red hover:bg-ua-red/5 transition cursor-pointer"
+                            >
+                              Delete
+                            </button>
+                          </div>
                         )}
                       </div>
                     </td>

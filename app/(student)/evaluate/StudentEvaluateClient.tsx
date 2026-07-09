@@ -639,6 +639,16 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
                     </div>
                   )}
 
+                  {/* Template Instructions */}
+                  {template.instructions && (!isPaginated || questionnairePage === 1) && (
+                    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 mb-6 space-y-2">
+                      <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Evaluation Instructions</h4>
+                      <p className="text-xs sm:text-sm text-slate-700 leading-relaxed font-semibold">
+                        {template.instructions}
+                      </p>
+                    </div>
+                  )}
+
                   <div className="space-y-6">
                     {currentClusters.map((cluster: any) => (
                       <div key={cluster.id} className="space-y-4">

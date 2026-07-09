@@ -55,15 +55,16 @@ export async function importTemplateFromFile(formData: FormData) {
   }
 
   // Step B (AI Parsing): Call Gemini models with prompt
-  const systemPrompt = `You are an expert data extraction assistant. Read the provided raw text from a university evaluation form and convert it into a strict JSON object matching this schema: {"clusters": [ { "title": "Cluster Name", "order": 1, "criteria": [ { "question": "Question text", "type": "SCALE_0_TO_4" | "TEXT_LONG" | "CHECKBOX_AREAS" | "RADIO_EXPECTATION", "order": 1, "options": ["Option 1", "Option 2"] } ] } ] }.
+  const systemPrompt = `You are an expert data extraction assistant. Read the provided raw text from a university evaluation form and convert it into a strict JSON object matching this schema: {"instructions": "Optional instructions text extracted from document headers or instructions sections", "clusters": [ { "title": "Cluster Name", "order": 1, "criteria": [ { "question": "Question text", "type": "SCALE_0_TO_4" | "TEXT_LONG" | "CHECKBOX_AREAS" | "RADIO_EXPECTATION", "order": 1, "options": ["Option 1", "Option 2"] } ] } ] }.
 
 CRITICAL INSTRUCTIONS:
-1. Extract all numbered clusters and their 1-5/0-4 scale questions (use SCALE_0_TO_4 for these).
-2. DO NOT IGNORE the sections at the bottom (e.g., "OTHER COMMENTS AND SUGGESTIONS", "How would you like to rate this teacher", "characteristics", "areas to improve").
-3. Create a final Cluster titled "General Feedback" for these trailing questions.
-4. For the "rate this teacher" question, set type to "RADIO_EXPECTATION" and populate the options array with the choices.
-5. For the "needs to improve on" question, set the type to "CHECKBOX_AREAS" and populate the options array with the list of skills.
-6. For open-ended questions (strong points, characteristics), set the type to "TEXT_LONG".
+1. Extract any global instructions or guidelines text of the evaluation form (e.g., "Please rate your instructor based on the following scale...", "Read each statement carefully..."). Set it as the "instructions" field in the root JSON.
+2. Extract all numbered clusters and their 1-5/0-4 scale questions (use SCALE_0_TO_4 for these).
+3. DO NOT IGNORE the sections at the bottom (e.g., "OTHER COMMENTS AND SUGGESTIONS", "How would you like to rate this teacher", "characteristics", "areas to improve").
+4. Create a final Cluster titled "General Feedback" for these trailing questions.
+5. For the "rate this teacher" question, set type to "RADIO_EXPECTATION" and populate the options array with the choices.
+6. For the "needs to improve on" question, set the type to "CHECKBOX_AREAS" and populate the options array with the list of skills.
+7. For open-ended questions (strong points, characteristics), set the type to "TEXT_LONG".
 Return ONLY valid JSON, no markdown formatting.`;
 
   const response = await ai.models.generateContent({
@@ -102,6 +103,7 @@ Return ONLY valid JSON, no markdown formatting.`;
         title,
         level,
         isActive: false,
+        instructions: data.instructions || null,
         ...(departmentId ? { departmentId } : {})
       }
     });

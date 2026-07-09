@@ -106,6 +106,7 @@ export async function deleteTemplateAction(templateId: string) {
 
 export async function saveEvaluationTemplate(templateId: string, data: {
   title: string;
+  instructions?: string | null;
   level: EducationLevel;
   clusters: {
     id?: string;
@@ -162,6 +163,7 @@ export async function saveEvaluationTemplate(templateId: string, data: {
     where: { id: templateId },
     data: {
       title: data.title,
+      instructions: data.instructions || null,
       level: data.level,
     }
   });
@@ -286,6 +288,7 @@ export async function setActiveTemplateAction(
       const cloned = await tx.template.create({
         data: {
           title: `${target.title}${suffix}`,
+          instructions: target.instructions,
           level: target.level,
           departmentId: targetDepartmentId,
           isActive: true

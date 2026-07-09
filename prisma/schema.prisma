@@ -75,6 +75,7 @@ model Professor {
 model Template {
   id           String       @id @default(cuid())
   title        String       // e.g., "SHS Faculty Evaluation Form 2026"
+  instructions String?      // e.g., "Please read the questions carefully..."
   level        EducationLevel
   departmentId String?
   department   Department?  @relation(fields: [departmentId], references: [id])

@@ -9,6 +9,7 @@ import Link from 'next/link';
 
 interface FormValues {
   title: string;
+  instructions?: string | null;
   level: EducationLevel;
   departmentId?: string | null;
   clusters: {
@@ -40,6 +41,7 @@ export default function TemplateEditor({ params }: { params: Promise<{ templateI
   const { register, control, handleSubmit, reset, watch, setValue } = useForm<FormValues>({
     defaultValues: {
       title: '',
+      instructions: '',
       level: 'COLLEGE',
       departmentId: null,
       clusters: []
@@ -95,6 +97,7 @@ export default function TemplateEditor({ params }: { params: Promise<{ templateI
 
           reset({
             title: data.title,
+            instructions: data.instructions || '',
             level: data.level as EducationLevel,
             departmentId: data.departmentId || null,
             clusters: formattedClusters
@@ -149,6 +152,7 @@ export default function TemplateEditor({ params }: { params: Promise<{ templateI
         }));
         reset({
           title: data.title,
+          instructions: data.instructions || '',
           level: data.level as EducationLevel,
           departmentId: data.departmentId || null,
           clusters: formattedClusters
@@ -243,6 +247,15 @@ export default function TemplateEditor({ params }: { params: Promise<{ templateI
                   Student View Simulator Mode
                 </div>
               </div>
+
+              {formValues.instructions && (
+                <div className="p-4 bg-slate-50 border border-slate-200/60 rounded-xl space-y-1">
+                  <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Instructions</h4>
+                  <p className="text-xs text-slate-700 leading-relaxed font-medium italic">
+                    "{formValues.instructions}"
+                  </p>
+                </div>
+              )}
 
               {formValues.clusters.length === 0 ? (
                 <p className="text-slate-400 text-center py-12 text-sm italic">This form has no question sections.</p>
@@ -373,6 +386,16 @@ export default function TemplateEditor({ params }: { params: Promise<{ templateI
                       </select>
                     </div>
                   )}
+                </div>
+
+                <div className="border-t border-slate-100 pt-3">
+                  <label className="block text-xs font-semibold text-slate-500 mb-1">Global Instructions / Guidelines</label>
+                  <textarea 
+                    {...register('instructions')} 
+                    placeholder="e.g., Please evaluate the instructor objectively based on your experience this semester. Use the rating scale provided in each section." 
+                    rows={3}
+                    className="w-full p-2.5 text-xs border border-slate-200 rounded-xl bg-white font-semibold text-slate-800 focus:ring-2 focus:ring-ua-blue/20 focus:border-ua-blue outline-none"
+                  />
                 </div>
               </div>
 
