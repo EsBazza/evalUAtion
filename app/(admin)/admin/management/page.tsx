@@ -29,6 +29,7 @@ export default function FacultyDepartmentManagement() {
   const [showFacultyForm, setShowFacultyForm] = useState(false);
   const [newFacultyName, setNewFacultyName] = useState('');
   const [newFacultyEmail, setNewFacultyEmail] = useState('');
+  const [newFacultySelectedSections, setNewFacultySelectedSections] = useState<string[]>([]);
 
   const [editingFaculty, setEditingFaculty] = useState<any | null>(null);
   const [editFacultyName, setEditFacultyName] = useState('');
@@ -125,9 +126,10 @@ export default function FacultyDepartmentManagement() {
     setErrorMessage('');
     setMessage('');
     try {
-      await createProfessor(newFacultyName, newFacultyEmail, selectedDeptId);
+      await createProfessor(newFacultyName, newFacultyEmail, selectedDeptId, newFacultySelectedSections);
       setNewFacultyName('');
       setNewFacultyEmail('');
+      setNewFacultySelectedSections([]);
       setShowFacultyForm(false);
       setMessage("Faculty created successfully!");
       loadDeptDetails(selectedDeptId);
@@ -502,6 +504,32 @@ export default function FacultyDepartmentManagement() {
                               required
                             />
                           </div>
+                        </div>
+                        <div className="space-y-2 text-left">
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">Assign Year & Sections</label>
+                          {deptDetails.sections.length === 0 ? (
+                            <p className="text-xs text-slate-450 italic">No sections exist in this department. Create sections first.</p>
+                          ) : (
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-3 bg-white border border-slate-200/60 rounded-xl max-h-40 overflow-y-auto">
+                              {deptDetails.sections.map((sec: any) => (
+                                <label key={sec.id} className="flex items-center space-x-2.5 cursor-pointer p-1.5 hover:bg-slate-50 rounded-lg transition-all text-slate-700">
+                                  <input 
+                                    type="checkbox"
+                                    checked={newFacultySelectedSections.includes(sec.id)}
+                                    onChange={(e) => {
+                                      if (e.target.checked) {
+                                        setNewFacultySelectedSections(prev => [...prev, sec.id]);
+                                      } else {
+                                        setNewFacultySelectedSections(prev => prev.filter(id => id !== sec.id));
+                                      }
+                                    }}
+                                    className="h-4 w-4 text-[#002366] rounded border-slate-300 focus:ring-[#002366]"
+                                  />
+                                  <span className="text-xs font-bold">{sec.name}</span>
+                                </label>
+                              ))}
+                            </div>
+                          )}
                         </div>
                         <div className="flex justify-end gap-2">
                           <button 

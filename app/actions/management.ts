@@ -31,7 +31,7 @@ export async function createSection(name: string, departmentId: string) {
   });
 }
 
-export async function createProfessor(name: string, email: string, departmentId: string) {
+export async function createProfessor(name: string, email: string, departmentId: string, sectionIds?: string[]) {
   if (!name.trim() || !email.trim()) throw new Error("Name and Email are required");
   
   // Verify email domain constraint
@@ -48,6 +48,9 @@ export async function createProfessor(name: string, email: string, departmentId:
       name,
       email,
       departmentId,
+      sections: sectionIds && sectionIds.length > 0 ? {
+        connect: sectionIds.map(id => ({ id })),
+      } : undefined,
     },
   });
 

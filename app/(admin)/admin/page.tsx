@@ -8,7 +8,8 @@ import {
   getTemplates, 
   createTemplate, 
   getFacultyRankings,
-  getEvaluationReceipts
+  getEvaluationReceipts,
+  getFacultyFeedback
 } from '@/app/actions/admin';
 import { EducationLevel, Role } from '@prisma/client';
 import Link from 'next/link';
@@ -46,6 +47,12 @@ function AdminDashboardContent() {
   const [templates, setTemplates] = useState<any[]>([]);
   const [admins, setAdmins] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+
+  // Level and Feedback states
+  const [selectedLevelTab, setSelectedLevelTab] = useState<'ALL' | 'JHS' | 'SHS' | 'COLLEGE' | 'GRADUATE'>('ALL');
+  const [selectedFeedbackProf, setSelectedFeedbackProf] = useState<any | null>(null);
+  const [feedbacks, setFeedbacks] = useState<any[]>([]);
+  const [loadingFeedback, setLoadingFeedback] = useState(false);
 
   // Sorting states for rankings
   const [sortField, setSortField] = useState('name');
@@ -175,6 +182,19 @@ function AdminDashboardContent() {
     }
   };
 
+  const handleOpenFeedback = async (prof: any) => {
+    setSelectedFeedbackProf(prof);
+    setLoadingFeedback(true);
+    try {
+      const data = await getFacultyFeedback(prof.id);
+      setFeedbacks(data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingFeedback(false);
+    }
+  };
+
   const handleSort = (field: string) => {
     if (sortField === field) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
@@ -247,14 +267,44 @@ function AdminDashboardContent() {
       ) : (
         <>
           {activeView === 'rankings' && (() => {
-            const rankingChartData = sortedRankings.map((r) => ({
+            const filteredRankings = rankings.filter((r) => 
+              selectedLevelTab === 'ALL' ? true : r.level === selectedLevelTab
+            );
+
+            const sortedFilteredRankings = [...filteredRankings].sort((a, b) => {
+              let valA = '';
+              let valB = '';
+
+              if (sortField === 'name') {
+                valA = a.name || '';
+                valB = b.name || '';
+              } else if (sortField === 'email') {
+                valA = a.email || '';
+                valB = b.email || '';
+              } else if (sortField === 'department') {
+                valA = a.department || '';
+                valB = b.department || '';
+              } else if (sortField === 'score') {
+                const numA = a.averageScore !== null ? a.averageScore : -1;
+                const numB = b.averageScore !== null ? b.averageScore : -1;
+                return sortDirection === 'asc' ? numA - numB : numB - numA;
+              }
+
+              const cleanA = valA.toLowerCase();
+              const cleanB = valB.toLowerCase();
+              if (cleanA < cleanB) return sortDirection === 'asc' ? -1 : 1;
+              if (cleanA > cleanB) return sortDirection === 'asc' ? 1 : -1;
+              return 0;
+            });
+
+            const rankingChartData = sortedFilteredRankings.map((r) => ({
               name: r.name,
               score: r.averageScore || 0,
               department: r.department,
             }));
 
             const deptAverageMap = new Map<string, { total: number; count: number }>();
-            rankings.forEach((r) => {
+            filteredRankings.forEach((r) => {
               if (r.averageScore === null || r.averageScore === undefined) return;
               const val = deptAverageMap.get(r.department) || { total: 0, count: 0 };
               val.total += r.averageScore;
@@ -269,6 +319,29 @@ function AdminDashboardContent() {
 
             return (
               <>
+                {/* Level Filter Tabs */}
+                <div className="flex flex-wrap gap-2 mb-6 bg-slate-100 p-1.5 rounded-2xl w-fit border border-slate-200/50 shadow-sm">
+                  {[
+                    { id: 'ALL', label: 'All Levels' },
+                    { id: 'JHS', label: 'Junior High (JHS)' },
+                    { id: 'SHS', label: 'Senior High (SHS)' },
+                    { id: 'COLLEGE', label: 'College' },
+                    { id: 'GRADUATE', label: 'Graduate School' },
+                  ].map((tab) => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setSelectedLevelTab(tab.id as any)}
+                      className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+                        selectedLevelTab === tab.id
+                          ? 'bg-white text-[#002366] shadow-md border-b-2 border-ua-gold font-extrabold'
+                          : 'text-slate-500 hover:text-slate-800'
+                      }`}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+
                 {/* Visual Analytics Grid */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
                   <div className="lg:col-span-2 bg-white border border-slate-200/80 p-6 rounded-2xl shadow-sm space-y-4">
@@ -318,12 +391,15 @@ function AdminDashboardContent() {
                       >
                         Score {sortField === 'score' ? (sortDirection === 'asc' ? '▴' : '▾') : '⇅'}
                       </th>
+                      <th className="p-4 text-xs font-bold uppercase tracking-wider select-none text-slate-500 text-right">
+                        Feedback
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {sortedRankings.length === 0 ? (
+                    {sortedFilteredRankings.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="p-12">
+                        <td colSpan={6} className="p-12">
                           <div className="p-12 text-center flex flex-col items-center justify-center max-w-md mx-auto space-y-4">
                             <div className="w-16 h-16 bg-slate-100 text-ua-blue/30 rounded-full flex items-center justify-center text-sm font-black shadow-inner">
                               N/A
@@ -338,7 +414,7 @@ function AdminDashboardContent() {
                         </td>
                       </tr>
                     ) : (
-                      sortedRankings.map((rank) => (
+                      sortedFilteredRankings.map((rank) => (
                         <tr key={rank.id} className="hover:bg-slate-50/50 transition-all">
                           <td className="p-4 text-sm font-semibold text-slate-900">{rank.name}</td>
                           <td className="p-4 text-sm text-slate-655 font-medium">{rank.email}</td>
@@ -352,6 +428,14 @@ function AdminDashboardContent() {
                             ) : (
                               <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">N/A</span>
                             )}
+                          </td>
+                          <td className="p-4 text-sm text-right">
+                            <button
+                              onClick={() => handleOpenFeedback(rank)}
+                              className="px-3.5 py-1.5 bg-[#002366] hover:bg-[#00184d] text-white text-xs font-bold rounded-xl transition cursor-pointer shadow-sm hover:shadow active:scale-95"
+                            >
+                              💬 Feedback
+                            </button>
                           </td>
                         </tr>
                       ))
@@ -790,6 +874,92 @@ function AdminDashboardContent() {
             </div>
           )}
         </>
+      )}
+
+      {/* Student Feedback Modal */}
+      {selectedFeedbackProf && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* Backdrop */}
+          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setSelectedFeedbackProf(null)} />
+          
+          {/* Modal Container */}
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col relative z-10 animate-fade-in">
+            {/* Header */}
+            <div className="p-6 border-b border-slate-100 bg-[#002366] text-white flex justify-between items-start">
+              <div>
+                <span className="text-[10px] font-bold text-slate-200 uppercase tracking-widest block mb-1">
+                  Faculty Evaluation Feedback
+                </span>
+                <h3 className="text-xl font-black text-white">{selectedFeedbackProf.name}</h3>
+                <p className="text-xs text-slate-300 mt-1 font-semibold">
+                  {selectedFeedbackProf.department} • {selectedFeedbackProf.level}
+                </p>
+              </div>
+              <button
+                onClick={() => setSelectedFeedbackProf(null)}
+                className="text-white/70 hover:text-white font-bold text-xl px-2 py-1 cursor-pointer select-none"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Content Body */}
+            <div className="flex-grow p-6 overflow-y-auto min-h-[300px]">
+              {loadingFeedback ? (
+                <div className="flex flex-col items-center justify-center py-20 space-y-3">
+                  <div className="w-10 h-10 border-4 border-[#002366] border-t-transparent rounded-full animate-spin" />
+                  <p className="text-slate-400 font-semibold text-xs uppercase tracking-wider">Loading feedback comments...</p>
+                </div>
+              ) : feedbacks.length === 0 ? (
+                <div className="text-center py-16 space-y-3">
+                  <div className="w-16 h-16 bg-slate-100 text-slate-400 rounded-full flex items-center justify-center mx-auto text-xl font-bold shadow-inner">
+                    💬
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-slate-800">No Student Remarks</h4>
+                    <p className="text-xs text-slate-450 max-w-xs mx-auto mt-1 leading-relaxed">
+                      No written feedback comments have been submitted for this professor in the current term.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center text-xs font-bold text-slate-450 border-b pb-2">
+                    <span>Student Written Remarks ({feedbacks.length})</span>
+                    <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full font-black">Anonymous</span>
+                  </div>
+                  
+                  <div className="space-y-3.5">
+                    {feedbacks.map((f) => (
+                      <div key={f.id} className="p-4 bg-slate-50 border border-slate-200/60 rounded-2xl space-y-2 text-left hover:bg-slate-100/30 transition-all">
+                        <p className="text-[10px] font-bold text-[#002366]/70 uppercase tracking-wide">
+                          Question: {f.question}
+                        </p>
+                        <blockquote className="text-xs text-slate-700 italic font-semibold leading-relaxed pl-3 border-l-2 border-ua-gold/70 py-0.5">
+                          "{f.feedback}"
+                        </blockquote>
+                        <div className="flex justify-between items-center text-[9px] font-bold text-slate-450 pt-1 border-t border-slate-100">
+                          <span>Section: {f.section}</span>
+                          <span>Submitted: {new Date(f.date).toLocaleDateString()}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-5 border-t bg-slate-50 flex justify-end">
+              <button
+                onClick={() => setSelectedFeedbackProf(null)}
+                className="px-5 py-2.5 bg-[#002366] hover:bg-[#00184d] text-white text-xs font-black uppercase tracking-wider rounded-xl transition cursor-pointer"
+              >
+                Close Panel
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

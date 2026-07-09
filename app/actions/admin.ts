@@ -89,6 +89,7 @@ export async function getFacultyRankings(academicYear?: string, semester?: strin
       name: prof.name,
       email: prof.email,
       department: prof.department.name,
+      level: prof.department.level,
       sections: prof.sections.map(s => s.name).join(', '),
       averageScore: cache?.compositeScore ?? null,
     });
@@ -96,6 +97,55 @@ export async function getFacultyRankings(academicYear?: string, semester?: strin
 
   return rankings;
 }
+
+export async function getFacultyFeedback(professorId: string, academicYear?: string, semester?: string) {
+  let termYear = academicYear;
+  let termSem = semester;
+
+  if (!termYear || !termSem) {
+    const settings = await prisma.systemSetting.findUnique({ where: { id: 'active' } });
+    termYear = settings?.academicYear || "2026-2027";
+    termSem = settings?.semester || "1st";
+  }
+
+  const answers = await prisma.answer.findMany({
+    where: {
+      evaluation: {
+        professorId,
+        academicYear: termYear,
+        semester: termSem,
+      },
+      textVal: {
+        not: null,
+      },
+      criterion: {
+        type: 'TEXT_LONG',
+      },
+    },
+    include: {
+      criterion: true,
+      evaluation: {
+        include: {
+          section: true,
+        },
+      },
+    },
+    orderBy: {
+      evaluation: {
+        createdAt: 'desc',
+      },
+    },
+  });
+
+  return answers.map(a => ({
+    id: a.id,
+    question: a.criterion.question,
+    feedback: a.textVal || '',
+    section: a.evaluation.section.name,
+    date: a.evaluation.createdAt.toISOString(),
+  }));
+}
+
 
 export async function getEvaluationReceipts() {
   const receipts = await prisma.evaluationReceipt.findMany({
