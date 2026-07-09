@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getDepartments } from '@/app/actions/admin';
+import { getDepartments, createDepartment } from '@/app/actions/admin';
+import { EducationLevel } from '@prisma/client';
 import { 
   getDepartmentDetails, 
   createSection, 
@@ -34,6 +35,11 @@ export default function FacultyDepartmentManagement() {
   const [editFacultyEmail, setEditFacultyEmail] = useState('');
   const [editSelectedSections, setEditSelectedSections] = useState<string[]>([]);
 
+  // Department Form state
+  const [showDeptForm, setShowDeptForm] = useState(false);
+  const [newDeptName, setNewDeptName] = useState('');
+  const [newDeptLevel, setNewDeptLevel] = useState<EducationLevel>('COLLEGE');
+
   // Sorting and kebab states
   const [activeKebabId, setActiveKebabId] = useState<string | null>(null);
   const [sortField, setSortField] = useState<string>('name');
@@ -47,18 +53,33 @@ export default function FacultyDepartmentManagement() {
       setSortDirection('asc');
     }
   };
+  const loadDeps = async () => {
+    setLoading(true);
+    const data = await getDepartments();
+    setDepartments(data);
+    setLoading(false);
+  };
 
   // Load departments on mount
   useEffect(() => {
-    async function loadDeps() {
-      setLoading(true);
-      const data = await getDepartments();
-      setDepartments(data);
-      setLoading(false);
-    }
     loadDeps();
   }, []);
 
+  const handleAddDepartment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newDeptName.trim()) return;
+    setErrorMessage('');
+    setMessage('');
+    try {
+      await createDepartment(newDeptName.trim(), newDeptLevel);
+      setNewDeptName('');
+      setShowDeptForm(false);
+      setMessage("Department created successfully!");
+      await loadDeps();
+    } catch (err: any) {
+      setErrorMessage(err.message || "Failed to create department");
+    }
+  };
   // Load selected department details
   const loadDeptDetails = async (id: string) => {
     setDetailsLoading(true);
@@ -184,9 +205,57 @@ export default function FacultyDepartmentManagement() {
         
         {/* Left Column: Departments List */}
         <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden h-fit">
-          <div className="p-5 border-b border-slate-100 bg-slate-50/40">
+          <div className="p-5 border-b border-slate-100 bg-slate-50/40 flex justify-between items-center">
             <h2 className="text-xs font-bold uppercase tracking-wider text-slate-800">Select Department</h2>
+            <button 
+              onClick={() => setShowDeptForm(!showDeptForm)}
+              className="text-[11px] font-bold text-ua-blue hover:text-indigo-850 hover:underline cursor-pointer"
+            >
+              {showDeptForm ? 'Cancel' : '+ Add'}
+            </button>
           </div>
+
+          {showDeptForm && (
+            <form onSubmit={handleAddDepartment} className="p-4 border-b border-slate-150 bg-slate-50/70 space-y-3 animate-fade-in">
+              <div>
+                <label className="block text-[9px] font-bold text-slate-450 uppercase tracking-wider mb-1">Department Name</label>
+                <input 
+                  type="text"
+                  value={newDeptName}
+                  onChange={(e) => setNewDeptName(e.target.value)}
+                  placeholder="e.g. Computer Studies"
+                  className="w-full p-2 text-xs border border-slate-200 rounded-lg bg-white focus:ring-1 focus:ring-ua-blue transition-all outline-none font-semibold text-slate-800"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-[9px] font-bold text-slate-450 uppercase tracking-wider mb-1">Education Level</label>
+                <select 
+                  value={newDeptLevel}
+                  onChange={(e) => setNewDeptLevel(e.target.value as EducationLevel)}
+                  className="w-full p-2 text-xs border border-slate-200 rounded-lg bg-white outline-none font-bold text-slate-700"
+                >
+                  <option value="COLLEGE">COLLEGE</option>
+                  <option value="GRADUATE">GRADUATE</option>
+                  <option value="SHS">SHS</option>
+                  <option value="JHS">JHS</option>
+                </select>
+              </div>
+              <div className="flex justify-end gap-1.5 pt-1">
+                <button 
+                  type="button" 
+                  onClick={() => setShowDeptForm(false)}
+                  className="px-2.5 py-1.5 bg-white border border-slate-200 text-slate-600 font-bold text-[10px] rounded-lg hover:bg-slate-50 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="px-2.5 py-1.5 bg-ua-blue hover:bg-ua-blue-dark text-white font-bold text-[10px] rounded-lg shadow-sm cursor-pointer">
+                  Save
+                </button>
+              </div>
+            </form>
+          )}
+
           <ul className="divide-y divide-slate-100">
             {loading ? (
               <li className="p-8 text-center text-slate-400 font-semibold animate-pulse">Syncing...</li>
