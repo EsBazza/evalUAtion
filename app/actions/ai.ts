@@ -219,13 +219,15 @@ export async function getOrComputeScoreCache(professorId: string, academicYear?:
     termSem = settings.semester;
   }
 
-  let cache = await prisma.scoreCache.findUnique({
+  if (!professorId || !termYear || !termSem) {
+    return null;
+  }
+
+  let cache = await prisma.scoreCache.findFirst({
     where: {
-      professorId_academicYear_semester: {
-        professorId,
-        academicYear: termYear,
-        semester: termSem
-      }
+      professorId,
+      academicYear: termYear,
+      semester: termSem
     }
   });
 
@@ -233,13 +235,11 @@ export async function getOrComputeScoreCache(professorId: string, academicYear?:
   if (!cache || cache.isStale) {
     await processFacultyEvaluationSummary(professorId, termYear, termSem);
     
-    cache = await prisma.scoreCache.findUnique({
+    cache = await prisma.scoreCache.findFirst({
       where: {
-        professorId_academicYear_semester: {
-          professorId,
-          academicYear: termYear,
-          semester: termSem
-        }
+        professorId,
+        academicYear: termYear,
+        semester: termSem
       }
     });
   }

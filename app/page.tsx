@@ -44,11 +44,6 @@ export default async function HomePage() {
           {/* Welcome message / Session status header */}
           {!session ? (
             <div className="space-y-2.5">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#002366]/5 border border-[#002366]/10 text-[10px] font-bold text-[#002366] uppercase tracking-wider w-fit">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#FFBD00] animate-pulse" />
-                Faculty Evaluation
-              </span>
-
               <h1 className="text-2xl font-black text-[#002366] tracking-tight uppercase">
                 Welcome Back
               </h1>
