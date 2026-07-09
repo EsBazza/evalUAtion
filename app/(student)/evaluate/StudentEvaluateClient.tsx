@@ -448,60 +448,77 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
 
               {/* Professor Selection Cards */}
               {selectedSectionId && (
-                <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
-                  <div className="border-b pb-3 flex items-center gap-2">
-                    <span className="text-xl">👨‍🏫</span>
-                    <div>
-                      <h3 className="text-sm font-bold uppercase tracking-wider text-slate-800">Assigned Instructors</h3>
-                      <p className="text-[10px] text-slate-400 font-medium">Choose an instructor to begin or complete their evaluation.</p>
+                <div className="space-y-6">
+                  <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
+                    <div className="border-b pb-3 flex items-center gap-2">
+                      <span className="text-xl">👨‍🏫</span>
+                      <div>
+                        <h3 className="text-sm font-bold uppercase tracking-wider text-slate-800">Your Instructors</h3>
+                        <p className="text-[10px] text-slate-400 font-medium">The list of instructors assigned to your section.</p>
+                      </div>
                     </div>
+
+                    {professors.length === 0 ? (
+                      <div className="p-8 text-center bg-slate-50 border rounded-xl font-semibold text-slate-400">No instructors assigned to this section.</div>
+                    ) : !template ? (
+                      <div className="p-8 text-center bg-amber-50 border border-amber-200 rounded-xl text-amber-800 font-semibold">
+                        <p>⚠️ No active evaluation form template registered for this level.</p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {professors.map((prof) => {
+                          const isCompleted = completedProfs.includes(prof.id);
+                          return (
+                            <div
+                              key={prof.id}
+                              className={`p-5 border rounded-2xl text-left transition-all duration-200 ${
+                                isCompleted 
+                                  ? 'border-emerald-100 bg-emerald-50/20 opacity-80' 
+                                  : 'border-slate-200 bg-slate-50/30'
+                              }`}
+                            >
+                              <div className="flex justify-between items-start gap-4">
+                                <div>
+                                  <span className="font-extrabold text-sm text-slate-900 block">{prof.name}</span>
+                                  <span className="text-[10px] text-slate-400 mt-1 block font-semibold">{prof.email}</span>
+                                </div>
+                                {isCompleted ? (
+                                  <span className="text-[9px] px-2.5 py-1 bg-emerald-50 border border-emerald-150 text-emerald-700 rounded-full font-black uppercase tracking-wider flex items-center gap-1 shrink-0">
+                                    ✓ Done
+                                  </span>
+                                ) : (
+                                  <span className="text-[9px] px-2.5 py-1 bg-amber-50 border border-amber-100 text-amber-600 rounded-full font-black uppercase tracking-wider shrink-0">
+                                    Pending
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
 
-                  {professors.length === 0 ? (
-                    <div className="p-8 text-center bg-slate-50 border rounded-xl font-semibold text-slate-400">No instructors assigned to this section.</div>
-                  ) : !template ? (
-                    <div className="p-8 text-center bg-amber-50 border border-amber-200 rounded-xl text-amber-800 font-semibold">
-                      <p>⚠️ No active evaluation form template registered for this level.</p>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {professors.map((prof) => {
-                        const isCompleted = completedProfs.includes(prof.id);
-                        return (
-                          <button
-                            key={prof.id}
-                            type="button"
-                            onClick={() => {
-                              if (!isCompleted) {
-                                setSelectedProf(prof);
-                                setWizardStep(2);
-                                setQuestionnairePage(1);
-                              }
-                            }}
-                            className={`p-5 border rounded-2xl text-left transition-all duration-200 ${
-                              isCompleted 
-                                ? 'border-emerald-100 bg-emerald-50/20 cursor-default opacity-80' 
-                                : 'border-slate-200/80 bg-white hover:border-ua-blue hover:bg-ua-blue/5 cursor-pointer shadow-sm hover:shadow-md'
-                            }`}
-                          >
-                            <div className="flex justify-between items-start gap-4">
-                              <div>
-                                <span className="font-extrabold text-sm text-slate-900 block">{prof.name}</span>
-                                <span className="text-[10px] text-slate-400 mt-1 block font-semibold">{prof.email}</span>
-                              </div>
-                              {isCompleted ? (
-                                <span className="text-[9px] px-2.5 py-1 bg-emerald-50 border border-emerald-150 text-emerald-700 rounded-full font-black uppercase tracking-wider flex items-center gap-1 shrink-0">
-                                  ✓ Done
-                                </span>
-                              ) : (
-                                <span className="text-[9px] px-2.5 py-1 bg-ua-blue/5 border border-ua-blue/10 text-ua-blue rounded-full font-black uppercase tracking-wider shrink-0">
-                                  Pending
-                                </span>
-                              )}
-                            </div>
-                          </button>
-                        );
-                      })}
+                  {professors.length > 0 && template && (
+                    <div className="flex justify-end pt-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          // Find first pending instructor
+                          const nextPendingProf = professors.find(p => !completedProfs.includes(p.id));
+                          if (nextPendingProf) {
+                            setSelectedProf(nextPendingProf);
+                            evaluationForm.reset();
+                            setWizardStep(2);
+                            setQuestionnairePage(1);
+                          } else {
+                            toast.error("All instructors in this section have already been evaluated!");
+                          }
+                        }}
+                        className="px-6 py-3 bg-gradient-to-r from-ua-blue to-ua-blue-dark text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-ua-blue/15 hover:shadow-lg cursor-pointer flex items-center gap-1.5"
+                      >
+                        Start Evaluation →
+                      </button>
                     </div>
                   )}
                 </div>

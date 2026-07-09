@@ -159,7 +159,8 @@ export function DynamicQuestionRenderer({ question, control }: DynamicQuestionRe
         <Controller
           name={`answers.${question.id}.jsonVal`}
           control={control}
-          render={({ field }) => {
+          rules={{ validate: (val) => (Array.isArray(val) && val.length > 0) || "Please select at least one option" }}
+          render={({ field, fieldState: { error } }) => {
             const selectedValues: string[] = Array.isArray(field.value) ? field.value : [];
             const handleCheckboxChange = (opt: string, checked: boolean) => {
               if (checked) {
@@ -169,19 +170,22 @@ export function DynamicQuestionRenderer({ question, control }: DynamicQuestionRe
               }
             };
             return (
-              <div className="space-y-2.5">
-                {optionsList.map((opt) => (
-                  <div key={opt} className="flex items-center space-x-2.5">
-                    <Checkbox 
-                      id={`${question.id}-${opt}`} 
-                      checked={selectedValues.includes(opt)}
-                      onCheckedChange={(checked) => handleCheckboxChange(opt, !!checked)}
-                    />
-                    <Label htmlFor={`${question.id}-${opt}`} className="text-sm font-semibold text-slate-700 cursor-pointer">
-                      {opt}
-                    </Label>
-                  </div>
-                ))}
+              <div>
+                <div className="space-y-2.5">
+                  {optionsList.map((opt) => (
+                    <div key={opt} className="flex items-center space-x-2.5">
+                      <Checkbox 
+                        id={`${question.id}-${opt}`} 
+                        checked={selectedValues.includes(opt)}
+                        onCheckedChange={(checked) => handleCheckboxChange(opt, !!checked)}
+                      />
+                      <Label htmlFor={`${question.id}-${opt}`} className="text-sm font-semibold text-slate-700 cursor-pointer">
+                        {opt}
+                      </Label>
+                    </div>
+                  ))}
+                </div>
+                {error && <p className="text-xs font-bold text-ua-red mt-2">{error.message}</p>}
               </div>
             );
           }}
@@ -192,14 +196,16 @@ export function DynamicQuestionRenderer({ question, control }: DynamicQuestionRe
         <Controller
           name={`answers.${question.id}.textVal`}
           control={control}
-          render={({ field }) => (
+          rules={{ required: "This feedback field is required" }}
+          render={({ field, fieldState: { error } }) => (
             <div>
               <Textarea 
                 {...field} 
                 value={field.value || ""}
-                placeholder="Enter your detailed feedback here (optional)..." 
+                placeholder="Enter your detailed feedback here..." 
                 className="min-h-[120px] w-full border border-slate-200 rounded-xl focus-visible:ring-ua-blue font-semibold text-sm text-slate-800 placeholder:text-slate-400 p-3 bg-slate-50 focus:bg-white transition-all duration-200"
               />
+              {error && <p className="text-xs font-bold text-ua-red mt-2">{error.message}</p>}
             </div>
           )}
         />
