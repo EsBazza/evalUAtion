@@ -641,11 +641,14 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
 
                   {/* Template Instructions */}
                   {template.instructions && (!isPaginated || questionnairePage === 1) && (
-                    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 mb-6 space-y-2">
-                      <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Evaluation Instructions</h4>
-                      <p className="text-xs sm:text-sm text-slate-700 leading-relaxed font-semibold">
-                        {template.instructions}
-                      </p>
+                    <div className="space-y-4 mb-6">
+                      <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2">
+                        <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Evaluation Instructions</h4>
+                        <p className="text-xs sm:text-sm text-slate-700 leading-relaxed font-semibold">
+                          {template.instructions}
+                        </p>
+                      </div>
+                      <RatingScaleLegend level={template.level} />
                     </div>
                   )}
 
@@ -815,6 +818,53 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
         )}
       </main>
       <Footer className="mt-auto" />
+    </div>
+  );
+}
+
+function RatingScaleLegend({ level }: { level: string }) {
+  const isZeroToFour = level === 'COLLEGE' || level === 'GRADUATE';
+  const steps = isZeroToFour 
+    ? [
+        { val: 0, label: 'Not at all true' },
+        { val: 1, label: 'Rarely true' },
+        { val: 2, label: 'Moderately true' },
+        { val: 3, label: 'Mostly true' },
+        { val: 4, label: 'Highly true' },
+      ]
+    : [
+        { val: 1, label: 'Poor / Strongly Disagree' },
+        { val: 2, label: 'Fair / Disagree' },
+        { val: 3, label: 'Satisfactory / Neutral' },
+        { val: 4, label: 'Very Satisfactory / Agree' },
+        { val: 5, label: 'Outstanding / Strongly Agree' },
+      ];
+
+  return (
+    <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-6 space-y-4 shadow-sm text-left">
+      <div className="flex justify-between items-center pb-2 border-b border-slate-200/50 bg-transparent">
+        <h4 className="text-[10px] font-bold text-slate-450 uppercase tracking-wider">Evaluation Rating Scale</h4>
+        <span className="text-[9px] bg-ua-blue/5 border border-ua-blue/10 text-ua-blue px-2.5 py-0.5 rounded-full font-bold uppercase">
+          {isZeroToFour ? '0 - 4 Scale' : '1 - 5 Scale'}
+        </span>
+      </div>
+      
+      {/* Visual Timeline/Axis */}
+      <div className="relative pt-2 pb-6">
+        <div className="absolute top-[21px] left-4 right-4 h-0.5 bg-slate-200" />
+        <div className="flex justify-between items-start relative z-10">
+          {steps.map((step) => (
+            <div key={step.val} className="flex flex-col items-center text-center space-y-2.5 max-w-[80px]">
+              <div className="w-8 h-8 rounded-full bg-white border-2 border-slate-300 flex items-center justify-center text-xs font-black text-slate-800 shadow-sm ring-4 ring-slate-50">
+                {step.val}
+              </div>
+              <span className="text-[9px] sm:text-[10px] text-slate-500 font-bold leading-tight">
+                {step.label}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
