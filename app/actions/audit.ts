@@ -31,16 +31,11 @@ export async function getAuditLogs() {
   try {
     // Authenticate admin access
     const session = await auth();
-    if (!session || !session.user?.email) {
+    if (!session || !session.user) {
       throw new Error('Unauthorized');
     }
 
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-      select: { role: true },
-    });
-
-    if (user?.role !== 'ADMIN') {
+    if ((session.user as any).role !== 'ADMIN') {
       throw new Error('Forbidden');
     }
 
