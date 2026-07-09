@@ -5,7 +5,7 @@ import { decrypt } from '@/lib/crypto/aes';
 
 export async function GET(
   req: Request,
-  context: { params: { facultyId: string } }
+  context: { params: Promise<{ facultyId: string }> }
 ) {
   try {
     const session = await auth();
@@ -42,10 +42,10 @@ export async function GET(
     const decryptedRecords = records.map(record => {
       try {
         const jsonStr = decrypt(
-          record.encryptedData,
+          Buffer.from(record.encryptedData),
           masterKey,
-          record.iv,
-          record.authTag
+          Buffer.from(record.iv),
+          Buffer.from(record.authTag)
         );
         return JSON.parse(jsonStr);
       } catch (err) {

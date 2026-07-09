@@ -20,7 +20,7 @@ export function DynamicQuestionRenderer({ question, control }: DynamicQuestionRe
 
   return (
     <div className="p-6 border border-slate-200/80 rounded-2xl bg-white shadow-sm mb-6 space-y-4 hover:shadow-md/50 transition-all duration-200">
-      <Label className="text-base font-bold text-slate-800 block leading-relaxed">
+      <Label className="text-sm font-bold text-slate-800 block leading-relaxed uppercase tracking-wider">
         {question.question}
       </Label>
 
@@ -39,10 +39,10 @@ export function DynamicQuestionRenderer({ question, control }: DynamicQuestionRe
                       key={val}
                       type="button"
                       onClick={() => field.onChange(val)}
-                      className={`w-12 h-12 rounded-full border-2 flex items-center justify-center font-black text-sm transition-all duration-200 select-none ${
+                      className={`w-12 h-12 rounded-full border-2 flex items-center justify-center font-black text-sm transition-all duration-200 select-none cursor-pointer ${
                         isSelected
-                          ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-600/20 scale-105'
-                          : 'bg-white border-slate-200 text-slate-655 hover:border-slate-300 hover:bg-slate-50/50'
+                          ? 'bg-ua-blue border-ua-blue text-white shadow-lg shadow-ua-blue/20 scale-105 ring-2 ring-ua-gold'
+                          : 'bg-white border-slate-200 text-slate-600 hover:border-slate-350 hover:bg-slate-50'
                       }`}
                     >
                       {val}
@@ -50,7 +50,7 @@ export function DynamicQuestionRenderer({ question, control }: DynamicQuestionRe
                   );
                 })}
               </div>
-              {error && <p className="text-xs font-semibold text-red-500 mt-2">{error.message}</p>}
+              {error && <p className="text-xs font-bold text-ua-red mt-2">{error.message}</p>}
             </div>
           )}
         />
@@ -71,10 +71,10 @@ export function DynamicQuestionRenderer({ question, control }: DynamicQuestionRe
                       key={val}
                       type="button"
                       onClick={() => field.onChange(val)}
-                      className={`w-12 h-12 rounded-full border-2 flex items-center justify-center font-black text-sm transition-all duration-200 select-none ${
+                      className={`w-12 h-12 rounded-full border-2 flex items-center justify-center font-black text-sm transition-all duration-200 select-none cursor-pointer ${
                         isSelected
-                          ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-600/20 scale-105'
-                          : 'bg-white border-slate-200 text-slate-655 hover:border-slate-300 hover:bg-slate-50/50'
+                          ? 'bg-ua-blue border-ua-blue text-white shadow-lg shadow-ua-blue/20 scale-105 ring-2 ring-ua-gold'
+                          : 'bg-white border-slate-200 text-slate-600 hover:border-slate-350 hover:bg-slate-50'
                       }`}
                     >
                       {val}
@@ -82,7 +82,7 @@ export function DynamicQuestionRenderer({ question, control }: DynamicQuestionRe
                   );
                 })}
               </div>
-              {error && <p className="text-xs font-semibold text-red-500 mt-2">{error.message}</p>}
+              {error && <p className="text-xs font-bold text-ua-red mt-2">{error.message}</p>}
             </div>
           )}
         />
@@ -98,10 +98,10 @@ export function DynamicQuestionRenderer({ question, control }: DynamicQuestionRe
               <RadioGroup 
                 value={field.value || ""} 
                 onValueChange={field.onChange}
-                className="space-y-2"
+                className="space-y-2.5"
               >
                 {optionsList.map((opt) => (
-                  <div key={opt} className="flex items-center space-x-2">
+                  <div key={opt} className="flex items-center space-x-2.5">
                     <RadioGroupItem value={opt} id={`${question.id}-${opt}`} />
                     <Label htmlFor={`${question.id}-${opt}`} className="text-sm font-semibold text-slate-700 cursor-pointer">
                       {opt}
@@ -109,7 +109,7 @@ export function DynamicQuestionRenderer({ question, control }: DynamicQuestionRe
                   </div>
                 ))}
               </RadioGroup>
-              {error && <p className="text-xs font-semibold text-red-500 mt-2">{error.message}</p>}
+              {error && <p className="text-xs font-bold text-ua-red mt-2">{error.message}</p>}
             </div>
           )}
         />
@@ -129,9 +129,9 @@ export function DynamicQuestionRenderer({ question, control }: DynamicQuestionRe
               }
             };
             return (
-              <div className="space-y-2">
+              <div className="space-y-2.5">
                 {optionsList.map((opt) => (
-                  <div key={opt} className="flex items-center space-x-2">
+                  <div key={opt} className="flex items-center space-x-2.5">
                     <Checkbox 
                       id={`${question.id}-${opt}`} 
                       checked={selectedValues.includes(opt)}
@@ -158,7 +158,7 @@ export function DynamicQuestionRenderer({ question, control }: DynamicQuestionRe
                 {...field} 
                 value={field.value || ""}
                 placeholder="Enter your detailed feedback here (optional)..." 
-                className="min-h-[120px] w-full border-slate-200 rounded-xl focus-visible:ring-indigo-600 font-medium text-sm text-slate-800 placeholder:text-slate-400"
+                className="min-h-[120px] w-full border border-slate-200 rounded-xl focus-visible:ring-ua-blue font-semibold text-sm text-slate-800 placeholder:text-slate-400 p-3 bg-slate-50 focus:bg-white transition-all duration-200"
               />
             </div>
           )}

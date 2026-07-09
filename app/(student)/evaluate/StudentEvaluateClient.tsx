@@ -9,6 +9,7 @@ import { DynamicQuestionRenderer } from '@/components/form/DynamicQuestionRender
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { signOut } from 'next-auth/react';
+import { Footer } from '@/components/layout/Footer';
 
 const EducationLevelEnum = z.enum(["JHS", "SHS", "COLLEGE", "GRADUATE"]);
 
@@ -30,6 +31,7 @@ type SelectionFormValues = z.infer<typeof selectionSchema>;
 
 interface StudentEvaluateClientProps {
   studentEmail: string;
+  studentName?: string;
 }
 
 // Custom Searchable Selector/Combobox Component
@@ -56,7 +58,7 @@ function SearchableSelector({ value, onChange, options, placeholder, emptyMessag
         type="button"
         disabled={disabled}
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full p-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50/50 hover:bg-slate-50 text-left flex justify-between items-center font-semibold disabled:opacity-50 disabled:cursor-not-allowed select-none transition-all"
+        className="w-full p-3 border border-slate-200 rounded-xl text-sm bg-white hover:bg-slate-50 text-left flex justify-between items-center font-bold disabled:opacity-50 disabled:cursor-not-allowed select-none transition-all shadow-sm focus:outline-none focus:ring-2 focus:ring-ua-blue/20"
       >
         <span className="truncate">{selectedOption ? selectedOption.name : placeholder}</span>
         <span className="text-slate-400 text-xs shrink-0 ml-2">▼</span>
@@ -65,13 +67,13 @@ function SearchableSelector({ value, onChange, options, placeholder, emptyMessag
       {isOpen && !disabled && (
         <>
           <div className="fixed inset-0 z-35" onClick={() => setIsOpen(false)} />
-          <div className="absolute left-0 mt-1 w-full bg-white border border-slate-200 rounded-xl shadow-lg p-2.5 z-40 space-y-2 animate-fade-in">
+          <div className="absolute left-0 mt-1.5 w-full bg-white border border-slate-200 rounded-xl shadow-lg p-2.5 z-40 space-y-2 animate-fade-in">
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Type to search..."
-              className="w-full p-2 text-xs border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-semibold outline-none text-slate-800"
+              className="w-full p-2.5 text-xs border border-slate-200 rounded-lg focus:ring-2 focus:ring-ua-blue/20 focus:border-ua-blue transition-all font-semibold outline-none text-slate-800"
               autoFocus
             />
             <ul className="max-h-40 overflow-y-auto divide-y divide-slate-100 text-xs">
@@ -87,7 +89,7 @@ function SearchableSelector({ value, onChange, options, placeholder, emptyMessag
                         setIsOpen(false);
                         setSearch('');
                       }}
-                      className="w-full text-left p-2.5 hover:bg-indigo-50/40 font-bold text-slate-700 hover:text-indigo-950 transition rounded-lg"
+                      className="w-full text-left p-2.5 hover:bg-ua-blue/5 font-bold text-slate-700 hover:text-ua-blue transition rounded-lg"
                     >
                       {opt.name}
                     </button>
@@ -102,7 +104,21 @@ function SearchableSelector({ value, onChange, options, placeholder, emptyMessag
   );
 }
 
-export default function StudentEvaluateClient({ studentEmail }: StudentEvaluateClientProps) {
+export default function StudentEvaluateClient({ studentEmail, studentName }: StudentEvaluateClientProps) {
+  let displayName = "Student";
+  if (studentName) {
+    const rawFirst = studentName.split(' ')[0];
+    if (rawFirst) {
+      displayName = rawFirst.charAt(0).toUpperCase() + rawFirst.slice(1).toLowerCase();
+    }
+  } else if (studentEmail) {
+    const emailPrefix = studentEmail.split('@')[0];
+    const firstName = emailPrefix.split('.')[0];
+    if (firstName) {
+      displayName = firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase();
+    }
+  }
+
   const [departments, setDepartments] = useState<any[]>([]);
   const [sections, setSections] = useState<any[]>([]);
   const [professors, setProfessors] = useState<any[]>([]);
@@ -232,47 +248,75 @@ export default function StudentEvaluateClient({ studentEmail }: StudentEvaluateC
   };
 
   return (
-    <div className="min-h-screen bg-slate-50/50 py-10 px-4 sm:px-6">
-      <div className="max-w-5xl mx-auto space-y-8">
-        
-        {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-6 border-b border-gray-200">
-          <div>
-            <h1 className="text-3xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-              <span className="bg-indigo-600 text-white px-3 py-1 rounded-xl text-2xl font-extrabold shadow-sm">UA</span>
-              Student evalUAtion Portal
-            </h1>
-            <p className="text-sm text-slate-500 mt-1.5 font-medium">
-              Anonymously submit feedback. Logged in as: <span className="font-semibold text-slate-800">{studentEmail}</span>
-            </p>
+    <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
+      {/* Premium Top Navigation Bar */}
+      <header className="sticky top-0 z-40 w-full bg-ua-blue text-white shadow-lg">
+        <div className="max-w-5xl mx-auto flex items-center justify-between px-4 sm:px-6 py-4">
+          <div className="flex items-center gap-3">
+            <img src="/ua-logo.png" alt="UA Logo" className="w-12 h-12 object-contain rounded-full" />
+            <div>
+              <h1 className="text-[10px] font-bold tracking-widest text-slate-300 leading-none mb-1">UNIVERSITY OF THE</h1>
+              <h2 className="text-lg font-black tracking-wide text-ua-gold uppercase leading-tight">Assumption</h2>
+            </div>
           </div>
           <button
             onClick={() => signOut({ callbackUrl: '/' })}
-            className="px-4 py-2 border border-slate-200 hover:bg-slate-100 text-slate-600 hover:text-slate-900 text-xs font-bold rounded-xl transition cursor-pointer"
+            className="px-4 py-2 border border-white/20 hover:bg-white/10 text-white text-xs font-bold rounded-xl transition cursor-pointer"
           >
             Sign Out
           </button>
         </div>
+      </header>
+
+      {/* Main Container */}
+      <main className="flex-grow max-w-5xl w-full mx-auto p-4 sm:p-6 md:p-8 space-y-8">
+        
+        {/* Welcome & Profile State Card */}
+        <div className="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="space-y-1">
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-ua-blue/5 border border-ua-blue/15 text-[9px] font-extrabold text-ua-blue uppercase tracking-wider">
+              <span className="w-1.5 h-1.5 rounded-full bg-ua-gold animate-pulse" />
+              Student evaluation portal
+            </span>
+            <h2 className="text-lg sm:text-xl font-black text-slate-800 tracking-tight">Welcome, {displayName}!</h2>
+            <p className="text-xs text-slate-500 font-semibold">Your anonymous feedback contributes directly to academic quality improvement</p>
+          </div>
+          <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+            <div className="px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-[10px] font-bold text-slate-600 truncate max-w-xs shadow-inner">
+              User: <span className="font-extrabold text-slate-800">{studentEmail}</span>
+            </div>
+            {selectedLevel && (
+              <span className="px-3 py-1.5 rounded-xl bg-ua-gold/10 border border-ua-gold/30 text-[10px] font-extrabold text-ua-gold-dark uppercase tracking-wider">
+                {selectedLevel}
+              </span>
+            )}
+            {selectedSectionId && sections.find(s => s.id === selectedSectionId) && (
+              <span className="px-3 py-1.5 rounded-xl bg-ua-blue text-white border border-ua-blue text-[10px] font-extrabold uppercase tracking-wider shadow-sm">
+                Sec: {sections.find(s => s.id === selectedSectionId)?.name}
+              </span>
+            )}
+          </div>
+        </div>
 
         {/* Wizard Steps indicator */}
-        <div className="flex items-center justify-between max-w-md mx-auto bg-white p-3 rounded-2xl border border-slate-200">
+        <div className="flex items-center justify-between max-w-md mx-auto bg-white p-3 rounded-2xl border border-slate-200 shadow-sm">
           {[
             { step: 1, label: 'Parameters' },
             { step: 2, label: 'Evaluate' },
             { step: 3, label: 'Review' }
           ].map((item) => (
             <div key={item.step} className="flex items-center gap-2">
-              <span className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs transition ${
+              <span className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs transition-all ${
                 wizardStep === item.step 
-                  ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/20' 
+                  ? 'bg-ua-blue text-white shadow-md shadow-ua-blue/20 ring-2 ring-ua-gold' 
                   : wizardStep > item.step 
                   ? 'bg-emerald-500 text-white'
                   : 'bg-slate-100 text-slate-400'
               }`}>
                 {wizardStep > item.step ? '✓' : item.step}
               </span>
-              <span className={`text-xs font-bold ${
-                wizardStep === item.step ? 'text-indigo-600' : 'text-slate-500'
+              <span className={`text-xs font-bold tracking-wide uppercase ${
+                wizardStep === item.step ? 'text-ua-blue' : 'text-slate-500'
               }`}>{item.label}</span>
             </div>
           ))}
@@ -283,13 +327,16 @@ export default function StudentEvaluateClient({ studentEmail }: StudentEvaluateC
           {wizardStep === 1 && (
             <motion.div 
               key="step-1"
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 10 }}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
               className="space-y-6"
             >
               <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-6">
-                <h2 className="text-lg font-bold text-slate-800 border-b pb-3">Course Parameters</h2>
+                <div className="border-b pb-3 flex items-center gap-2">
+                  <span className="text-xl">🛠️</span>
+                  <h2 className="text-sm font-bold uppercase tracking-wider text-slate-800">Course Parameters</h2>
+                </div>
                 
                 {/* Level Select Cards */}
                 <div className="space-y-2">
@@ -311,13 +358,13 @@ export default function StudentEvaluateClient({ studentEmail }: StudentEvaluateC
                               key={option.id}
                               type="button"
                               onClick={() => field.onChange(option.id)}
-                              className={`p-4 border rounded-2xl text-left transition-all cursor-pointer ${
+                              className={`p-4 border rounded-2xl text-left transition-all duration-200 cursor-pointer ${
                                 isActive 
-                                  ? 'border-indigo-600 bg-indigo-50/30 ring-2 ring-indigo-500/10' 
-                                  : 'border-slate-200 hover:bg-slate-50'
+                                  ? 'border-ua-blue bg-ua-blue/5 ring-2 ring-ua-blue/10' 
+                                  : 'border-slate-200 bg-white hover:bg-slate-50'
                               }`}
                             >
-                              <span className="font-extrabold text-sm text-slate-900 block">{option.title}</span>
+                              <span className={`font-extrabold text-sm block ${isActive ? 'text-ua-blue' : 'text-slate-900'}`}>{option.title}</span>
                               <span className="text-[10px] text-slate-500 mt-1 font-semibold block">{option.desc}</span>
                             </button>
                           );
@@ -325,7 +372,7 @@ export default function StudentEvaluateClient({ studentEmail }: StudentEvaluateC
                       </div>
                     )}
                   />
-                  {errors.level && <p className="text-red-500 text-xs mt-1.5 font-medium">{errors.level.message}</p>}
+                  {errors.level && <p className="text-red-600 text-xs mt-1.5 font-bold">{errors.level.message}</p>}
                 </div>
 
                 {/* Department and Section dropdowns */}
@@ -348,7 +395,7 @@ export default function StudentEvaluateClient({ studentEmail }: StudentEvaluateC
                             />
                           )}
                         />
-                        {errors.departmentId && <p className="text-red-500 text-xs mt-1.5 font-medium">{errors.departmentId.message}</p>}
+                        {errors.departmentId && <p className="text-red-600 text-xs mt-1.5 font-bold">{errors.departmentId.message}</p>}
                       </div>
                     )}
 
@@ -368,7 +415,7 @@ export default function StudentEvaluateClient({ studentEmail }: StudentEvaluateC
                           />
                         )}
                       />
-                      {errors.sectionId && <p className="text-red-500 text-xs mt-1.5 font-medium">{errors.sectionId.message}</p>}
+                      {errors.sectionId && <p className="text-red-600 text-xs mt-1.5 font-bold">{errors.sectionId.message}</p>}
                     </div>
                   </div>
                 )}
@@ -377,15 +424,18 @@ export default function StudentEvaluateClient({ studentEmail }: StudentEvaluateC
               {/* Professor Selection Cards */}
               {selectedSectionId && (
                 <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
-                  <div>
-                    <h3 className="text-lg font-bold text-slate-800">Assigned Instructors</h3>
-                    <p className="text-xs text-slate-500 mt-0.5">Choose an instructor to begin or complete their evaluation.</p>
+                  <div className="border-b pb-3 flex items-center gap-2">
+                    <span className="text-xl">👨‍🏫</span>
+                    <div>
+                      <h3 className="text-sm font-bold uppercase tracking-wider text-slate-800">Assigned Instructors</h3>
+                      <p className="text-[10px] text-slate-400 font-medium">Choose an instructor to begin or complete their evaluation.</p>
+                    </div>
                   </div>
 
                   {professors.length === 0 ? (
                     <div className="p-8 text-center bg-slate-50 border rounded-xl font-semibold text-slate-400">No instructors assigned to this section.</div>
                   ) : !template ? (
-                    <div className="p-8 text-center bg-amber-50 border border-amber-200 rounded-xl text-amber-800 font-semibold space-y-2">
+                    <div className="p-8 text-center bg-amber-50 border border-amber-200 rounded-xl text-amber-800 font-semibold">
                       <p>⚠️ No active evaluation form template registered for this level.</p>
                     </div>
                   ) : (
@@ -403,21 +453,27 @@ export default function StudentEvaluateClient({ studentEmail }: StudentEvaluateC
                                 setQuestionnairePage(1);
                               }
                             }}
-                            className={`p-4 border rounded-2xl text-left transition-all ${
+                            className={`p-5 border rounded-2xl text-left transition-all duration-200 ${
                               isCompleted 
-                                ? 'border-emerald-100 bg-emerald-50/40 cursor-default opacity-85' 
-                                : 'border-slate-200 hover:border-indigo-600 hover:bg-indigo-50/10 cursor-pointer hover:shadow-md'
+                                ? 'border-emerald-100 bg-emerald-50/20 cursor-default opacity-80' 
+                                : 'border-slate-200/80 bg-white hover:border-ua-blue hover:bg-ua-blue/5 cursor-pointer shadow-sm hover:shadow-md'
                             }`}
                           >
-                            <div className="flex justify-between items-start">
-                              <span className="font-extrabold text-sm text-slate-900 block">{prof.name}</span>
+                            <div className="flex justify-between items-start gap-4">
+                              <div>
+                                <span className="font-extrabold text-sm text-slate-900 block">{prof.name}</span>
+                                <span className="text-[10px] text-slate-400 mt-1 block font-semibold">{prof.email}</span>
+                              </div>
                               {isCompleted ? (
-                                <span className="text-[10px] px-2 py-0.5 bg-emerald-100 border border-emerald-200 text-emerald-700 rounded-full font-bold">Completed</span>
+                                <span className="text-[9px] px-2.5 py-1 bg-emerald-50 border border-emerald-150 text-emerald-700 rounded-full font-black uppercase tracking-wider flex items-center gap-1 shrink-0">
+                                  ✓ Done
+                                </span>
                               ) : (
-                                <span className="text-[10px] px-2 py-0.5 bg-slate-100 border border-slate-200 text-slate-500 rounded-full font-bold">Pending</span>
+                                <span className="text-[9px] px-2.5 py-1 bg-ua-blue/5 border border-ua-blue/10 text-ua-blue rounded-full font-black uppercase tracking-wider shrink-0">
+                                  Pending
+                                </span>
                               )}
                             </div>
-                            <span className="text-[10px] text-slate-400 mt-1 block truncate">{prof.email}</span>
                           </button>
                         );
                       })}
@@ -497,17 +553,17 @@ export default function StudentEvaluateClient({ studentEmail }: StudentEvaluateC
             return (
               <motion.div 
                 key={`step-2-${selectedProf.id}`}
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 10 }}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
                 className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden"
               >
                 <div className="p-6 border-b border-slate-100 bg-slate-50/40 flex justify-between items-center">
                   <div>
-                    <span className="text-xs font-bold text-slate-500 uppercase tracking-widest block">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-0.5">
                       STEP 2: QUESTIONNAIRE {isPaginated ? `(Page ${questionnairePage} of 2)` : ''}
                     </span>
-                    <h3 className="text-lg font-black text-slate-900">Evaluating: {selectedProf.name}</h3>
+                    <h3 className="text-lg font-black text-slate-900 leading-tight">Evaluating: {selectedProf.name}</h3>
                   </div>
                   <button
                     type="button"
@@ -520,7 +576,7 @@ export default function StudentEvaluateClient({ studentEmail }: StudentEvaluateC
                         setWizardStep(1);
                       }
                     }}
-                    className="px-3.5 py-1.5 border border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-slate-100 text-xs font-bold rounded-xl transition"
+                    className="px-3.5 py-1.5 border border-slate-200 text-slate-500 hover:text-slate-805 hover:bg-slate-50 text-xs font-bold rounded-xl transition cursor-pointer"
                   >
                     ← Back
                   </button>
@@ -528,31 +584,31 @@ export default function StudentEvaluateClient({ studentEmail }: StudentEvaluateC
 
                 <div className="p-6 space-y-6">
                   {isPaginated && (
-                    <div className="flex gap-2 p-3.5 bg-indigo-50/30 border border-indigo-100/50 rounded-2xl items-center justify-between">
-                      <span className="text-xs font-bold text-indigo-950">Form Progress: Page {questionnairePage} of 2</span>
+                    <div className="flex gap-2 p-3.5 bg-ua-blue/5 border border-ua-blue/10 rounded-2xl items-center justify-between">
+                      <span className="text-xs font-bold text-ua-blue-dark">Form Progress: Page {questionnairePage} of 2</span>
                       <div className="flex gap-1.5">
-                        <div className={`h-2.5 w-10 rounded-full transition-all duration-300 ${questionnairePage === 1 ? 'bg-indigo-600' : 'bg-emerald-500'}`} />
-                        <div className={`h-2.5 w-10 rounded-full transition-all duration-300 ${questionnairePage === 2 ? 'bg-indigo-600' : 'bg-slate-200'}`} />
+                        <div className={`h-2 w-10 rounded-full transition-all duration-300 ${questionnairePage === 1 ? 'bg-ua-blue' : 'bg-emerald-500'}`} />
+                        <div className={`h-2 w-10 rounded-full transition-all duration-300 ${questionnairePage === 2 ? 'bg-ua-blue' : 'bg-slate-200'}`} />
                       </div>
                     </div>
                   )}
 
                   {/* Introductory Letter */}
                   {(!isPaginated || questionnairePage === 1) && (
-                    <div className="bg-indigo-50/35 border border-indigo-100/60 rounded-2xl p-5 sm:p-6 mb-6 space-y-3 relative overflow-hidden">
-                      <div className="absolute top-0 right-0 p-4 opacity-[0.03] pointer-events-none select-none text-indigo-950 text-8xl font-black">
+                    <div className="bg-ua-blue/5 border border-ua-blue/10 rounded-2xl p-5 sm:p-6 mb-6 space-y-3 relative overflow-hidden">
+                      <div className="absolute top-0 right-0 p-4 opacity-[0.03] pointer-events-none select-none text-ua-blue text-8xl font-black">
                         UA
                       </div>
-                      <h4 className="text-sm font-bold text-indigo-950 flex items-center gap-2">
+                      <h4 className="text-sm font-bold text-ua-blue flex items-center gap-2">
                         <span className="text-base">✉️</span> Dear Student,
                       </h4>
-                      <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-medium italic">
+                      <p className="text-xs sm:text-sm text-slate-655 leading-relaxed font-medium italic">
                         Please accomplish this instrument with all sincerity and honesty. Your objective assessment is counted for the further improvement of instruction. Rest assured that your responses will be held strictly confidential and will not in any manner affect your grade in the subject. The summary of the results of this evaluation will only be made available to the instructor being evaluated in the next semester.
                       </p>
-                      <div className="flex justify-between items-center pt-2 border-t border-indigo-100/40 text-[11px] font-bold text-indigo-800">
+                      <div className="flex justify-between items-center pt-2 border-t border-ua-blue/10 text-[10px] font-bold text-ua-blue-dark">
                         <span>Thank You.</span>
-                        <span className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-indigo-950/60">
-                          🔒 Strictly Confidential
+                        <span className="flex items-center gap-1 text-[9px] uppercase tracking-wider text-ua-blue-dark/50">
+                          🔒 Anonymous & Confidential
                         </span>
                       </div>
                     </div>
@@ -561,7 +617,7 @@ export default function StudentEvaluateClient({ studentEmail }: StudentEvaluateC
                   <div className="space-y-6">
                     {currentClusters.map((cluster: any) => (
                       <div key={cluster.id} className="space-y-4">
-                        <h4 className="text-sm font-extrabold text-slate-900 border-l-4 border-indigo-600 pl-3 tracking-wide uppercase">
+                        <h4 className="text-xs font-extrabold text-slate-900 border-l-4 border-ua-blue pl-3 tracking-wide uppercase">
                           {cluster.title}
                         </h4>
                         {cluster.criteria.map((criterion: any) => (
@@ -580,7 +636,7 @@ export default function StudentEvaluateClient({ studentEmail }: StudentEvaluateC
                       <button 
                         type="button" 
                         onClick={() => setQuestionnairePage(1)}
-                        className="px-5 py-2.5 bg-white border border-slate-200 text-slate-655 hover:bg-slate-50 font-bold rounded-xl text-sm transition"
+                        className="px-5 py-2.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold rounded-xl text-sm transition cursor-pointer"
                       >
                         ← Previous Page
                       </button>
@@ -590,7 +646,7 @@ export default function StudentEvaluateClient({ studentEmail }: StudentEvaluateC
                       <button 
                         type="button" 
                         onClick={handleNextPage}
-                        className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-600/10 hover:shadow-indigo-600/20 hover:-translate-y-0.5 active:translate-y-0 transition-all text-sm cursor-pointer"
+                        className="px-6 py-3 bg-ua-blue hover:bg-ua-blue-dark text-white font-bold rounded-xl shadow-lg shadow-ua-blue/10 hover:shadow-ua-blue/20 hover:-translate-y-0.5 active:translate-y-0 transition-all text-sm cursor-pointer"
                       >
                         Next Page →
                       </button>
@@ -598,7 +654,7 @@ export default function StudentEvaluateClient({ studentEmail }: StudentEvaluateC
                       <button 
                         type="button" 
                         onClick={handleFormSubmit}
-                        className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-600/10 hover:shadow-indigo-600/20 hover:-translate-y-0.5 active:translate-y-0 transition-all text-sm cursor-pointer"
+                        className="px-6 py-3 bg-ua-blue hover:bg-ua-blue-dark text-white font-bold rounded-xl shadow-lg shadow-ua-blue/10 hover:shadow-ua-blue/20 hover:-translate-y-0.5 active:translate-y-0 transition-all text-sm cursor-pointer"
                       >
                         Review Answers →
                       </button>
@@ -613,22 +669,22 @@ export default function StudentEvaluateClient({ studentEmail }: StudentEvaluateC
           {wizardStep === 3 && selectedProf && template && (
             <motion.div 
               key="step-3"
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 10 }}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
               className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden"
             >
               <div className="p-6 border-b border-slate-100 bg-slate-50/40 flex justify-between items-center">
                 <div>
-                  <span className="text-xs font-bold text-slate-500 uppercase tracking-widest block">STEP 3: SUMMARY REVIEW</span>
-                  <h3 className="text-lg font-black text-slate-900">Summary: {selectedProf.name}</h3>
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-0.5">STEP 3: SUMMARY REVIEW</span>
+                  <h3 className="text-lg font-black text-slate-900 leading-tight">Review: {selectedProf.name}</h3>
                 </div>
                 <button
                   type="button"
                   onClick={() => setWizardStep(2)}
-                  className="px-3.5 py-1.5 border border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-slate-100 text-xs font-bold rounded-xl transition"
+                  className="px-3.5 py-1.5 border border-slate-200 text-slate-500 hover:text-slate-805 hover:bg-slate-50 text-xs font-bold rounded-xl transition cursor-pointer"
                 >
-                  ← Edit
+                  ← Edit Form
                 </button>
               </div>
 
@@ -636,14 +692,14 @@ export default function StudentEvaluateClient({ studentEmail }: StudentEvaluateC
                 <div className="space-y-6 max-h-[50vh] overflow-y-auto pr-2 divide-y divide-slate-100">
                   {template.clusters.map((cluster: any) => (
                     <div key={cluster.id} className="space-y-3 pt-4 first:pt-0">
-                      <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">{cluster.title}</h4>
+                      <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{cluster.title}</h4>
                       {cluster.criteria.map((criterion: any) => {
                         const ans = answers[criterion.id] || {};
                         let responseText = <span className="text-slate-400 italic">No Answer</span>;
 
                         if (criterion.type === 'SCALE_0_TO_4' || criterion.type === 'SCALE_1_TO_5') {
                           if (typeof ans.score === 'number') {
-                            responseText = <span className="text-indigo-600 font-extrabold text-sm">{ans.score} / {criterion.type === 'SCALE_0_TO_4' ? '4' : '5'}</span>;
+                            responseText = <span className="text-ua-blue font-extrabold text-sm">{ans.score} / {criterion.type === 'SCALE_0_TO_4' ? '4' : '5'}</span>;
                           }
                         } else if (criterion.type === 'TEXT_LONG') {
                           if (ans.textVal) {
@@ -661,13 +717,13 @@ export default function StudentEvaluateClient({ studentEmail }: StudentEvaluateC
                           }
                         } else if (criterion.type === 'RADIO_EXPECTATION') {
                           if (ans.textVal) {
-                            responseText = <span className="bg-indigo-50 border border-indigo-100 text-indigo-700 text-[10px] px-2.5 py-0.5 rounded-full font-bold">{ans.textVal}</span>;
+                            responseText = <span className="bg-ua-blue/5 border border-ua-blue/10 text-ua-blue text-[10px] px-2.5 py-0.5 rounded-full font-bold">{ans.textVal}</span>;
                           }
                         }
 
                         return (
-                          <div key={criterion.id} className="flex justify-between items-start gap-4 py-1.5">
-                            <span className="text-xs font-bold text-slate-800 flex-grow">{criterion.question}</span>
+                          <div key={criterion.id} className="flex justify-between items-start gap-4 py-2 border-b border-slate-50 last:border-b-0">
+                            <span className="text-xs font-semibold text-slate-805 text-slate-800 leading-relaxed flex-grow">{criterion.question}</span>
                             <div className="shrink-0">{responseText}</div>
                           </div>
                         );
@@ -676,14 +732,14 @@ export default function StudentEvaluateClient({ studentEmail }: StudentEvaluateC
                   ))}
                 </div>
 
-                <div className="flex justify-between items-center pt-6 border-t bg-slate-50 p-4 -mx-6 -mb-6">
-                  <span className="text-xs font-bold text-slate-500">🔒 Submitted data is 100% anonymous</span>
+                <div className="flex flex-col sm:flex-row gap-4 justify-between sm:items-center pt-6 border-t bg-slate-50 p-5 -mx-6 -mb-6">
+                  <span className="text-xs font-bold text-slate-500">🔒 Submitted evaluations are anonymized and locked</span>
                   <button 
                     type="button" 
                     onClick={() => setShowConfirmModal(true)}
-                    className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-lg shadow-emerald-600/10 hover:shadow-emerald-600/20 hover:-translate-y-0.5 active:translate-y-0 transition-all text-sm cursor-pointer"
+                    className="px-6 py-3 bg-ua-blue hover:bg-ua-blue-dark text-white font-extrabold rounded-xl shadow-lg shadow-ua-blue/10 hover:shadow-ua-blue/20 hover:-translate-y-0.5 active:translate-y-0 transition-all text-xs uppercase tracking-wider cursor-pointer"
                   >
-                    Submit evalUAtion
+                    Submit Evaluation
                   </button>
                 </div>
               </div>
@@ -696,10 +752,10 @@ export default function StudentEvaluateClient({ studentEmail }: StudentEvaluateC
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in">
             <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-sm w-full overflow-hidden flex flex-col p-6 space-y-4">
               <div className="text-center space-y-2">
-                <div className="w-12 h-12 bg-indigo-50 border border-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-xl font-bold mx-auto">🔒</div>
+                <div className="w-12 h-12 bg-ua-blue/5 border border-ua-blue/10 text-ua-blue rounded-full flex items-center justify-center text-xl font-bold mx-auto">🔒</div>
                 <h3 className="font-extrabold text-slate-900 text-base">Submit Anonymous Feedback</h3>
-                <p className="text-xs text-slate-500 leading-relaxed">
-                  Are you sure you want to submit your evaluation for <strong>{selectedProf.name}</strong>? This action is permanent and completely anonymous. You will not be able to change your feedback.
+                <p className="text-xs text-slate-500 leading-relaxed font-semibold">
+                  Are you sure you want to submit your evaluation for <strong>{selectedProf.name}</strong>? This action is permanent and completely anonymous.
                 </p>
               </div>
 
@@ -714,7 +770,7 @@ export default function StudentEvaluateClient({ studentEmail }: StudentEvaluateC
                 <button 
                   onClick={handleFinalSubmit}
                   disabled={isSubmitting}
-                  className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition shadow-md shadow-indigo-600/10 cursor-pointer"
+                  className="px-5 py-2.5 bg-ua-blue hover:bg-ua-blue-dark disabled:opacity-50 text-white rounded-xl text-xs font-bold transition shadow-md shadow-ua-blue/10 cursor-pointer uppercase tracking-wider"
                 >
                   {isSubmitting ? 'Submitting...' : 'Confirm & Submit'}
                 </button>
@@ -722,7 +778,8 @@ export default function StudentEvaluateClient({ studentEmail }: StudentEvaluateC
             </div>
           </div>
         )}
-      </div>
+      </main>
+      <Footer className="mt-auto" />
     </div>
   );
 }

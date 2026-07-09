@@ -64,9 +64,9 @@ export async function POST(req: Request) {
       data: {
         facultyId,
         periodId,
-        encryptedData: masterCiphertext,
-        iv: masterIv,
-        authTag: masterAuthTag,
+        encryptedData: new Uint8Array(masterCiphertext),
+        iv: new Uint8Array(masterIv),
+        authTag: new Uint8Array(masterAuthTag),
         submissionHash
       }
     });

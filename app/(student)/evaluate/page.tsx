@@ -8,5 +8,5 @@ export default async function Page() {
     redirect('/api/auth/signin');
   }
 
-  return <StudentEvaluateClient studentEmail={session.user.email} />;
+  return <StudentEvaluateClient studentEmail={session.user.email} studentName={session.user.name || undefined} />;
 }
