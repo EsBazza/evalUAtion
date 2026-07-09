@@ -6,6 +6,8 @@ import { createTemplateAction, deleteTemplateAction, setActiveTemplateAction, de
 import { importTemplateFromFile } from '@/app/actions/importTemplate';
 import { EducationLevel } from '@prisma/client';
 import Link from 'next/link';
+import { Trash2 } from 'lucide-react';
+
 
 export default function TemplatesDashboard() {
   const [templates, setTemplates] = useState<any[]>([]);
@@ -469,62 +471,38 @@ export default function TemplatesDashboard() {
                       <span className="inline-block px-2.5 py-0.5 bg-slate-100 border border-slate-200 text-slate-500 rounded-full font-semibold text-xs">Draft</span>
                     )}
                   </td>
-                  <td className="p-4 text-right relative">
-                    <div className="inline-block text-left">
-                      <button 
-                        onClick={() => setActiveKebabId(activeKebabId === temp.id ? null : temp.id)}
-                        className="px-2.5 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg text-slate-600 hover:text-slate-900 transition-all font-bold text-xs cursor-pointer"
+                  <td className="p-4 text-right">
+                    <div className="flex justify-end items-center gap-2">
+                      <Link 
+                        href={`/admin/templates/${temp.id}`}
+                        className="px-2.5 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg text-slate-700 hover:text-slate-900 transition-all font-bold text-xs uppercase tracking-wider"
                       >
-                        Actions ⋮
-                      </button>
+                        Build
+                      </Link>
                       
-                      {activeKebabId === temp.id && (
-                        <>
-                          <div className="fixed inset-0 z-10" onClick={() => setActiveKebabId(null)} />
-                          <div className="absolute right-0 mt-1 w-44 bg-white border border-slate-200 rounded-xl shadow-lg py-1.5 z-20 animate-fade-in text-left">
-                            <Link 
-                              href={`/admin/templates/${temp.id}`}
-                              className="block w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition"
-                            >
-                              Open Builder
-                            </Link>
-                            
-                            {temp.isActive ? (
-                              <button 
-                                onClick={() => {
-                                  setActiveKebabId(null);
-                                  handleDeactivate(temp.id);
-                                }}
-                                className="w-full text-left px-4 py-2.5 text-xs font-bold text-ua-red hover:bg-ua-red/5 transition cursor-pointer"
-                              >
-                                Deactivate
-                              </button>
-                            ) : (
-                              <button 
-                                onClick={() => {
-                                  setActiveKebabId(null);
-                                  handleOpenSetActiveModal(temp);
-                                }}
-                                className="w-full text-left px-4 py-2.5 text-xs font-bold text-ua-blue hover:bg-ua-blue/5 transition cursor-pointer"
-                              >
-                                Set Active
-                              </button>
-                            )}
-                            
-                            <div className="border-t border-slate-100 my-1" />
-                            
-                            <button 
-                              onClick={() => {
-                                setActiveKebabId(null);
-                                handleDeleteTemplate(temp.id);
-                              }}
-                              className="w-full text-left px-4 py-2.5 text-xs font-bold text-ua-red hover:bg-ua-red/5 transition cursor-pointer"
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </>
+                      {temp.isActive ? (
+                        <button 
+                          onClick={() => handleDeactivate(temp.id)}
+                          className="px-2.5 py-1.5 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg text-red-700 font-bold text-xs uppercase tracking-wider transition-all cursor-pointer"
+                        >
+                          Deactivate
+                        </button>
+                      ) : (
+                        <button 
+                          onClick={() => handleOpenSetActiveModal(temp)}
+                          className="px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg text-indigo-700 font-bold text-xs uppercase tracking-wider transition-all cursor-pointer"
+                        >
+                          Activate
+                        </button>
                       )}
+                      
+                      <button 
+                        onClick={() => handleDeleteTemplate(temp.id)}
+                        className="p-1.5 hover:bg-red-50 text-slate-400 hover:text-red-650 hover:text-red-600 rounded-lg transition-all cursor-pointer"
+                        title="Delete Template"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                   </td>
                 </tr>
