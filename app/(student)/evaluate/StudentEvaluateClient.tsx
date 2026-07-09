@@ -10,6 +10,8 @@ import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { signOut } from 'next-auth/react';
 import { Footer } from '@/components/layout/Footer';
+import { generateClientKeyPair, exportPublicKey, deriveSessionKey, encryptPayloadClient } from '@/lib/crypto/ecdh-client';
+
 
 const EducationLevelEnum = z.enum(["JHS", "SHS", "COLLEGE", "GRADUATE"]);
 
@@ -222,6 +224,24 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
     }));
 
     try {
+      // 1. Fetch server crypto session
+      const cryptoSessionRes = await fetch('/api/crypto/session');
+      if (!cryptoSessionRes.ok) {
+        throw new Error('Failed to establish security session with server.');
+      }
+      const { sessionId, publicKey: serverPublicKeyBase64 } = await cryptoSessionRes.json();
+
+      // 2. Perform client-side ECDH key exchange & encryption
+      const clientKeyPair = await generateClientKeyPair();
+      const clientPublicKey = await exportPublicKey(clientKeyPair.publicKey);
+      const sessionKey = await deriveSessionKey(clientKeyPair.privateKey, serverPublicKeyBase64);
+
+      const encrypted = await encryptPayloadClient(
+        { answers: formattedAnswers },
+        sessionKey
+      );
+
+      // 3. Submit encrypted evaluation details
       await submitProfessorEvaluation({
         studentEmail,
         sectionId: selectedSectionId,
@@ -229,6 +249,11 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
         departmentId: selectedDepartmentId || departments[0]?.id || "", 
         templateId: template.id,
         answers: formattedAnswers,
+        encryptedPayload: encrypted.ciphertext,
+        iv: encrypted.iv,
+        authTag: encrypted.authTag,
+        clientPublicKey,
+        sessionId,
       });
 
       setCompletedProfs(prev => [...prev, selectedProf.id]);

@@ -552,7 +552,14 @@ export default function FacultyDepartmentManagement() {
                               return 0;
                             }).map((prof: any) => (
                               <tr key={prof.id} className="hover:bg-slate-50/50">
-                                <td className="p-4 font-bold text-slate-900">{prof.name}</td>
+                                <td className="p-4 font-bold text-slate-900">
+                                  <Link 
+                                    href={`/admin/faculty/${prof.id}`}
+                                    className="text-indigo-600 hover:text-indigo-800 hover:underline cursor-pointer"
+                                  >
+                                    {prof.name}
+                                  </Link>
+                                </td>
                                 <td className="p-4 text-slate-600 text-xs font-semibold">{prof.email}</td>
                                 <td className="p-4 text-slate-600 text-xs">
                                   {prof.sections?.length > 0 ? (

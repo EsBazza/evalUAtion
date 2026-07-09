@@ -2,6 +2,8 @@
 
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
+import { writeAuditLog } from './audit';
+
 
 export async function getSystemSettings() {
   const settings = await prisma.systemSetting.findUnique({
@@ -26,11 +28,15 @@ export async function updateSystemSettings(academicYear: string, semester: strin
     throw new Error("Academic Year and Semester cannot be empty");
   }
 
-  return prisma.systemSetting.upsert({
+  const res = await prisma.systemSetting.upsert({
     where: { id: 'active' },
     update: { academicYear, semester },
     create: { id: 'active', academicYear, semester }
   });
+
+  await writeAuditLog('CONFIG_UPDATE', { desc: `Updated system terms to ${academicYear} ${semester}` });
+
+  return res;
 }
 
 export async function getAdmins() {
@@ -66,27 +72,28 @@ export async function elevateUserToAdmin(email: string, username?: string, passw
     where: { email: cleanEmail }
   });
 
-  if (existing) {
-    return prisma.user.update({
-      where: { id: existing.id },
-      data: { 
-        role: 'ADMIN',
-        username: cleanUsername || existing.username,
-        password: hashedPassword || existing.password
-      }
-    });
-  }
+  const user = existing
+    ? await prisma.user.update({
+        where: { id: existing.id },
+        data: { 
+          role: 'ADMIN',
+          username: cleanUsername || existing.username,
+          password: hashedPassword || existing.password
+        }
+      })
+    : await prisma.user.create({
+        data: {
+          email: cleanEmail,
+          role: 'ADMIN',
+          name: email.split('@')[0], // placeholder name
+          username: cleanUsername,
+          password: hashedPassword
+        }
+      });
 
-  // Create placeholder user
-  return prisma.user.create({
-    data: {
-      email: cleanEmail,
-      role: 'ADMIN',
-      name: email.split('@')[0], // placeholder name
-      username: cleanUsername,
-      password: hashedPassword
-    }
-  });
+  await writeAuditLog('USER_ELEVATION', { desc: `Elevated user ${email} to admin` });
+
+  return user;
 }
 
 export async function revokeAdminAction(userId: string) {
@@ -99,9 +106,18 @@ export async function revokeAdminAction(userId: string) {
     throw new Error("Cannot revoke privileges. There must be at least one System Administrator.");
   }
 
+  const targetUser = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { email: true }
+  });
+
   // Demote to FACULTY (safest default role)
-  return prisma.user.update({
+  const res = await prisma.user.update({
     where: { id: userId },
     data: { role: 'FACULTY' }
   });
+
+  await writeAuditLog('ADMIN_REVOKE', { desc: `Demoted admin ${targetUser?.email} to faculty` });
+
+  return res;
 }

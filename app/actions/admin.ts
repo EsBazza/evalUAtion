@@ -60,7 +60,9 @@ export async function createUser(email: string, name: string, role: Role, depart
   });
 }
 
+import { getOrComputeScoreCache } from './ai';
 import { getSystemSettings } from './settings';
+
 
 export async function getFacultyRankings(academicYear?: string, semester?: string) {
   let termYear = academicYear;
@@ -76,42 +78,23 @@ export async function getFacultyRankings(academicYear?: string, semester?: strin
     include: {
       department: true,
       sections: true,
-      evaluations: {
-        where: {
-          academicYear: termYear,
-          semester: termSem
-        },
-        include: {
-          answers: true,
-        },
-      },
     },
   });
 
-  return professors.map((prof) => {
-    let totalScore = 0;
-    let scoreCount = 0;
-
-    prof.evaluations.forEach((evalItem) => {
-      evalItem.answers.forEach((ans) => {
-        if (typeof ans.score === 'number') {
-          totalScore += ans.score;
-          scoreCount += 1;
-        }
-      });
-    });
-
-    const average = scoreCount > 0 ? Number((totalScore / scoreCount).toFixed(2)) : null;
-
-    return {
+  const rankings = [];
+  for (const prof of professors) {
+    const cache = await getOrComputeScoreCache(prof.id, termYear, termSem);
+    rankings.push({
       id: prof.id,
       name: prof.name,
       email: prof.email,
       department: prof.department.name,
       sections: prof.sections.map(s => s.name).join(', '),
-      averageScore: average,
-    };
-  });
+      averageScore: cache?.compositeScore ?? null,
+    });
+  }
+
+  return rankings;
 }
 
 export async function getEvaluationReceipts() {

@@ -1,13 +1,17 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { processFacultyEvaluationSummary, getFacultySummary, getFacultyProfessorId } from '@/app/actions/ai';
+import { processFacultyEvaluationSummary, getFacultyProfessorId } from '@/app/actions/ai';
+import { getFacultyProfileData } from '@/app/actions/management';
+import { RadarClusterChart } from '@/components/charts/RadarClusterChart';
+import { SectionBarChart } from '@/components/charts/SectionBarChart';
+import { toast } from 'sonner';
 
 export default function FacultyDashboard() {
   const [professorId, setProfessorId] = useState<string | null>(null);
   const [academicYear, setAcademicYear] = useState('2026-2027');
   const [semester, setSemester] = useState('1st');
-  const [summary, setSummary] = useState<any>(null);
+  const [profileData, setProfileData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   
@@ -19,16 +23,21 @@ export default function FacultyDashboard() {
     init();
   }, []);
 
-  const fetchSummary = async (id: string, year: string, sem: string) => {
+  const fetchProfileData = async (id: string, year: string, sem: string) => {
     setIsLoading(true);
-    const data = await getFacultySummary(id, year, sem);
-    setSummary(data);
-    setIsLoading(false);
+    try {
+      const data = await getFacultyProfileData(id, year, sem);
+      setProfileData(data);
+    } catch (err: any) {
+      toast.error("Failed to sync evaluation profile parameters.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   useEffect(() => {
     if (professorId) {
-      fetchSummary(professorId, academicYear, semester);
+      fetchProfileData(professorId, academicYear, semester);
     }
   }, [professorId, academicYear, semester]);
 
@@ -37,10 +46,11 @@ export default function FacultyDashboard() {
     setIsProcessing(true);
     const res = await processFacultyEvaluationSummary(professorId, academicYear, semester);
     if (res.success) {
-      await fetchSummary(professorId, academicYear, semester);
+      toast.success("AI analysis generated successfully!");
+      await fetchProfileData(professorId, academicYear, semester);
     } else {
-      alert(res.message || "Failed to process summary");
-      setSummary(null);
+      toast.error(res.message || "Failed to process summary");
+      setProfileData(null);
     }
     setIsProcessing(false);
   };
@@ -56,6 +66,9 @@ export default function FacultyDashboard() {
       </div>
     );
   }
+
+  const aiSummary = profileData?.aiSummary;
+  const scoreCache = profileData?.scoreCache;
 
   return (
     <div className="min-h-screen bg-slate-50/50 py-10 px-4 sm:px-6">
@@ -79,7 +92,7 @@ export default function FacultyDashboard() {
                   type="text" 
                   value={academicYear} 
                   onChange={(e) => setAcademicYear(e.target.value)} 
-                  className="p-2 border rounded-xl text-xs bg-white font-semibold w-28"
+                  className="p-2.5 border border-slate-200 rounded-xl text-xs bg-white font-semibold w-28 text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-600/10"
                 />
               </div>
               <div>
@@ -87,7 +100,7 @@ export default function FacultyDashboard() {
                 <select 
                   value={semester} 
                   onChange={(e) => setSemester(e.target.value)} 
-                  className="p-2 border rounded-xl text-xs bg-white font-semibold w-28"
+                  className="p-2.5 border border-slate-200 rounded-xl text-xs bg-white font-semibold w-28 text-slate-850 focus:outline-none"
                 >
                   <option value="1st">1st Sem</option>
                   <option value="2nd">2nd Sem</option>
@@ -99,12 +112,32 @@ export default function FacultyDashboard() {
             <button 
               onClick={handleGenerateSummary} 
               disabled={isProcessing || !professorId}
-              className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-lg shadow-indigo-600/10 hover:shadow-indigo-600/20 disabled:opacity-50 transition-all self-end"
+              className="px-5 py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-lg shadow-indigo-600/10 hover:shadow-indigo-600/20 disabled:opacity-50 transition-all self-end cursor-pointer"
             >
               {isProcessing ? "Processing..." : "Regenerate AI"}
             </button>
           </div>
         </div>
+
+        {/* Metric Overview Stripe */}
+        {scoreCache && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-white border border-slate-200/80 p-5 rounded-2xl shadow-sm flex items-center justify-between">
+              <div className="space-y-1">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Composite Performance Score</p>
+                <h2 className="text-3xl font-black text-slate-900">{scoreCache.compositeScore}%</h2>
+              </div>
+            </div>
+            <div className="bg-white border border-slate-200/80 p-5 rounded-2xl shadow-sm space-y-1">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Scale Questions Score</p>
+              <h2 className="text-3xl font-black text-slate-700">{scoreCache.scaleScore}%</h2>
+            </div>
+            <div className="bg-white border border-slate-200/80 p-5 rounded-2xl shadow-sm space-y-1">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">AI Sentiment Score</p>
+              <h2 className="text-3xl font-black text-slate-700">{scoreCache.aiQualityScore}%</h2>
+            </div>
+          </div>
+        )}
         
         {/* AI Summary Card */}
         <div className="bg-white border border-indigo-100 rounded-2xl p-6 shadow-sm shadow-indigo-100/30 space-y-4">
@@ -113,26 +146,26 @@ export default function FacultyDashboard() {
               <span className="w-2.5 h-2.5 bg-indigo-600 rounded-full animate-ping" />
               Gemini AI-Generated Narrative Breakdown
             </h2>
-            {summary && (
+            {aiSummary && (
               <span className="text-xs bg-indigo-50 border border-indigo-100 text-indigo-700 px-3 py-1.5 rounded-xl font-bold uppercase tracking-wider">
-                Rating Sentiment: {summary.ratingScore} / 100
+                Rating Sentiment: {aiSummary.ratingScore} / 100
               </span>
             )}
           </div>
 
           {isLoading ? (
             <p className="text-slate-400 font-medium animate-pulse py-4">Syncing insights with Gemini...</p>
-          ) : summary ? (
+          ) : aiSummary ? (
             <div className="space-y-4">
               <p className="text-slate-700 leading-relaxed text-base italic">
-                "{summary.summaryText}"
+                "{aiSummary.summaryText}"
               </p>
             </div>
           ) : (
             <div className="py-6 text-center text-slate-400">
               <p className="font-semibold mb-2">No summary generated yet.</p>
               <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                Click the "Regenerate AI Summary" button at the top to process qualitative student text feedback.
+                Click the "Regenerate AI" button at the top to process qualitative student text feedback.
               </p>
             </div>
           )}
@@ -140,17 +173,13 @@ export default function FacultyDashboard() {
 
         {/* Analytics Breakdown Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-white border border-slate-200/80 p-6 rounded-2xl shadow-sm space-y-3">
-            <h3 className="font-bold text-slate-800">Section Performance</h3>
-            <div className="h-40 bg-slate-50 border border-dashed rounded-xl flex items-center justify-center text-slate-400 text-sm font-semibold">
-              Chart Display Placeholder
-            </div>
+          <div className="bg-white border border-slate-200/80 p-6 rounded-2xl shadow-sm space-y-4">
+            <h3 className="font-bold text-slate-800 text-sm border-b pb-2">Section Performance (Bar)</h3>
+            <SectionBarChart data={profileData?.sectionScores || []} />
           </div>
-          <div className="bg-white border border-slate-200/80 p-6 rounded-2xl shadow-sm space-y-3">
-            <h3 className="font-bold text-slate-800">Historical Rating Trends</h3>
-            <div className="h-40 bg-slate-50 border border-dashed rounded-xl flex items-center justify-center text-slate-400 text-sm font-semibold">
-              Radar Graph Display Placeholder
-            </div>
+          <div className="bg-white border border-slate-200/80 p-6 rounded-2xl shadow-sm space-y-4">
+            <h3 className="font-bold text-slate-800 text-sm border-b pb-2">Cluster Metrics (Radar)</h3>
+            <RadarClusterChart data={profileData?.clusterScores || []} />
           </div>
         </div>
       </div>

@@ -13,6 +13,11 @@ import {
 import { EducationLevel, Role } from '@prisma/client';
 import Link from 'next/link';
 import { signOut } from 'next-auth/react';
+import { FacultyRankingChart } from '@/components/charts/FacultyRankingChart';
+import { DepartmentDonutChart } from '@/components/charts/DepartmentDonutChart';
+
+import { getAuditLogs } from '@/app/actions/audit';
+
 import { 
   getSystemSettings, 
   updateSystemSettings,
@@ -28,6 +33,7 @@ function AdminDashboardContent() {
   const activeView = (searchParams.get('tab') || 'rankings') as ActiveView;
   
   const [receipts, setReceipts] = useState<any[]>([]);
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [nestedLogTab, setNestedLogTab] = useState<'audit' | 'attendance'>('audit');
   const [receiptSearch, setReceiptSearch] = useState('');
   const [receiptYearFilter, setReceiptYearFilter] = useState('');
@@ -83,6 +89,8 @@ function AdminDashboardContent() {
       } else if (activeView === 'logs') {
         const data = await getEvaluationReceipts();
         setReceipts(data);
+        const audits = await getAuditLogs();
+        setAuditLogs(audits);
         const deps = await getDepartments();
         setDepartments(deps);
       } else if (activeView === 'settings') {
@@ -238,8 +246,43 @@ function AdminDashboardContent() {
         </div>
       ) : (
         <>
-          {activeView === 'rankings' && (
-            <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden">
+          {activeView === 'rankings' && (() => {
+            const rankingChartData = sortedRankings.map((r) => ({
+              name: r.name,
+              score: r.averageScore || 0,
+              department: r.department,
+            }));
+
+            const deptAverageMap = new Map<string, { total: number; count: number }>();
+            rankings.forEach((r) => {
+              if (r.averageScore === null || r.averageScore === undefined) return;
+              const val = deptAverageMap.get(r.department) || { total: 0, count: 0 };
+              val.total += r.averageScore;
+              val.count += 1;
+              deptAverageMap.set(r.department, val);
+            });
+
+            const departmentData = Array.from(deptAverageMap.entries()).map(([name, val]) => ({
+              name,
+              score: Number((val.total / val.count).toFixed(1)),
+            }));
+
+            return (
+              <>
+                {/* Visual Analytics Grid */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                  <div className="lg:col-span-2 bg-white border border-slate-200/80 p-6 rounded-2xl shadow-sm space-y-4">
+                    <h3 className="font-bold text-slate-800 text-sm border-b pb-2">Top 10 Faculty Rankings (Bar Chart)</h3>
+                    <FacultyRankingChart data={rankingChartData} />
+                  </div>
+                  <div className="bg-white border border-slate-200/80 p-6 rounded-2xl shadow-sm space-y-4">
+                    <h3 className="font-bold text-slate-800 text-sm border-b pb-2">Department Averages Comparison</h3>
+                    <DepartmentDonutChart data={departmentData} />
+                  </div>
+                </div>
+
+                <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden">
+
               <div className="p-6 border-b border-slate-100 bg-slate-50/40">
                 <h2 className="text-lg font-bold text-slate-800">Faculty Ratings Ledger</h2>
                 <p className="text-xs text-slate-500 mt-0.5">Aggregated rating scores computed directly from submitted evaluations</p>
@@ -316,8 +359,10 @@ function AdminDashboardContent() {
                   </tbody>
                 </table>
               </div>
-            </div>
-          )}
+                </div>
+              </>
+            );
+          })()}
 
           {activeView === 'logs' && (
             <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden space-y-6 p-6">
@@ -351,30 +396,27 @@ function AdminDashboardContent() {
                   </button>
                 </div>
               </div>
-
               {nestedLogTab === 'audit' ? (
                 <div className="space-y-4 pt-2">
                   <div className="flex justify-between items-center pb-2">
                     <h3 className="text-sm font-bold text-slate-700">Recent Security & Configuration Events</h3>
-                    <span className="text-[10px] bg-slate-105 text-slate-600 px-2.5 py-0.5 rounded-full font-bold">Mock System Log stream</span>
+                    <span className="text-[10px] bg-slate-100 text-slate-600 px-2.5 py-0.5 rounded-full font-bold">Encrypted Audit Logs</span>
                   </div>
-                  <div className="border border-slate-200/60 rounded-xl divide-y divide-slate-100 bg-slate-50/30 overflow-hidden font-mono text-xs text-slate-655">
-                    {[
-                      { time: "2026-07-04 22:15:33", user: "masteradmin", event: "SYSTEM_CONFIG_UPDATE", desc: "Updated system active terms to 2026-2027 1st Semester" },
-                      { time: "2026-07-04 21:58:12", user: "masteradmin", event: "TEMPLATE_ACTIVATE", desc: "Activated global College Evaluation Template" },
-                      { time: "2026-07-04 21:52:04", user: "masteradmin", event: "TEMPLATE_IMPORT", desc: "Successfully parsed evaluation template from docx via Gemini AI" },
-                      { time: "2026-07-04 21:12:44", user: "masteradmin", event: "USER_ELEVATION", desc: "Elevated user admin@ua.edu.ph to System Administrator role" },
-                      { time: "2026-07-04 20:45:12", user: "SYSTEM", event: "DB_SCHEMA_SYNC", desc: "Prisma client decoupled schema parameters synchronized successfully" }
-                    ].map((log, index) => (
-                      <div key={index} className="p-4 hover:bg-white transition-all flex items-start gap-4">
-                        <span className="text-slate-400 select-none shrink-0">{log.time}</span>
-                        <span className="bg-ua-blue/5 border border-ua-blue/10 text-ua-blue font-bold px-1.5 py-0.5 rounded text-[10px] uppercase tracking-wider shrink-0">{log.event}</span>
-                        <div className="space-y-0.5 flex-grow">
-                          <p className="text-slate-800 font-semibold">{log.desc}</p>
-                          <p className="text-[10px] text-slate-400">Triggered by: {log.user}</p>
+                  <div className="border border-slate-200/60 rounded-xl divide-y divide-slate-100 bg-slate-50/30 overflow-hidden font-mono text-xs text-slate-600">
+                    {auditLogs.length === 0 ? (
+                      <div className="p-8 text-center text-slate-400 font-semibold text-xs bg-white">No decrypted audit entries logged yet.</div>
+                    ) : (
+                      auditLogs.map((log: any, index: number) => (
+                        <div key={log.id || index} className="p-4 hover:bg-white transition-all flex items-start gap-4">
+                          <span className="text-slate-400 select-none shrink-0">{new Date(log.createdAt).toLocaleString()}</span>
+                          <span className="bg-ua-blue/5 border border-ua-blue/10 text-ua-blue font-bold px-1.5 py-0.5 rounded text-[10px] uppercase tracking-wider shrink-0">{log.eventType}</span>
+                          <div className="space-y-0.5 flex-grow">
+                            <p className="text-slate-800 font-semibold">{log.details?.desc || log.details?.message || JSON.stringify(log.details)}</p>
+                            <p className="text-[10px] text-slate-450">Triggered by: {log.actorEmail}</p>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ))
+                    )}
                   </div>
                 </div>
               ) : (
