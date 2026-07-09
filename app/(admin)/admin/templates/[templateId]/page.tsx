@@ -10,6 +10,7 @@ import Link from 'next/link';
 interface FormValues {
   title: string;
   instructions?: string | null;
+  scaleType?: string;
   level: EducationLevel;
   departmentId?: string | null;
   clusters: {
@@ -42,6 +43,7 @@ export default function TemplateEditor({ params }: { params: Promise<{ templateI
     defaultValues: {
       title: '',
       instructions: '',
+      scaleType: '0_TO_4',
       level: 'COLLEGE',
       departmentId: null,
       clusters: []
@@ -56,6 +58,7 @@ export default function TemplateEditor({ params }: { params: Promise<{ templateI
       await updateTemplateMetadata(templateId, {
         title: formValues.title,
         level: formValues.level,
+        scaleType: formValues.scaleType,
         departmentId: formValues.departmentId
       });
       setMessage("Template metadata updated successfully!");
@@ -98,6 +101,7 @@ export default function TemplateEditor({ params }: { params: Promise<{ templateI
           reset({
             title: data.title,
             instructions: data.instructions || '',
+            scaleType: data.scaleType,
             level: data.level as EducationLevel,
             departmentId: data.departmentId || null,
             clusters: formattedClusters
@@ -153,6 +157,7 @@ export default function TemplateEditor({ params }: { params: Promise<{ templateI
         reset({
           title: data.title,
           instructions: data.instructions || '',
+          scaleType: data.scaleType,
           level: data.level as EducationLevel,
           departmentId: data.departmentId || null,
           clusters: formattedClusters
@@ -256,7 +261,7 @@ export default function TemplateEditor({ params }: { params: Promise<{ templateI
                       "{formValues.instructions}"
                     </p>
                   </div>
-                  <RatingScaleLegend level={formValues.level} />
+                  <RatingScaleLegend level={formValues.level} scaleType={formValues.scaleType} />
                 </div>
               )}
 
@@ -350,7 +355,7 @@ export default function TemplateEditor({ params }: { params: Promise<{ templateI
                     {metadataSaving ? "Saving Settings..." : "Update Settings"}
                   </button>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                   <div>
                     <label className="block text-xs font-semibold text-slate-500 mb-1">Form Name</label>
                     <input 
@@ -372,8 +377,19 @@ export default function TemplateEditor({ params }: { params: Promise<{ templateI
                       <option value="GRADUATE">GRADUATE</option>
                     </select>
                   </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-500 mb-1">Rating Scale Type</label>
+                    <select 
+                      {...register('scaleType')} 
+                      className="w-full p-2.5 text-sm border rounded-xl bg-white font-bold text-slate-700 focus:ring-2 focus:ring-ua-blue/20 focus:border-ua-blue"
+                    >
+                      <option value="0_TO_4">0 to 4 Scale (College / Graduate / SHS)</option>
+                      <option value="1_TO_5">1 to 5 Scale (JHS / standard)</option>
+                    </select>
+                  </div>
                   
-                  {(formValues.level === 'COLLEGE' || formValues.level === 'GRADUATE') && (
+                  {(formValues.level === 'COLLEGE' || formValues.level === 'GRADUATE') ? (
                     <div>
                       <label className="block text-xs font-semibold text-slate-500 mb-1">Department</label>
                       <select 
@@ -388,6 +404,8 @@ export default function TemplateEditor({ params }: { params: Promise<{ templateI
                           ))}
                       </select>
                     </div>
+                  ) : (
+                    <div className="hidden md:block opacity-0 pointer-events-none" />
                   )}
                 </div>
 
@@ -605,8 +623,8 @@ function ClusterCard({ clusterIndex, control, register, removeCluster, watch, se
   );
 }
 
-export function RatingScaleLegend({ level }: { level: string }) {
-  const isZeroToFour = level === 'COLLEGE' || level === 'GRADUATE';
+export function RatingScaleLegend({ level, scaleType }: { level: string; scaleType?: string }) {
+  const isZeroToFour = scaleType ? scaleType === '0_TO_4' : (level === 'COLLEGE' || level === 'GRADUATE');
   const steps = isZeroToFour 
     ? [
         { val: 0, label: 'Not at all true' },

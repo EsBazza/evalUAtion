@@ -76,6 +76,7 @@ model Template {
   id           String       @id @default(cuid())
   title        String       // e.g., "SHS Faculty Evaluation Form 2026"
   instructions String?      // e.g., "Please read the questions carefully..."
+  scaleType    String       @default("0_TO_4") // "0_TO_4" or "1_TO_5"
   level        EducationLevel
   departmentId String?
   department   Department?  @relation(fields: [departmentId], references: [id])

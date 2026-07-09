@@ -54,6 +54,7 @@ export async function createTemplateAction(
     data: {
       title,
       level,
+      scaleType: (level === 'JHS' || level === 'SHS') ? '1_TO_5' : '0_TO_4',
       departmentId: depId,
     },
   });
@@ -68,6 +69,7 @@ export async function updateTemplateMetadata(
   data: {
     title: string;
     level: EducationLevel;
+    scaleType?: string;
     departmentId?: string | null;
   }
 ) {
@@ -99,6 +101,7 @@ export async function updateTemplateMetadata(
     data: {
       title: data.title,
       level: data.level,
+      scaleType: data.scaleType || undefined,
       departmentId: depId
     }
   });
@@ -126,6 +129,7 @@ export async function deleteTemplateAction(templateId: string) {
 export async function saveEvaluationTemplate(templateId: string, data: {
   title: string;
   instructions?: string | null;
+  scaleType?: string;
   level: EducationLevel;
   clusters: {
     id?: string;
@@ -183,6 +187,7 @@ export async function saveEvaluationTemplate(templateId: string, data: {
     data: {
       title: data.title,
       instructions: data.instructions || null,
+      scaleType: data.scaleType || undefined,
       level: data.level,
     }
   });
@@ -310,6 +315,7 @@ export async function setActiveTemplateAction(
         data: {
           title: `${target.title}${suffix}`,
           instructions: target.instructions,
+          scaleType: target.scaleType,
           level: target.level,
           departmentId: targetDepartmentId,
           isActive: true

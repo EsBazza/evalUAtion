@@ -56,11 +56,11 @@ export async function importTemplateFromFile(formData: FormData) {
   }
 
   // Step B (AI Parsing): Call Gemini models with prompt
-  const systemPrompt = `You are an expert data extraction assistant. Read the provided raw text from a university evaluation form and convert it into a strict JSON object matching this schema: {"instructions": "Optional instructions text extracted from document headers or instructions sections", "clusters": [ { "title": "Cluster Name", "order": 1, "criteria": [ { "question": "Question text", "type": "SCALE_0_TO_4" | "TEXT_LONG" | "CHECKBOX_AREAS" | "RADIO_EXPECTATION", "order": 1, "options": ["Option 1", "Option 2"] } ] } ] }.
+  const systemPrompt = `You are an expert data extraction assistant. Read the provided raw text from a university evaluation form and convert it into a strict JSON object matching this schema: {"instructions": "Optional instructions text extracted from document headers or instructions sections", "scaleType": "0_TO_4" | "1_TO_5", "clusters": [ { "title": "Cluster Name", "order": 1, "criteria": [ { "question": "Question text", "type": "SCALE_0_TO_4" | "SCALE_1_TO_5" | "TEXT_LONG" | "CHECKBOX_AREAS" | "RADIO_EXPECTATION", "order": 1, "options": ["Option 1", "Option 2"] } ] } ] }.
 
 CRITICAL INSTRUCTIONS:
 1. Extract any global instructions or guidelines text of the evaluation form (e.g., "Please rate your instructor based on the following scale...", "Read each statement carefully..."). Set it as the "instructions" field in the root JSON.
-2. Extract all numbered clusters and their 1-5/0-4 scale questions (use SCALE_0_TO_4 for these).
+2. Detect the rating scale used in the document. If it uses a 1 to 5 scale (e.g. '1 2 3 4 5' or '1: Very Poor...'), set "scaleType" to "1_TO_5" and set question types to "SCALE_1_TO_5". If it uses a 0 to 4 scale (e.g. '0 1 2 3 4' or '0: Not at all true...'), set "scaleType" to "0_TO_4" and set question types to "SCALE_0_TO_4".
 3. DO NOT IGNORE the sections at the bottom (e.g., "OTHER COMMENTS AND SUGGESTIONS", "How would you like to rate this teacher", "characteristics", "areas to improve").
 4. Create a final Cluster titled "General Feedback" for these trailing questions.
 5. For the "rate this teacher" question, set type to "RADIO_EXPECTATION" and populate the options array with the choices.
@@ -105,6 +105,7 @@ Return ONLY valid JSON, no markdown formatting.`;
         level,
         isActive: false,
         instructions: data.instructions || null,
+        scaleType: data.scaleType || (level === 'JHS' || level === 'SHS' ? '1_TO_5' : '0_TO_4'),
         ...(departmentId ? { departmentId } : {})
       }
     });

@@ -648,7 +648,7 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
                           {template.instructions}
                         </p>
                       </div>
-                      <RatingScaleLegend level={template.level} />
+                      <RatingScaleLegend level={template.level} scaleType={template.scaleType} />
                     </div>
                   )}
 
@@ -822,8 +822,8 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
   );
 }
 
-function RatingScaleLegend({ level }: { level: string }) {
-  const isZeroToFour = level === 'COLLEGE' || level === 'GRADUATE';
+function RatingScaleLegend({ level, scaleType }: { level: string; scaleType?: string }) {
+  const isZeroToFour = scaleType ? scaleType === '0_TO_4' : (level === 'COLLEGE' || level === 'GRADUATE');
   const steps = isZeroToFour 
     ? [
         { val: 0, label: 'Not at all true' },
