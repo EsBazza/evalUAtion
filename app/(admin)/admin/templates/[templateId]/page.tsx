@@ -173,15 +173,17 @@ export default function TemplateEditor({ params }: { params: Promise<{ templateI
   const formValues = watch();
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 max-w-5xl mx-auto px-2 py-4">
       {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-4 border-b border-slate-200 bg-transparent">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-6 border-b border-slate-200 bg-transparent">
         <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight uppercase">
-            Template Builder
+          <h1 className="text-3xl font-black tracking-tight text-slate-900 flex items-center gap-3">
+            <span className="bg-gradient-to-r from-ua-blue to-ua-blue-light text-white p-2.5 rounded-2xl shadow-md text-xl">📝</span>
+            <span className="bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent uppercase">Template Builder</span>
           </h1>
-          <p className="text-xs text-slate-500 mt-1 font-semibold">
-            WYSIWYG forms compiler for University of the Assumption
+          <p className="text-xs text-slate-500 mt-1.5 font-semibold flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            Active WYSIWYG Form Compiler • University of the Assumption
           </p>
         </div>
         <div className="flex items-center gap-2 self-stretch md:self-auto justify-end">
@@ -191,17 +193,17 @@ export default function TemplateEditor({ params }: { params: Promise<{ templateI
               setMessage('');
               setErrorMessage('');
             }}
-            className={`px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-xl transition-all border cursor-pointer ${
+            className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl transition-all border cursor-pointer shadow-sm hover:shadow ${
               previewMode 
                 ? 'bg-ua-gold border-ua-gold text-slate-900 shadow-md font-extrabold' 
-                : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-55 hover:bg-slate-50'
+                : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
             }`}
           >
             {previewMode ? 'Back to Editor' : 'Student Preview'}
           </button>
           <Link 
             href="/admin/templates"
-            className="px-4 py-2.5 text-xs font-bold bg-white border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 uppercase tracking-wider transition-all"
+            className="px-4 py-2.5 text-xs font-bold bg-white border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 uppercase tracking-wider transition-all shadow-sm"
           >
             Cancel
           </Link>
@@ -209,7 +211,7 @@ export default function TemplateEditor({ params }: { params: Promise<{ templateI
             <button 
               onClick={handleSubmit(onSave)}
               disabled={saving}
-              className="px-5 py-2.5 bg-ua-blue hover:bg-ua-blue-dark text-white rounded-xl text-xs font-bold uppercase tracking-wider transition-all shadow-md shadow-ua-blue/10 disabled:opacity-50 cursor-pointer"
+              className="px-5 py-2.5 bg-gradient-to-r from-ua-blue to-ua-blue-dark hover:from-ua-blue-dark hover:to-ua-blue text-white rounded-xl text-xs font-bold uppercase tracking-wider transition-all shadow-md shadow-ua-blue/15 disabled:opacity-50 cursor-pointer"
             >
               {saving ? 'Saving Config...' : 'Save Template'}
             </button>
@@ -343,14 +345,18 @@ export default function TemplateEditor({ params }: { params: Promise<{ templateI
             <form onSubmit={handleSubmit(onSave)} className="space-y-8">
               
               {/* Template Settings / Form Header Editor */}
-              <div className="bg-white p-6 border border-slate-200 rounded-2xl shadow-sm space-y-4">
-                <div className="flex justify-between items-center border-b pb-3">
-                  <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Template Metadata Settings</h2>
+              <div className="bg-white p-6 border border-slate-200/80 rounded-3xl shadow-sm space-y-5 hover:shadow-md/50 transition-all duration-300 relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-ua-blue to-ua-blue-light" />
+                <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+                  <h2 className="text-xs font-extrabold text-slate-900 uppercase tracking-widest flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-ua-blue" />
+                    Template Settings
+                  </h2>
                   <button
                     type="button"
                     onClick={handleSaveMetadata}
                     disabled={metadataSaving}
-                    className="px-4 py-2 bg-ua-blue/5 border border-ua-blue/10 hover:bg-ua-blue/10 text-ua-blue text-xs font-bold rounded-xl transition cursor-pointer"
+                    className="px-4 py-2 bg-ua-blue/5 border border-ua-blue/10 hover:bg-ua-blue/10 text-ua-blue text-xs font-black rounded-xl transition-all cursor-pointer shadow-sm hover:shadow"
                   >
                     {metadataSaving ? "Saving Settings..." : "Update Settings"}
                   </button>
@@ -473,24 +479,29 @@ function ClusterCard({ clusterIndex, control, register, removeCluster, watch, se
   const clusterTitle = watch(`clusters.${clusterIndex}.title`);
 
   return (
-    <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+    <div className="bg-white border border-slate-200/80 rounded-3xl shadow-sm hover:shadow-md transition-all duration-355 overflow-hidden relative">
       
       {/* Cluster Header */}
-      <div className="p-6 border-b border-slate-100 bg-slate-50/40 flex justify-between items-center gap-4">
-        <div className="flex-grow">
-          <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">Section Title</label>
-          <input 
-            type="text" 
-            {...register(`clusters.${clusterIndex}.title`)} 
-            className="w-full p-2 text-md font-bold text-slate-800 bg-transparent hover:bg-slate-100 border border-transparent hover:border-slate-200 rounded-lg transition-all focus:bg-slate-50"
-            placeholder="e.g. Communication Skills"
-            required
-          />
+      <div className="p-6 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white flex justify-between items-center gap-4">
+        <div className="flex-grow flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-ua-blue/10 text-ua-blue flex items-center justify-center font-black text-sm">
+            S{clusterIndex + 1}
+          </div>
+          <div className="flex-grow">
+            <label className="block text-[8px] font-black text-ua-blue uppercase tracking-widest mb-0.5">Section Title</label>
+            <input 
+              type="text" 
+              {...register(`clusters.${clusterIndex}.title`)} 
+              className="w-full p-1.5 text-base font-extrabold text-slate-800 bg-transparent hover:bg-slate-50 border-b border-transparent hover:border-slate-200 focus:border-ua-blue rounded transition-all outline-none"
+              placeholder="e.g. Communication Skills"
+              required
+            />
+          </div>
         </div>
         <button 
           type="button" 
           onClick={removeCluster}
-          className="text-[10px] text-ua-red hover:text-ua-red-dark font-extrabold uppercase tracking-wider border border-ua-red/10 rounded-xl px-3 py-1.5 hover:bg-ua-red/5 transition cursor-pointer"
+          className="text-[10px] text-ua-red hover:text-ua-red-dark font-extrabold uppercase tracking-wider border border-ua-red/20 rounded-xl px-3.5 py-2 hover:bg-ua-red/5 transition-all cursor-pointer shadow-sm hover:shadow"
         >
           Remove Section
         </button>
@@ -515,12 +526,19 @@ function ClusterCard({ clusterIndex, control, register, removeCluster, watch, se
             };
 
             return (
-              <div key={criterion.id} className="pt-6 first:pt-0 space-y-4">
+              <div key={criterion.id} className="pt-6 first:pt-0 space-y-4 group">
                 
+                <div className="flex items-center gap-2">
+                  <span className="px-2 py-0.5 bg-slate-100 group-hover:bg-ua-blue/10 group-hover:text-ua-blue rounded-md text-[10px] font-black text-slate-500 font-mono transition-colors">
+                    Q{qIdx + 1}
+                  </span>
+                  <div className="h-px bg-slate-100 flex-grow" />
+                </div>
+
                 {/* Question Input Line */}
                 <div className="flex flex-col sm:flex-row gap-4">
                   <div className="flex-grow">
-                    <label className="block text-[9px] font-bold text-slate-450 text-slate-400 uppercase tracking-wider mb-1">Question Text</label>
+                    <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">Question Text</label>
                     <input 
                       type="text" 
                       {...register(`${pathPrefix}.question`)}
