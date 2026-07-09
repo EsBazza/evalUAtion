@@ -143,7 +143,7 @@ export default function FacultyPreviewClient({ professorId }: FacultyPreviewClie
                 {scoreCache?.compositeScore !== null && scoreCache?.compositeScore !== undefined ? `${scoreCache.compositeScore}%` : 'N/A'}
               </h2>
             </div>
-            {scoreCache?.compositeScore !== null && (
+            {scoreCache && scoreCache.compositeScore !== null && scoreCache.compositeScore !== undefined && (
               <span className={`px-2.5 py-1 rounded-full text-xs font-black ${
                 scoreCache.compositeScore >= 80 ? 'bg-emerald-50 text-emerald-700' :
                 scoreCache.compositeScore >= 60 ? 'bg-amber-50 text-amber-700' : 'bg-red-50 text-red-700'
