@@ -419,7 +419,7 @@ export default function TemplatesDashboard() {
           </p>
         </div>
       ) : (
-        <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden">
+        <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden min-h-[260px]">
           <table className="w-full text-left border-collapse text-sm bg-white">
             <thead className="bg-slate-105 bg-slate-100/80 border-b border-slate-200 text-slate-600 font-bold">
               <tr>
@@ -454,59 +454,88 @@ export default function TemplatesDashboard() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {sortedTemplates.map((temp) => (
-                <tr key={temp.id} className="hover:bg-slate-50/30 transition-all">
-                  <td className="p-4 font-bold text-slate-900">{temp.title}</td>
-                  <td className="p-4 text-slate-600 font-bold uppercase text-xs">{temp.level}</td>
-                  <td className="p-4 text-slate-600 font-semibold">{temp.department?.name || <span className="text-slate-400 italic text-xs font-medium">Global</span>}</td>
-                  <td className="p-4">
-                    <span className="inline-block px-2.5 py-0.5 bg-ua-blue/5 border border-ua-blue/10 text-ua-blue rounded-full font-bold text-xs">
-                      {temp.clusters?.length || 0} Clusters
-                    </span>
-                  </td>
-                  <td className="p-4">
-                    {temp.isActive ? (
-                      <span className="inline-block px-2.5 py-0.5 bg-emerald-50 border border-emerald-100 text-emerald-700 rounded-full font-bold text-xs shadow-sm">Active</span>
-                    ) : (
-                      <span className="inline-block px-2.5 py-0.5 bg-slate-100 border border-slate-200 text-slate-500 rounded-full font-semibold text-xs">Draft</span>
-                    )}
-                  </td>
-                  <td className="p-4 text-right">
-                    <div className="flex justify-end items-center gap-2">
-                      <Link 
-                        href={`/admin/templates/${temp.id}`}
-                        className="px-2.5 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg text-slate-700 hover:text-slate-900 transition-all font-bold text-xs uppercase tracking-wider"
-                      >
-                        Build
-                      </Link>
-                      
+              {sortedTemplates.map((temp, index) => {
+                const isLastRow = index === sortedTemplates.length - 1;
+                return (
+                  <tr key={temp.id} className="hover:bg-slate-50/30 transition-all">
+                    <td className="p-4 font-bold text-slate-900">{temp.title}</td>
+                    <td className="p-4 text-slate-600 font-bold uppercase text-xs">{temp.level}</td>
+                    <td className="p-4 text-slate-600 font-semibold">{temp.department?.name || <span className="text-slate-400 italic text-xs font-medium">Global</span>}</td>
+                    <td className="p-4">
+                      <span className="inline-block px-2.5 py-0.5 bg-ua-blue/5 border border-ua-blue/10 text-ua-blue rounded-full font-bold text-xs">
+                        {temp.clusters?.length || 0} Clusters
+                      </span>
+                    </td>
+                    <td className="p-4">
                       {temp.isActive ? (
-                        <button 
-                          onClick={() => handleDeactivate(temp.id)}
-                          className="px-2.5 py-1.5 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg text-red-700 font-bold text-xs uppercase tracking-wider transition-all cursor-pointer"
-                        >
-                          Deactivate
-                        </button>
+                        <span className="inline-block px-2.5 py-0.5 bg-emerald-50 border border-emerald-100 text-emerald-700 rounded-full font-bold text-xs shadow-sm">Active</span>
                       ) : (
-                        <button 
-                          onClick={() => handleOpenSetActiveModal(temp)}
-                          className="px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg text-indigo-700 font-bold text-xs uppercase tracking-wider transition-all cursor-pointer"
-                        >
-                          Activate
-                        </button>
+                        <span className="inline-block px-2.5 py-0.5 bg-slate-100 border border-slate-200 text-slate-500 rounded-full font-semibold text-xs">Draft</span>
                       )}
-                      
-                      <button 
-                        onClick={() => handleDeleteTemplate(temp.id)}
-                        className="p-1.5 hover:bg-red-50 text-slate-400 hover:text-red-650 hover:text-red-600 rounded-lg transition-all cursor-pointer"
-                        title="Delete Template"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td className="p-4 text-right relative">
+                      <div className="inline-block text-left">
+                        <button 
+                          onClick={() => setActiveKebabId(activeKebabId === temp.id ? null : temp.id)}
+                          className="px-2.5 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg text-slate-600 hover:text-slate-900 transition-all font-bold text-xs cursor-pointer"
+                        >
+                          Actions ⋮
+                        </button>
+                        
+                        {activeKebabId === temp.id && (
+                          <>
+                            <div className="fixed inset-0 z-10" onClick={() => setActiveKebabId(null)} />
+                            <div className={`absolute right-0 w-44 bg-white border border-slate-200 rounded-xl shadow-lg py-1.5 z-20 animate-fade-in text-left ${
+                              isLastRow && sortedTemplates.length > 1 ? 'bottom-full mb-1' : 'mt-1'
+                            }`}>
+                              <Link 
+                                href={`/admin/templates/${temp.id}`}
+                                className="block w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition"
+                              >
+                                Open Builder
+                              </Link>
+                              
+                              {temp.isActive ? (
+                                <button 
+                                  onClick={() => {
+                                    setActiveKebabId(null);
+                                    handleDeactivate(temp.id);
+                                  }}
+                                  className="w-full text-left px-4 py-2.5 text-xs font-bold text-ua-red hover:bg-ua-red/5 transition cursor-pointer"
+                                >
+                                  Deactivate
+                                </button>
+                              ) : (
+                                <button 
+                                  onClick={() => {
+                                    setActiveKebabId(null);
+                                    handleOpenSetActiveModal(temp);
+                                  }}
+                                  className="w-full text-left px-4 py-2.5 text-xs font-bold text-ua-blue hover:bg-ua-blue/5 transition cursor-pointer"
+                                >
+                                  Set Active
+                                </button>
+                              )}
+                              
+                              <div className="border-t border-slate-100 my-1" />
+                              
+                              <button 
+                                onClick={() => {
+                                  setActiveKebabId(null);
+                                  handleDeleteTemplate(temp.id);
+                                }}
+                                className="w-full text-left px-4 py-2.5 text-xs font-bold text-ua-red hover:bg-ua-red/5 transition cursor-pointer"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
