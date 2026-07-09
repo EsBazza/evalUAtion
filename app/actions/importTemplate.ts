@@ -2,6 +2,7 @@
 
 import { GoogleGenAI } from "@google/genai";
 import { prisma } from '@/lib/prisma';
+import { writeAuditLog } from './audit';
 import mammoth from 'mammoth';
 // @ts-ignore
 if (typeof global.DOMMatrix === 'undefined') {
@@ -135,6 +136,8 @@ Return ONLY valid JSON, no markdown formatting.`;
 
     return createdTemplate;
   });
+
+  await writeAuditLog('TEMPLATE_IMPORT', { desc: `Imported template "${title}" from document file via Gemini AI` });
 
   return { success: true, templateId: template.id };
 }

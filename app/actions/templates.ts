@@ -2,6 +2,8 @@
 
 import { prisma } from '@/lib/prisma';
 import { EducationLevel, QuestionType } from '@prisma/client';
+import { writeAuditLog } from './audit';
+
 
 export async function getTemplateDetails(templateId: string) {
   return prisma.template.findUnique({
@@ -48,13 +50,17 @@ export async function createTemplateAction(
     depId = departmentId || null;
   }
 
-  return prisma.template.create({
+  const template = await prisma.template.create({
     data: {
       title,
       level,
       departmentId: depId,
     },
   });
+
+  await writeAuditLog('TEMPLATE_CREATED', { desc: `Created template "${title}" for ${level}` });
+
+  return template;
 }
 
 export async function updateTemplateMetadata(
@@ -88,7 +94,7 @@ export async function updateTemplateMetadata(
     depId = data.departmentId || null;
   }
 
-  return prisma.template.update({
+  const template = await prisma.template.update({
     where: { id: templateId },
     data: {
       title: data.title,
@@ -96,12 +102,25 @@ export async function updateTemplateMetadata(
       departmentId: depId
     }
   });
+
+  await writeAuditLog('TEMPLATE_METADATA_UPDATED', { desc: `Updated metadata of template "${data.title}"` });
+
+  return template;
 }
 
 export async function deleteTemplateAction(templateId: string) {
-  return prisma.template.delete({
+  const target = await prisma.template.findUnique({
+    where: { id: templateId },
+    select: { title: true }
+  });
+
+  const res = await prisma.template.delete({
     where: { id: templateId },
   });
+
+  await writeAuditLog('TEMPLATE_DELETED', { desc: `Deleted template "${target?.title || templateId}"` });
+
+  return res;
 }
 
 export async function saveEvaluationTemplate(templateId: string, data: {
@@ -222,6 +241,8 @@ export async function saveEvaluationTemplate(templateId: string, data: {
     }
   }
 
+  await writeAuditLog('TEMPLATE_SAVED', { desc: `Saved questions and configuration of template "${data.title}"` });
+
   return { success: true };
 }
 
@@ -319,12 +340,23 @@ export async function setActiveTemplateAction(
       }
     }
   });
+
+  await writeAuditLog('TEMPLATE_ACTIVATE', { desc: `Activated template "${target?.title || ''}" (Scope: ${activationType})` });
 }
 
 export async function deactivateTemplateAction(templateId: string) {
-  return prisma.template.update({
+  const target = await prisma.template.findUnique({
+    where: { id: templateId },
+    select: { title: true }
+  });
+
+  const res = await prisma.template.update({
     where: { id: templateId },
     data: { isActive: false }
   });
+
+  await writeAuditLog('TEMPLATE_DEACTIVATE', { desc: `Deactivated template "${target?.title || templateId}"` });
+
+  return res;
 }
 
