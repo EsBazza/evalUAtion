@@ -28,8 +28,8 @@ export default async function HomePage() {
       <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-[#FFBD00]/8 rounded-full blur-[120px] pointer-events-none z-[-10]" />
       <div className="absolute bottom-10 left-10 w-64 h-64 bg-[#D2143A]/8 rounded-full blur-[80px] pointer-events-none z-[-10]" />
 
-      {/* LEFT COLUMN: Transparent on mobile, White Panel on desktop */}
-      <div className="w-full md:w-[45%] min-h-screen flex flex-col justify-between p-6 sm:p-8 md:p-12 relative border-b border-transparent md:border-b-0 md:border-r md:border-slate-200 bg-transparent md:bg-white shrink-0 shadow-none md:shadow-2xl">
+      {/* LEFT COLUMN: Transparent blue hue on mobile, White Panel on desktop */}
+      <div className="w-full md:w-[45%] min-h-screen flex flex-col justify-between p-6 sm:p-8 md:p-12 relative border-b border-white/10 md:border-b-0 md:border-r md:border-slate-200 bg-[#0B2265]/40 backdrop-blur-md md:bg-white md:backdrop-blur-none shrink-0 shadow-none md:shadow-2xl">
 
         {/* Top Block: Logo and Welcome Message */}
         <div className="space-y-8 z-10">
