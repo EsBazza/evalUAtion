@@ -63,49 +63,62 @@ async function main() {
 
   console.log("Departments and Sections created.");
 
-  // 2. Create Professors distributed across departments
-  const professorsData = [
-    { name: "Dr. Jane Smith", email: "jane.smith@ua.edu.ph", deptCode: "CIT" },
-    { name: "Dr. Alan Turing", email: "alan.turing@ua.edu.ph", deptCode: "CIT" },
-    { name: "Prof. Grace Hopper", email: "grace.hopper@ua.edu.ph", deptCode: "CIT" },
-    { name: "Prof. John Doe", email: "john.doe@ua.edu.ph", deptCode: "CEA" },
-    { name: "Dr. Nikola Tesla", email: "nikola.tesla@ua.edu.ph", deptCode: "CEA" },
-    { name: "Ms. Alice Cooper", email: "alice.cooper@ua.edu.ph", deptCode: "SHS" },
-    { name: "Ms. Marie Curie", email: "marie.curie@ua.edu.ph", deptCode: "SHS" },
-    { name: "Mr. Bob Marley", email: "bob.marley@ua.edu.ph", deptCode: "JHS" },
-    { name: "Mrs. Ada Lovelace", email: "ada.lovelace@ua.edu.ph", deptCode: "JHS" },
-    { name: "Mr. Albert Einstein", email: "albert.einstein@ua.edu.ph", deptCode: "SAS" },
-    { name: "Mr. Isaac Newton", email: "isaac.newton@ua.edu.ph", deptCode: "SAS" },
-    { name: "Dr. Richard Feynman", email: "richard.feynman@ua.edu.ph", deptCode: "SED" },
-    { name: "Ms. Katherine Johnson", email: "katherine.johnson@ua.edu.ph", deptCode: "SED" },
-    { name: "Prof. Charles Babbage", email: "charles.babbage@ua.edu.ph", deptCode: "SBPA" },
-    { name: "Dr. Rosalind Franklin", email: "rosalind.franklin@ua.edu.ph", deptCode: "SBPA" },
-    { name: "Prof. Adam Smith", email: "adam.smith@ua.edu.ph", deptCode: "COA" },
-    { name: "Prof. Luca Pacioli", email: "luca.pacioli@ua.edu.ph", deptCode: "COA" },
-    { name: "Dr. Florence Nightingale", email: "florence.nightingale@ua.edu.ph", deptCode: "CONP" },
-    { name: "Dr. Alexander Fleming", email: "alexander.fleming@ua.edu.ph", deptCode: "CONP" },
-    { name: "Chef Auguste Escoffier", email: "auguste.escoffier@ua.edu.ph", deptCode: "CHTM" },
-    { name: "Ms. Julia Child", email: "julia.child@ua.edu.ph", deptCode: "CHTM" },
-    { name: "Dr. Stephen Hawking", email: "stephen.hawking@ua.edu.ph", deptCode: "GRADUATE" }
-  ];
-
-  for (const prof of professorsData) {
-    const dept = createdDepts[prof.deptCode];
-    const sections = createdSectionsByDept[prof.deptCode] || [];
-    // Connect to 3 sections in that department
-    const connectedSections = sections.slice(0, 3).map(s => ({ id: s.id }));
-    
-    await prisma.professor.create({
-      data: {
-        name: prof.name,
-        email: prof.email,
-        departmentId: dept.id,
-        sections: { connect: connectedSections }
-      }
-    });
+  // Helper to shuffle array (to assign random sections)
+  function shuffle(array) {
+    const arr = [...array];
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
   }
 
-  console.log("Professors created and linked to sections.");
+  // 2. Create Professors (10 for each department, assigned to 3 random sections)
+  const firstNames = [
+    "Dr. Jane", "Prof. John", "Dr. Alan", "Prof. Grace", "Dr. Nikola", "Ms. Alice", "Ms. Marie", "Mr. Bob",
+    "Mrs. Ada", "Mr. Isaac", "Dr. Richard", "Ms. Katherine", "Prof. Charles", "Dr. Rosalind", "Prof. Adam",
+    "Prof. Luca", "Dr. Florence", "Dr. Alexander", "Chef Auguste", "Ms. Julia", "Dr. Stephen", "Prof. Albert",
+    "Dr. Thomas", "Prof. James", "Dr. Robert", "Ms. Margaret", "Dr. Dorothy", "Prof. Barbara", "Dr. Patricia",
+    "Prof. William", "Dr. David", "Ms. Elizabeth", "Dr. Mary", "Prof. Richard", "Dr. Joseph", "Ms. Susan"
+  ];
+
+  const lastNames = [
+    "Smith", "Doe", "Turing", "Hopper", "Tesla", "Cooper", "Curie", "Marley", "Lovelace", "Newton",
+    "Feynman", "Johnson", "Babbage", "Franklin", "Adamson", "Pacioli", "Nightingale", "Fleming", "Escoffier",
+    "Child", "Hawking", "Einstein", "Edison", "Maxwell", "Bohr", "Hamilton", "Hodgkin", "McClintock",
+    "Shakespeare", "Darwin", "Galileo", "Copernicus", "Kepler", "Planck", "Pasteur", "Mendel"
+  ];
+
+  let deptIndex = 0;
+  for (const config of deptConfigs) {
+    const dept = createdDepts[config.code];
+    const sections = createdSectionsByDept[config.code] || [];
+
+    for (let k = 1; k <= 10; k++) {
+      const fName = firstNames[(deptIndex * 10 + k) % firstNames.length];
+      const lName = lastNames[(deptIndex * 13 + k) % lastNames.length];
+      const name = `${fName} ${lName}`;
+      // Ensure unique email by appending department code and index
+      const sanitizedName = name.toLowerCase().replace(/[^a-z]/g, ".");
+      const email = `${sanitizedName}.${config.code.toLowerCase()}.${k}@ua.edu.ph`;
+
+      // Get 3 random sections
+      const shuffledSections = shuffle(sections);
+      const connectedSections = shuffledSections.slice(0, 3).map(s => ({ id: s.id }));
+
+      await prisma.professor.create({
+        data: {
+          name,
+          email,
+          departmentId: dept.id,
+          sections: { connect: connectedSections }
+        }
+      });
+    }
+    deptIndex++;
+  }
+
+  console.log("110 Professors created and linked to random sections.");
 
   // Helper to seed a template for College and Graduate levels
   async function seedCollegeOrGradTemplate(title, level, deptId) {
