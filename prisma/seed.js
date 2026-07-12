@@ -24,211 +24,88 @@ async function main() {
 
   console.log("Existing data cleaned.");
 
-  // 1. Create Departments
-  const ccs = await prisma.department.create({
-    data: { name: "College of Computer Studies", level: "COLLEGE" }
-  });
-  const coe = await prisma.department.create({
-    data: { name: "College of Engineering", level: "COLLEGE" }
-  });
-  const shsAcademic = await prisma.department.create({
-    data: { name: "Senior High School Department", level: "SHS" }
-  });
-  const jhsDept = await prisma.department.create({
-    data: { name: "Junior High School Department", level: "JHS" }
-  });
-  const gradDept = await prisma.department.create({
-    data: { name: "Graduate School", level: "GRADUATE" }
-  });
+  // 1. Define Department and Section configurations
+  const deptConfigs = [
+    { name: "Junior High School Department", code: "JHS", level: "JHS", minYear: 7, maxYear: 10, namePrefix: "Grade " },
+    { name: "Senior High School Department", code: "SHS", level: "SHS", minYear: 11, maxYear: 12, namePrefix: "Grade " },
+    { name: "College of Engineering and Architecture", code: "CEA", level: "COLLEGE", minYear: 1, maxYear: 5, namePrefix: "Year " },
+    { name: "College of Information Technology", code: "CIT", level: "COLLEGE", minYear: 1, maxYear: 4, namePrefix: "Year " },
+    { name: "School of Education", code: "SED", level: "COLLEGE", minYear: 1, maxYear: 4, namePrefix: "Year " },
+    { name: "School of Business and Public Administration", code: "SBPA", level: "COLLEGE", minYear: 1, maxYear: 4, namePrefix: "Year " },
+    { name: "College of Accountancy", code: "COA", level: "COLLEGE", minYear: 1, maxYear: 4, namePrefix: "Year " },
+    { name: "College of Nursing and Pharmacy", code: "CONP", level: "COLLEGE", minYear: 1, maxYear: 4, namePrefix: "Year " },
+    { name: "College of Hospitality and Tourism Management", code: "CHTM", level: "COLLEGE", minYear: 1, maxYear: 4, namePrefix: "Year " },
+    { name: "School of Arts and Sciences", code: "SAS", level: "COLLEGE", minYear: 1, maxYear: 4, namePrefix: "Year " },
+    { name: "Graduate School", code: "GRADUATE", level: "GRADUATE", minYear: 1, maxYear: 2, namePrefix: "Year " }
+  ];
 
-  console.log("Departments created.");
+  const createdDepts = {};
+  const createdSectionsByDept = {};
 
-  // 2. Create Sections
-  const secCcs4A = await prisma.section.create({
-    data: { name: "BSCS 4-A", departmentId: ccs.id }
-  });
-  const secCcs4B = await prisma.section.create({
-    data: { name: "BSCS 4-B", departmentId: ccs.id }
-  });
-  const secCoe4A = await prisma.section.create({
-    data: { name: "BSCE 4-A", departmentId: coe.id }
-  });
-  const secShs11A = await prisma.section.create({
-    data: { name: "Grade 11-STEM A", departmentId: shsAcademic.id }
-  });
-  const secJhs7A = await prisma.section.create({
-    data: { name: "Grade 7-St. Jude", departmentId: jhsDept.id }
-  });
+  for (const config of deptConfigs) {
+    const dept = await prisma.department.create({
+      data: { name: config.name, level: config.level }
+    });
+    createdDepts[config.code] = dept;
+    createdSectionsByDept[config.code] = [];
 
-  // Additional JHS Sections
-  const secJhs7B = await prisma.section.create({
-    data: { name: "Grade 7-St. Luke", departmentId: jhsDept.id }
-  });
-  const secJhs8A = await prisma.section.create({
-    data: { name: "Grade 8-St. Matthew", departmentId: jhsDept.id }
-  });
-  const secJhs9A = await prisma.section.create({
-    data: { name: "Grade 9-St. Mark", departmentId: jhsDept.id }
-  });
-  const secJhs10A = await prisma.section.create({
-    data: { name: "Grade 10-St. John", departmentId: jhsDept.id }
-  });
-
-  // Additional SHS Sections
-  const secShs11B = await prisma.section.create({
-    data: { name: "Grade 11-ABM A", departmentId: shsAcademic.id }
-  });
-  const secShs11C = await prisma.section.create({
-    data: { name: "Grade 11-HUMSS A", departmentId: shsAcademic.id }
-  });
-  const secShs12A = await prisma.section.create({
-    data: { name: "Grade 12-STEM B", departmentId: shsAcademic.id }
-  });
-  const secShs12B = await prisma.section.create({
-    data: { name: "Grade 12-ABM B", departmentId: shsAcademic.id }
-  });
-
-  // Additional College Sections
-  const secCcs1A = await prisma.section.create({
-    data: { name: "BSCS 1-A", departmentId: ccs.id }
-  });
-  const secCcs2A = await prisma.section.create({
-    data: { name: "BSCS 2-A", departmentId: ccs.id }
-  });
-  const secCcs3B = await prisma.section.create({
-    data: { name: "BSCS 3-B", departmentId: ccs.id }
-  });
-  const secCcs1B = await prisma.section.create({
-    data: { name: "BSIT 1-B", departmentId: ccs.id }
-  });
-  const secCcs3A = await prisma.section.create({
-    data: { name: "BSIT 3-A", departmentId: ccs.id }
-  });
-  const secCoe1A = await prisma.section.create({
-    data: { name: "BSCE 1-A", departmentId: coe.id }
-  });
-
-  // Graduate School Sections
-  const secGradMba = await prisma.section.create({
-    data: { name: "MBA 1-A", departmentId: gradDept.id }
-  });
-  const secGradMsit = await prisma.section.create({
-    data: { name: "MSIT 2-A", departmentId: gradDept.id }
-  });
-
-  console.log("Sections created.");
-
-  // 3. Create Professors
-  const profJane = await prisma.professor.create({
-    data: {
-      name: "Dr. Jane Smith",
-      email: "jane.smith@ua.edu.ph",
-      departmentId: ccs.id,
-      sections: { connect: [{ id: secCcs4A.id }, { id: secCcs4B.id }] }
+    // Create 3 sections for each grade/year
+    for (let yr = config.minYear; yr <= config.maxYear; yr++) {
+      for (const letter of ["A", "B", "C"]) {
+        const secName = `${config.code} ${config.namePrefix}${yr}-${letter}`;
+        const sec = await prisma.section.create({
+          data: { name: secName, departmentId: dept.id }
+        });
+        createdSectionsByDept[config.code].push(sec);
+      }
     }
-  });
+  }
 
-  const profJohn = await prisma.professor.create({
-    data: {
-      name: "Prof. John Doe",
-      email: "john.doe@ua.edu.ph",
-      departmentId: coe.id,
-      sections: { connect: [{ id: secCoe4A.id }] }
-    }
-  });
+  console.log("Departments and Sections created.");
 
-  const profAlice = await prisma.professor.create({
-    data: {
-      name: "Ms. Alice Cooper",
-      email: "alice.cooper@ua.edu.ph",
-      departmentId: shsAcademic.id,
-      sections: { connect: [{ id: secShs11A.id }] }
-    }
-  });
+  // 2. Create Professors distributed across departments
+  const professorsData = [
+    { name: "Dr. Jane Smith", email: "jane.smith@ua.edu.ph", deptCode: "CIT" },
+    { name: "Dr. Alan Turing", email: "alan.turing@ua.edu.ph", deptCode: "CIT" },
+    { name: "Prof. Grace Hopper", email: "grace.hopper@ua.edu.ph", deptCode: "CIT" },
+    { name: "Prof. John Doe", email: "john.doe@ua.edu.ph", deptCode: "CEA" },
+    { name: "Dr. Nikola Tesla", email: "nikola.tesla@ua.edu.ph", deptCode: "CEA" },
+    { name: "Ms. Alice Cooper", email: "alice.cooper@ua.edu.ph", deptCode: "SHS" },
+    { name: "Ms. Marie Curie", email: "marie.curie@ua.edu.ph", deptCode: "SHS" },
+    { name: "Mr. Bob Marley", email: "bob.marley@ua.edu.ph", deptCode: "JHS" },
+    { name: "Mrs. Ada Lovelace", email: "ada.lovelace@ua.edu.ph", deptCode: "JHS" },
+    { name: "Mr. Albert Einstein", email: "albert.einstein@ua.edu.ph", deptCode: "SAS" },
+    { name: "Mr. Isaac Newton", email: "isaac.newton@ua.edu.ph", deptCode: "SAS" },
+    { name: "Dr. Richard Feynman", email: "richard.feynman@ua.edu.ph", deptCode: "SED" },
+    { name: "Ms. Katherine Johnson", email: "katherine.johnson@ua.edu.ph", deptCode: "SED" },
+    { name: "Prof. Charles Babbage", email: "charles.babbage@ua.edu.ph", deptCode: "SBPA" },
+    { name: "Dr. Rosalind Franklin", email: "rosalind.franklin@ua.edu.ph", deptCode: "SBPA" },
+    { name: "Prof. Adam Smith", email: "adam.smith@ua.edu.ph", deptCode: "COA" },
+    { name: "Prof. Luca Pacioli", email: "luca.pacioli@ua.edu.ph", deptCode: "COA" },
+    { name: "Dr. Florence Nightingale", email: "florence.nightingale@ua.edu.ph", deptCode: "CONP" },
+    { name: "Dr. Alexander Fleming", email: "alexander.fleming@ua.edu.ph", deptCode: "CONP" },
+    { name: "Chef Auguste Escoffier", email: "auguste.escoffier@ua.edu.ph", deptCode: "CHTM" },
+    { name: "Ms. Julia Child", email: "julia.child@ua.edu.ph", deptCode: "CHTM" },
+    { name: "Dr. Stephen Hawking", email: "stephen.hawking@ua.edu.ph", deptCode: "GRADUATE" }
+  ];
 
-  const profBob = await prisma.professor.create({
-    data: {
-      name: "Mr. Bob Marley",
-      email: "bob.marley@ua.edu.ph",
-      departmentId: jhsDept.id,
-      sections: { connect: [{ id: secJhs7A.id }] }
-    }
-  });
+  for (const prof of professorsData) {
+    const dept = createdDepts[prof.deptCode];
+    const sections = createdSectionsByDept[prof.deptCode] || [];
+    // Connect to 3 sections in that department
+    const connectedSections = sections.slice(0, 3).map(s => ({ id: s.id }));
+    
+    await prisma.professor.create({
+      data: {
+        name: prof.name,
+        email: prof.email,
+        departmentId: dept.id,
+        sections: { connect: connectedSections }
+      }
+    });
+  }
 
-  // Additional Professors
-  await prisma.professor.create({
-    data: {
-      name: "Dr. Alan Turing",
-      email: "alan.turing@ua.edu.ph",
-      departmentId: ccs.id,
-      sections: { connect: [{ id: secCcs1A.id }, { id: secCcs2A.id }, { id: secCcs3B.id }] }
-    }
-  });
-
-  await prisma.professor.create({
-    data: {
-      name: "Prof. Grace Hopper",
-      email: "grace.hopper@ua.edu.ph",
-      departmentId: ccs.id,
-      sections: { connect: [{ id: secCcs1B.id }, { id: secCcs3A.id }] }
-    }
-  });
-
-  await prisma.professor.create({
-    data: {
-      name: "Dr. Nikola Tesla",
-      email: "nikola.tesla@ua.edu.ph",
-      departmentId: coe.id,
-      sections: { connect: [{ id: secCoe1A.id }] }
-    }
-  });
-
-  await prisma.professor.create({
-    data: {
-      name: "Ms. Marie Curie",
-      email: "marie.curie@ua.edu.ph",
-      departmentId: shsAcademic.id,
-      sections: { connect: [{ id: secShs11B.id }, { id: secShs12A.id }] }
-    }
-  });
-
-  await prisma.professor.create({
-    data: {
-      name: "Mr. Albert Einstein",
-      email: "albert.einstein@ua.edu.ph",
-      departmentId: shsAcademic.id,
-      sections: { connect: [{ id: secShs11C.id }, { id: secShs12B.id }] }
-    }
-  });
-
-  await prisma.professor.create({
-    data: {
-      name: "Mrs. Ada Lovelace",
-      email: "ada.lovelace@ua.edu.ph",
-      departmentId: jhsDept.id,
-      sections: { connect: [{ id: secJhs7B.id }, { id: secJhs8A.id }] }
-    }
-  });
-
-  await prisma.professor.create({
-    data: {
-      name: "Mr. Isaac Newton",
-      email: "isaac.newton@ua.edu.ph",
-      departmentId: jhsDept.id,
-      sections: { connect: [{ id: secJhs9A.id }, { id: secJhs10A.id }] }
-    }
-  });
-
-  await prisma.professor.create({
-    data: {
-      name: "Dr. Richard Feynman",
-      email: "richard.feynman@ua.edu.ph",
-      departmentId: gradDept.id,
-      sections: { connect: [{ id: secGradMba.id }, { id: secGradMsit.id }] }
-    }
-  });
-
-  console.log("Professors created.");
+  console.log("Professors created and linked to sections.");
 
   // Helper to seed a template for College and Graduate levels
   async function seedCollegeOrGradTemplate(title, level, deptId) {
@@ -357,11 +234,16 @@ async function main() {
     });
   }
 
-  // 4. Create Templates, Clusters, Criteria
-  // 4.1 College Template
-  await seedCollegeOrGradTemplate("College Faculty Evaluation Form 2026", "COLLEGE", ccs.id);
+  // 3. Create Templates for each level
+  // 3.1 College Templates (for each college department)
+  const collegeCodes = ["CEA", "CIT", "SED", "SBPA", "COA", "CONP", "CHTM", "SAS"];
+  for (const code of collegeCodes) {
+    const dept = createdDepts[code];
+    await seedCollegeOrGradTemplate(`${code} Faculty Evaluation Form 2026`, "COLLEGE", dept.id);
+  }
 
-  // 4.2 JHS Template
+  // 3.2 JHS Template
+  const jhsDept = createdDepts["JHS"];
   const jhsTemplate = await prisma.template.create({
     data: {
       title: "JHS Faculty Evaluation Form 2026",
@@ -372,11 +254,7 @@ async function main() {
   });
 
   const clusterJhsPerformance = await prisma.cluster.create({
-    data: {
-      title: "Teacher Evaluation Criteria",
-      order: 1,
-      templateId: jhsTemplate.id
-    }
+    data: { title: "Teacher Evaluation Criteria", order: 1, templateId: jhsTemplate.id }
   });
 
   const jhsQuestions = [
@@ -403,7 +281,6 @@ async function main() {
     });
   }
 
-  // Comments and suggestions
   await prisma.criterion.create({
     data: {
       question: "Write your comments and suggestions for your teacher below.",
@@ -413,23 +290,20 @@ async function main() {
     }
   });
 
-  // 4.3 SHS Template
+  // 3.3 SHS Template
+  const shsDept = createdDepts["SHS"];
   const shsTemplate = await prisma.template.create({
     data: {
       title: "SHS Faculty Evaluation Form 2026",
       level: "SHS",
-      departmentId: shsAcademic.id,
+      departmentId: shsDept.id,
       isActive: true
     }
   });
 
   // Cluster: Adviser Evaluation
   const clusterShsAdviser = await prisma.cluster.create({
-    data: {
-      title: "Adviser Evaluation",
-      order: 1,
-      templateId: shsTemplate.id
-    }
+    data: { title: "Adviser Evaluation", order: 1, templateId: shsTemplate.id }
   });
 
   const shsAdviserScaleQuestions = [
@@ -451,30 +325,16 @@ async function main() {
   }
 
   await prisma.criterion.create({
-    data: {
-      question: "What are the adviser’s strong points?",
-      type: "TEXT_LONG",
-      order: 5,
-      clusterId: clusterShsAdviser.id
-    }
+    data: { question: "What are the adviser’s strong points?", type: "TEXT_LONG", order: 5, clusterId: clusterShsAdviser.id }
   });
 
   await prisma.criterion.create({
-    data: {
-      question: "What are the adviser’s weak points?",
-      type: "TEXT_LONG",
-      order: 6,
-      clusterId: clusterShsAdviser.id
-    }
+    data: { question: "What are the adviser’s weak points?", type: "TEXT_LONG", order: 6, clusterId: clusterShsAdviser.id }
   });
 
   // Cluster 1: Communication Skills
   const clusterShsComm = await prisma.cluster.create({
-    data: {
-      title: "Cluster 1: Communication Skills",
-      order: 2,
-      templateId: shsTemplate.id
-    }
+    data: { title: "Cluster 1: Communication Skills", order: 2, templateId: shsTemplate.id }
   });
 
   const shsCommQuestions = [
@@ -498,11 +358,7 @@ async function main() {
 
   // Cluster 2: Instructional Skills, Classroom Management, Student Engagement, and Progress
   const clusterShsInstruction = await prisma.cluster.create({
-    data: {
-      title: "Cluster 2: Instructional Skills, Classroom Management, Student Engagement, and Monitoring Student Progress",
-      order: 3,
-      templateId: shsTemplate.id
-    }
+    data: { title: "Cluster 2: Instructional Skills, Classroom Management, Student Engagement, and Monitoring Student Progress", order: 3, templateId: shsTemplate.id }
   });
 
   const shsInstructionQuestions = [
@@ -526,11 +382,7 @@ async function main() {
 
   // Cluster 3: Command of the Subject Matter
   const clusterShsSubject = await prisma.cluster.create({
-    data: {
-      title: "Cluster 3: Command of the Subject Matter",
-      order: 4,
-      templateId: shsTemplate.id
-    }
+    data: { title: "Cluster 3: Command of the Subject Matter", order: 4, templateId: shsTemplate.id }
   });
 
   const shsSubjectQuestions = [
@@ -554,11 +406,7 @@ async function main() {
 
   // Cluster: Other Comments and Suggestions
   const clusterShsFeedback = await prisma.cluster.create({
-    data: {
-      title: "Other Comments and Suggestions",
-      order: 5,
-      templateId: shsTemplate.id
-    }
+    data: { title: "Other Comments and Suggestions", order: 5, templateId: shsTemplate.id }
   });
 
   await prisma.criterion.create({
@@ -576,36 +424,22 @@ async function main() {
   });
 
   await prisma.criterion.create({
-    data: {
-      question: "What are the teacher’s strong points?",
-      type: "TEXT_LONG",
-      order: 2,
-      clusterId: clusterShsFeedback.id
-    }
+    data: { question: "What are the teacher’s strong points?", type: "TEXT_LONG", order: 2, clusterId: clusterShsFeedback.id }
   });
 
   await prisma.criterion.create({
-    data: {
-      question: "What characteristics of the teachers being evaluated do you like best?",
-      type: "TEXT_LONG",
-      order: 3,
-      clusterId: clusterShsFeedback.id
-    }
+    data: { question: "What characteristics of the teachers being evaluated do you like best?", type: "TEXT_LONG", order: 3, clusterId: clusterShsFeedback.id }
   });
 
   await prisma.criterion.create({
-    data: {
-      question: "In which area/s do you think the teacher needs to improve on?",
-      type: "TEXT_LONG",
-      order: 4,
-      clusterId: clusterShsFeedback.id
-    }
+    data: { question: "In which area/s do you think the teacher needs to improve on?", type: "TEXT_LONG", order: 4, clusterId: clusterShsFeedback.id }
   });
 
-  // 4.4 Graduate Template
+  // 3.4 Graduate Template
+  const gradDept = createdDepts["GRADUATE"];
   await seedCollegeOrGradTemplate("Graduate School Faculty Evaluation Form 2026", "GRADUATE", gradDept.id);
 
-  // 5. Add default admin user in DB
+  // 4. Add default admin user in DB
   await prisma.user.create({
     data: {
       email: "admin@ua.edu.ph",
