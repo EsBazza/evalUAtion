@@ -407,10 +407,6 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
           <Card className="border border-border/80">
             <CardContent className="p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div className="space-y-1">
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-ua-navy/5 border border-ua-navy/15 text-[9px] font-bold text-ua-navy uppercase tracking-wider dark:bg-ua-gold/10 dark:text-ua-gold dark:border-ua-gold/20">
-                  <span className="w-1.5 h-1.5 rounded-full bg-ua-gold animate-pulse" />
-                  Student evaluation portal
-                </span>
                 <h2 className="text-lg sm:text-xl font-bold text-foreground tracking-tight">Welcome, {displayName}!</h2>
                 <p className="text-xs text-muted-foreground font-medium">Your anonymous feedback contributes directly to academic quality improvement.</p>
               </div>
@@ -578,7 +574,7 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
                         <div className="p-8 text-center bg-muted/20 border border-dashed rounded-lg font-medium text-muted-foreground">No instructors assigned to this section.</div>
                       ) : !template ? (
                         <div className="p-8 text-center bg-ua-gold/5 border border-ua-gold/25 rounded-lg text-ua-gold-dark dark:text-ua-gold font-medium">
-                          <p>⚠️ No active evaluation form template registered for this level.</p>
+                          <p>No active evaluation form template registered for this level.</p>
                         </div>
                       ) : (
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -707,7 +703,7 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
                       <div className="flex justify-between items-center pt-2 border-t border-border/40 text-[10px] font-semibold text-muted-foreground">
                         <span>Thank You.</span>
                         <span className="text-[9px] uppercase tracking-wider text-muted-foreground/50">
-                          🔒 Anonymous & Confidential
+                          Anonymous & Confidential
                         </span>
                       </div>
                     </CardContent>
@@ -827,7 +823,7 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
                 </CardContent>
 
                 <CardFooter className="flex flex-col sm:flex-row gap-4 justify-between sm:items-center p-6 border-t border-border/40 bg-muted/20">
-                  <span className="text-xs text-muted-foreground font-medium">🔒 Submitted evaluations are permanently anonymous and locked.</span>
+                  <span className="text-xs text-muted-foreground font-medium">Submitted evaluations are permanently anonymous and locked.</span>
                   <Button 
                     type="button" 
                     uaVariant="accent"
