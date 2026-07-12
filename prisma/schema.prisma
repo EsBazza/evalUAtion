@@ -203,3 +203,11 @@ model AuditLog {
   @@index([eventType, createdAt])
 }
 
+model CryptoSession {
+  id         String   @id // sessionId (UUID)
+  privateKey String   // base64 ECDH private key
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+}
+

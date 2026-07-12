@@ -136,7 +136,7 @@ export async function submitProfessorEvaluation(data: {
     if (data.encryptedPayload && data.iv && data.authTag && data.clientPublicKey && data.sessionId) {
       try {
         // Validate payload integrity by performing test decryption
-        const decryptedPayload = decryptClientPayload(
+        const decryptedPayload = await decryptClientPayload(
           data.sessionId,
           data.clientPublicKey,
           data.encryptedPayload,

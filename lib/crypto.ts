@@ -1,97 +1,69 @@
 import crypto from 'crypto';
+import { prisma } from '@/lib/prisma';
 
-import fs from 'fs';
-import path from 'path';
+/**
+ * Store the ECDH private key in the database so it survives
+ * across serverless function invocations (Vercel, etc.).
+ * Keys are single-use and expire after 1 hour.
+ */
+async function setSessionKey(sessionId: string, privateKey: string) {
+  await prisma.cryptoSession.create({
+    data: { id: sessionId, privateKey },
+  });
 
-const KEYS_DIR = path.join(process.cwd(), '.session-keys');
-
-function ensureKeysDir() {
-  if (!fs.existsSync(KEYS_DIR)) {
-    fs.mkdirSync(KEYS_DIR, { recursive: true });
-  }
+  // Fire-and-forget cleanup of keys older than 1 hour
+  prisma.cryptoSession
+    .deleteMany({
+      where: {
+        createdAt: { lt: new Date(Date.now() - 1000 * 60 * 60) },
+      },
+    })
+    .catch(() => {/* ignore cleanup errors */});
 }
 
-function setSessionKey(sessionId: string, privateKey: string) {
-  ensureKeysDir();
-  const filePath = path.join(KEYS_DIR, sessionId);
-  fs.writeFileSync(filePath, privateKey, 'utf8');
+async function getSessionKey(sessionId: string): Promise<string | undefined> {
+  const row = await prisma.cryptoSession.findUnique({ where: { id: sessionId } });
+  return row?.privateKey ?? undefined;
 }
 
-function getSessionKey(sessionId: string): string | undefined {
-  const filePath = path.join(KEYS_DIR, sessionId);
-  if (fs.existsSync(filePath)) {
-    return fs.readFileSync(filePath, 'utf8');
-  }
-  return undefined;
-}
-
-function deleteSessionKey(sessionId: string) {
-  const filePath = path.join(KEYS_DIR, sessionId);
-  if (fs.existsSync(filePath)) {
-    try {
-      fs.unlinkSync(filePath);
-    } catch (e) {
-      // ignore
-    }
-  }
-}
-
-function cleanupOldKeys() {
-  ensureKeysDir();
-  try {
-    const files = fs.readdirSync(KEYS_DIR);
-    const now = Date.now();
-    const oneHour = 1000 * 60 * 60;
-    for (const file of files) {
-      const filePath = path.join(KEYS_DIR, file);
-      const stat = fs.statSync(filePath);
-      if (now - stat.mtimeMs > oneHour) {
-        fs.unlinkSync(filePath);
-      }
-    }
-  } catch (e) {
-    // ignore
-  }
+async function deleteSessionKey(sessionId: string) {
+  await prisma.cryptoSession.delete({ where: { id: sessionId } }).catch(() => {/* already deleted */});
 }
 
 /**
  * Generate a new server P-256 ECDH keypair and store the private key.
  * Returns the session ID and the uncompressed public key as base64.
  */
-export function generateServerECDHSession(): { sessionId: string; publicKey: string } {
+export async function generateServerECDHSession(): Promise<{ sessionId: string; publicKey: string }> {
   const ecdh = crypto.createECDH('prime256v1');
   ecdh.generateKeys();
-  
+
   const sessionId = crypto.randomUUID();
   const publicKey = ecdh.getPublicKey('base64');
   const privateKey = ecdh.getPrivateKey('base64');
-  
-  // Store private key for this session
-  setSessionKey(sessionId, privateKey);
-  
-  // Clean up any keys older than 1 hour
-  cleanupOldKeys();
-  
+
+  await setSessionKey(sessionId, privateKey);
+
   return { sessionId, publicKey };
 }
 
 /**
  * Decrypts a client payload encrypted with ECDH + AES-256-GCM.
  */
-export function decryptClientPayload(
+export async function decryptClientPayload(
   sessionId: string,
   clientPublicKeyBase64: string,
   encryptedPayloadBase64: string,
   ivBase64: string,
   authTagBase64: string
-): any {
-  const serverPrivateKeyBase64 = getSessionKey(sessionId);
+): Promise<any> {
+  const serverPrivateKeyBase64 = await getSessionKey(sessionId);
   if (!serverPrivateKeyBase64) {
     throw new Error('Crypto session expired or invalid. Please refresh the page and try again.');
   }
 
   // Remove the single-use key to enforce ephemerality
-  deleteSessionKey(sessionId);
+  await deleteSessionKey(sessionId);
 
   // Compute ECDH shared secret
   const serverECDH = crypto.createECDH('prime256v1');
@@ -102,9 +74,9 @@ export function decryptClientPayload(
   const aesKey = crypto.hkdfSync(
     'sha256',
     sharedSecret,
-    Buffer.alloc(0), // salt
+    Buffer.alloc(0),         // salt
     Buffer.from('evaluation-session'), // info
-    32 // 256 bits key size
+    32                        // 256-bit key
   );
 
   // Decrypt payload
@@ -128,14 +100,14 @@ export function encryptWithServerKey(payload: any): { ciphertext: Buffer; iv: Bu
   const serverKeyHex = process.env.AUDIT_LOG_KEY || '0000000000000000000000000000000000000000000000000000000000000000';
   const key = Buffer.from(serverKeyHex, 'hex');
   const iv = crypto.randomBytes(12);
-  
+
   const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
-  
+
   let ciphertext = cipher.update(JSON.stringify(payload), 'utf8');
   ciphertext = Buffer.concat([ciphertext, cipher.final()]);
-  
+
   const authTag = cipher.getAuthTag();
-  
+
   return { ciphertext, iv, authTag };
 }
 
@@ -145,12 +117,12 @@ export function encryptWithServerKey(payload: any): { ciphertext: Buffer; iv: Bu
 export function decryptWithServerKey(ciphertext: Buffer, iv: Buffer, authTag: Buffer): any {
   const serverKeyHex = process.env.AUDIT_LOG_KEY || '0000000000000000000000000000000000000000000000000000000000000000';
   const key = Buffer.from(serverKeyHex, 'hex');
-  
+
   const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
   decipher.setAuthTag(authTag);
-  
+
   let decrypted = decipher.update(ciphertext, undefined, 'utf8');
   decrypted += decipher.final('utf8');
-  
+
   return JSON.parse(decrypted);
 }
