@@ -256,6 +256,11 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
 
   useEffect(() => {
     if (selectedSectionId) {
+      // Clear dependent states to prevent stale values from previous sections/levels triggering bug
+      setProfessors([]);
+      setCompletedProfs([]);
+      setTemplate(null);
+
       getProfessorsBySection(selectedSectionId).then(setProfessors);
       getCompletedEvaluations(studentEmail, selectedSectionId).then(setCompletedProfs);
       
@@ -268,6 +273,10 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
       } else {
         getEvaluationTemplate(selectedLevel as any, selectedDepartmentId).then(setTemplate);
       }
+    } else {
+      setProfessors([]);
+      setCompletedProfs([]);
+      setTemplate(null);
     }
   }, [selectedSectionId, selectedLevel, selectedDepartmentId, studentEmail]);
 
@@ -321,7 +330,7 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
         studentEmail,
         sectionId: selectedSectionId,
         professorId: selectedProf.id,
-        departmentId: selectedDepartmentId || departments[0]?.id || "", 
+        departmentId: sections.find(s => s.id === selectedSectionId)?.departmentId || selectedDepartmentId || departments[0]?.id || "", 
         templateId: template.id,
         answers: formattedAnswers,
         encryptedPayload: encrypted.ciphertext,
@@ -590,6 +599,7 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
                                   setDepartments([]);
                                   setSections([]);
                                   setProfessors([]);
+                                  setCompletedProfs([]);
                                   setTemplate(null);
                                   evaluationForm.reset();
                                 }}
