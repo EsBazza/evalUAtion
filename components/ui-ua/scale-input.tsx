@@ -7,9 +7,10 @@ export interface ScaleInputProps {
   onChange: (value: number) => void
   disabled?: boolean
   error?: boolean
+  max?: 4 | 5
 }
 
-const SCALE_OPTIONS = [
+const SCALE_4_OPTIONS = [
   { value: 0, label: "Poor / Strongly Disagree" },
   { value: 1, label: "Unsatisfactory / Disagree" },
   { value: 2, label: "Satisfactory / Neutral" },
@@ -17,19 +18,29 @@ const SCALE_OPTIONS = [
   { value: 4, label: "Outstanding / Strongly Agree" },
 ]
 
+const SCALE_5_OPTIONS = [
+  { value: 1, label: "Poor / Strongly Disagree" },
+  { value: 2, label: "Unsatisfactory / Disagree" },
+  { value: 3, label: "Satisfactory / Neutral" },
+  { value: 4, label: "Very Satisfactory / Agree" },
+  { value: 5, label: "Outstanding / Strongly Agree" },
+]
+
 export function ScaleInput({
   value,
   onChange,
   disabled = false,
   error = false,
+  max = 4,
 }: ScaleInputProps) {
-  const selectedOption = SCALE_OPTIONS.find((opt) => opt.value === value)
+  const options = max === 5 ? SCALE_5_OPTIONS : SCALE_4_OPTIONS
+  const selectedOption = options.find((opt) => opt.value === value)
 
   return (
     <div className="flex flex-col gap-3 w-full">
-      {/* 5-Option Buttons Row */}
+      {/* Option Buttons Row */}
       <div className="flex items-center justify-between gap-2">
-        {SCALE_OPTIONS.map((option) => {
+        {options.map((option) => {
           const isSelected = value === option.value
           return (
             <button
@@ -53,7 +64,7 @@ export function ScaleInput({
               {/* Selection ring highlighting */}
               {isSelected && (
                 <motion.div
-                  layoutId="scale-active-indicator"
+                  layoutId={`scale-active-indicator-${max}`}
                   className="absolute inset-0 rounded-[inherit] border-2 border-ua-gold pointer-events-none"
                   transition={{ type: "spring", stiffness: 350, damping: 25 }}
                   style={{ originX: 0.5, originY: 0.5 }}
@@ -72,7 +83,7 @@ export function ScaleInput({
           </span>
         ) : (
           <span className="text-xs text-muted-foreground italic">
-            Select a score from 0 to 4
+            Select a score from {max === 5 ? "1 to 5" : "0 to 4"}
           </span>
         )}
       </div>
