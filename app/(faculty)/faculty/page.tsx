@@ -1,13 +1,52 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { processFacultyEvaluationSummary, getFacultyProfessorId } from '@/app/actions/ai';
 import { getFacultyProfileData } from '@/app/actions/management';
 import { RadarClusterChart } from '@/components/charts/RadarClusterChart';
 import { SectionBarChart } from '@/components/charts/SectionBarChart';
-import { toast } from 'sonner';
+import { Award, BrainCircuit, RefreshCw, BarChart3, AlertCircle } from 'lucide-react';
 
-export default function FacultyDashboard() {
+// UA Primitives
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui-ua/card';
+import { Button } from '@/components/ui-ua/button';
+import { toast } from '@/components/ui-ua/toast';
+import { AppShell } from '@/components/ui-ua/app-shell';
+import { cn } from '@/lib/utils';
+
+// Frame-synchronized count-up animation component
+function CountUp({ end, duration = 0.8, suffix = "" }: { end: number; duration?: number; suffix?: string }) {
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    if (mediaQuery.matches) {
+      setCount(end);
+      return;
+    }
+
+    let startTimestamp: number | null = null;
+    const step = (timestamp: number) => {
+      if (!startTimestamp) startTimestamp = timestamp;
+      const progress = Math.min((timestamp - startTimestamp) / (duration * 1000), 1);
+      setCount(progress * end);
+      if (progress < 1) {
+        window.requestAnimationFrame(step);
+      }
+    };
+    window.requestAnimationFrame(step);
+  }, [end, duration]);
+
+  const isDecimal = end % 1 !== 0;
+  return (
+    <span>
+      {isDecimal ? count.toFixed(1) : Math.floor(count)}
+      {suffix}
+    </span>
+  );
+}
+
+function FacultyDashboardContent() {
   const [professorId, setProfessorId] = useState<string | null>(null);
   const [academicYear, setAcademicYear] = useState('2026-2027');
   const [semester, setSemester] = useState('1st');
@@ -17,8 +56,15 @@ export default function FacultyDashboard() {
   
   useEffect(() => {
     async function init() {
-      const id = await getFacultyProfessorId();
-      setProfessorId(id);
+      setIsLoading(true);
+      try {
+        const id = await getFacultyProfessorId();
+        setProfessorId(id);
+      } catch (err) {
+        toast.error("Failed to authenticate faculty session.");
+      } finally {
+        setIsLoading(false);
+      }
     }
     init();
   }, []);
@@ -44,25 +90,43 @@ export default function FacultyDashboard() {
   const handleGenerateSummary = async () => {
     if (!professorId) return;
     setIsProcessing(true);
-    const res = await processFacultyEvaluationSummary(professorId, academicYear, semester);
-    if (res.success) {
-      toast.success("AI analysis generated successfully!");
-      await fetchProfileData(professorId, academicYear, semester);
-    } else {
-      toast.error(res.message || "Failed to process summary");
-      setProfileData(null);
+    try {
+      const res = await processFacultyEvaluationSummary(professorId, academicYear, semester);
+      if (res.success) {
+        toast.success("AI analysis generated successfully!");
+        await fetchProfileData(professorId, academicYear, semester);
+      } else {
+        toast.error(res.message || "Failed to process summary");
+        setProfileData(null);
+      }
+    } catch (e) {
+      toast.error("Failed to connect with Gemini AI endpoint.");
+    } finally {
+      setIsProcessing(false);
     }
-    setIsProcessing(false);
   };
 
   if (professorId === null && !isLoading) {
     return (
-      <div className="p-8 max-w-xl mx-auto text-center space-y-4">
-        <h1 className="text-3xl font-black text-red-600 mt-20">Access Denied</h1>
-        <p className="text-slate-600 leading-relaxed">
-          Your logged-in account is not registered as a Faculty member in the database.
-        </p>
-        <p className="text-sm text-slate-500">Please contact the Administrator to link your email address.</p>
+      <div className="min-h-screen bg-background flex items-center justify-center p-6">
+        <Card className="max-w-md w-full border-border/80">
+          <CardHeader className="text-center pb-2">
+            <AlertCircle className="size-12 text-ua-crimson mx-auto mb-2" />
+            <CardTitle className="font-serif text-xl font-bold">Access Denied</CardTitle>
+            <CardDescription>Faculty registration error</CardDescription>
+          </CardHeader>
+          <CardContent className="text-center text-xs text-muted-foreground space-y-4">
+            <p className="leading-relaxed">
+              Your logged-in account is not registered as a Faculty member in the database.
+            </p>
+            <p>Please contact the School Administrator to link your email address.</p>
+            <div className="pt-2">
+              <Button onClick={() => window.location.href = "/"} uaVariant="outline" className="w-full">
+                Return to Login
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -70,37 +134,47 @@ export default function FacultyDashboard() {
   const aiSummary = profileData?.aiSummary;
   const scoreCache = profileData?.scoreCache;
 
+  const navItems = [
+    { id: 'dashboard', label: 'Faculty Analytics', href: '/faculty', icon: Award }
+  ];
+
   return (
-    <div className="min-h-screen bg-slate-50/50 py-10 px-4 sm:px-6">
-      <div className="max-w-5xl mx-auto space-y-8">
+    <AppShell
+      navItems={navItems}
+      role="FACULTY MEMBER"
+      title="Assumption"
+      subtitle="Faculty Console"
+    >
+      <div className="space-y-6">
         
         {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 pb-6 border-b border-gray-200">
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 pb-4 border-b border-border/80">
           <div>
-            <h1 className="text-3xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-              <span className="bg-indigo-600 text-white px-3 py-1 rounded-xl text-2xl font-extrabold shadow-sm">UA</span>
-              Faculty Analytics Dashboard
+            <h1 className="font-serif text-2xl font-bold text-foreground tracking-wide uppercase">
+              Faculty Analytics
             </h1>
-            <p className="text-sm text-slate-500 mt-1.5 font-medium">View your evaluation performance and AI-generated text summary insights</p>
+            <p className="text-xs text-muted-foreground mt-1 font-semibold">
+              View your evaluation performance metrics and AI-generated narrative insights
+            </p>
           </div>
           
-          <div className="flex flex-wrap items-center gap-4 w-full md:w-auto">
+          <div className="flex flex-wrap items-center gap-4 w-full lg:w-auto">
             <div className="flex gap-2">
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Academic Year</label>
+                <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Academic Year</label>
                 <input 
                   type="text" 
                   value={academicYear} 
                   onChange={(e) => setAcademicYear(e.target.value)} 
-                  className="p-2.5 border border-slate-200 rounded-xl text-xs bg-white font-semibold w-28 text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-600/10"
+                  className="h-10 px-3 border border-border rounded-lg text-xs bg-card font-semibold w-28 text-foreground focus:ring-2 focus:ring-ua-gold/30 outline-none"
                 />
               </div>
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Semester</label>
+                <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Semester</label>
                 <select 
                   value={semester} 
                   onChange={(e) => setSemester(e.target.value)} 
-                  className="p-2.5 border border-slate-200 rounded-xl text-xs bg-white font-semibold w-28 text-slate-850 focus:outline-none"
+                  className="h-10 px-3 border border-border rounded-lg text-xs bg-card font-semibold w-28 text-foreground focus:ring-2 focus:ring-ua-gold/30 outline-none font-bold"
                 >
                   <option value="1st">1st Sem</option>
                   <option value="2nd">2nd Sem</option>
@@ -109,80 +183,126 @@ export default function FacultyDashboard() {
               </div>
             </div>
 
-            <button 
+            <Button 
               onClick={handleGenerateSummary} 
               disabled={isProcessing || !professorId}
-              className="px-5 py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-lg shadow-indigo-600/10 hover:shadow-indigo-600/20 disabled:opacity-50 transition-all self-end cursor-pointer"
+              uaVariant="primary"
+              className="h-10 text-xs self-end"
             >
+              <RefreshCw className={cn("size-3.5 mr-1.5", isProcessing && "animate-spin")} />
               {isProcessing ? "Processing..." : "Regenerate AI"}
-            </button>
+            </Button>
           </div>
         </div>
 
-        {/* Metric Overview Stripe */}
+        {/* Metric Overview Cards */}
         {scoreCache && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-white border border-slate-200/80 p-5 rounded-2xl shadow-sm flex items-center justify-between">
-              <div className="space-y-1">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Composite Performance Score</p>
-                <h2 className="text-3xl font-black text-slate-900">{scoreCache.compositeScore}%</h2>
-              </div>
-            </div>
-            <div className="bg-white border border-slate-200/80 p-5 rounded-2xl shadow-sm space-y-1">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Scale Questions Score</p>
-              <h2 className="text-3xl font-black text-slate-700">{scoreCache.scaleScore}%</h2>
-            </div>
-            <div className="bg-white border border-slate-200/80 p-5 rounded-2xl shadow-sm space-y-1">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">AI Sentiment Score</p>
-              <h2 className="text-3xl font-black text-slate-700">{scoreCache.aiQualityScore}%</h2>
-            </div>
+            <Card>
+              <CardContent className="p-6 flex flex-col justify-center space-y-1">
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Composite Performance</span>
+                <h2 className="text-3xl font-bold font-sans text-ua-navy dark:text-ua-gold">
+                  <CountUp end={scoreCache.compositeScore} suffix="%" />
+                </h2>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="p-6 flex flex-col justify-center space-y-1">
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Scale Questions Score (70%)</span>
+                <h2 className="text-3xl font-bold font-sans text-muted-foreground">
+                  <CountUp end={scoreCache.scaleScore} suffix="%" />
+                </h2>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6 flex flex-col justify-center space-y-1">
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">AI Sentiment Score (30%)</span>
+                <h2 className="text-3xl font-bold font-sans text-muted-foreground">
+                  <CountUp end={scoreCache.aiQualityScore} suffix="%" />
+                </h2>
+              </CardContent>
+            </Card>
           </div>
         )}
         
         {/* AI Summary Card */}
-        <div className="bg-white border border-indigo-100 rounded-2xl p-6 shadow-sm shadow-indigo-100/30 space-y-4">
-          <div className="flex justify-between items-center border-b pb-3">
-            <h2 className="text-lg font-extrabold text-indigo-950 flex items-center gap-2">
-              <span className="w-2.5 h-2.5 bg-indigo-600 rounded-full animate-ping" />
+        <Card className="relative overflow-hidden border-border/60">
+          <div className="absolute top-0 left-0 w-1.5 h-full bg-ua-navy dark:bg-ua-gold" />
+          <CardHeader className="border-b border-border/40 bg-muted/10 pb-4 flex flex-row justify-between items-center">
+            <CardTitle className="text-xs font-bold uppercase tracking-widest flex items-center gap-2">
+              <BrainCircuit className="size-4 text-ua-navy dark:text-ua-gold" />
               Gemini AI-Generated Narrative Breakdown
-            </h2>
+            </CardTitle>
             {aiSummary && (
-              <span className="text-xs bg-indigo-50 border border-indigo-100 text-indigo-700 px-3 py-1.5 rounded-xl font-bold uppercase tracking-wider">
+              <span className="text-xs bg-ua-navy/5 border border-ua-navy/10 text-ua-navy dark:bg-ua-gold/15 dark:text-ua-gold dark:border-ua-gold/20 px-3 py-1 rounded-full font-bold uppercase">
                 Rating Sentiment: {aiSummary.ratingScore} / 100
               </span>
             )}
-          </div>
+          </CardHeader>
 
-          {isLoading ? (
-            <p className="text-slate-400 font-medium animate-pulse py-4">Syncing insights with Gemini...</p>
-          ) : aiSummary ? (
-            <div className="space-y-4">
-              <p className="text-slate-700 leading-relaxed text-base italic">
+          <CardContent className="p-6">
+            {isLoading ? (
+              <p className="text-muted-foreground font-medium animate-pulse py-4">Syncing insights with Gemini...</p>
+            ) : aiSummary ? (
+              <blockquote className="border-l-4 border-ua-gold/40 pl-4 py-1 italic font-serif text-lg text-ua-navy dark:text-ua-gold leading-relaxed">
                 "{aiSummary.summaryText}"
-              </p>
-            </div>
-          ) : (
-            <div className="py-6 text-center text-slate-400">
-              <p className="font-semibold mb-2">No summary generated yet.</p>
-              <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                Click the "Regenerate AI" button at the top to process qualitative student text feedback.
-              </p>
-            </div>
-          )}
-        </div>
+              </blockquote>
+            ) : (
+              <div className="py-6 text-center text-muted-foreground">
+                <p className="font-semibold mb-2">No summary generated yet.</p>
+                <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+                  Click the "Regenerate AI" button at the top to process qualitative student text feedback.
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Analytics Breakdown Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-white border border-slate-200/80 p-6 rounded-2xl shadow-sm space-y-4">
-            <h3 className="font-bold text-slate-800 text-sm border-b pb-2">Section Performance (Bar)</h3>
-            <SectionBarChart data={profileData?.sectionScores || []} />
-          </div>
-          <div className="bg-white border border-slate-200/80 p-6 rounded-2xl shadow-sm space-y-4">
-            <h3 className="font-bold text-slate-800 text-sm border-b pb-2">Cluster Metrics (Radar)</h3>
-            <RadarClusterChart data={profileData?.clusterScores || []} />
-          </div>
+          <Card>
+            <CardHeader className="border-b border-border/40 pb-4">
+              <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+                <BarChart3 className="size-4 text-ua-navy dark:text-ua-gold" />
+                Section Performance (Bar)
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6">
+              <SectionBarChart data={profileData?.sectionScores || []} />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="border-b border-border/40 pb-4">
+              <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+                <Award className="size-4 text-ua-navy dark:text-ua-gold" />
+                Cluster Metrics (Radar)
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6">
+              <RadarClusterChart data={profileData?.clusterScores || []} />
+            </CardContent>
+          </Card>
+        </div>
+
+      </div>
+    </AppShell>
+  );
+}
+
+export default function FacultyDashboard() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center p-8 bg-background">
+        <div className="text-center space-y-3 animate-pulse">
+          <div className="w-10 h-10 border-4 border-ua-navy border-t-transparent dark:border-ua-gold dark:border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-muted-foreground font-semibold text-xs uppercase tracking-wider">Syncing Faculty Workspace...</p>
         </div>
       </div>
-    </div>
+    }>
+      <FacultyDashboardContent />
+    </Suspense>
   );
 }
