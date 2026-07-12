@@ -7,10 +7,48 @@ import { processFacultyEvaluationSummary } from '@/app/actions/ai';
 import { RadarClusterChart } from '@/components/charts/RadarClusterChart';
 import { SectionBarChart } from '@/components/charts/SectionBarChart';
 import { HistoricalTrendChart } from '@/components/charts/HistoricalTrendChart';
-import { toast } from 'sonner';
+import { ChevronLeft, BrainCircuit, RefreshCw, BarChart3, ShieldAlert } from 'lucide-react';
+
+// UA Primitives
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui-ua/card';
+import { Button } from '@/components/ui-ua/button';
+import { toast } from '@/components/ui-ua/toast';
+import { cn } from '@/lib/utils';
 
 interface FacultyPreviewClientProps {
   professorId: string;
+}
+
+// Frame-synchronized count-up animation component
+function CountUp({ end, duration = 0.8, suffix = "" }: { end: number; duration?: number; suffix?: string }) {
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    if (mediaQuery.matches) {
+      setCount(end);
+      return;
+    }
+
+    let startTimestamp: number | null = null;
+    const step = (timestamp: number) => {
+      if (!startTimestamp) startTimestamp = timestamp;
+      const progress = Math.min((timestamp - startTimestamp) / (duration * 1000), 1);
+      setCount(progress * end);
+      if (progress < 1) {
+        window.requestAnimationFrame(step);
+      }
+    };
+    window.requestAnimationFrame(step);
+  }, [end, duration]);
+
+  const isDecimal = end % 1 !== 0;
+  return (
+    <span>
+      {isDecimal ? count.toFixed(1) : Math.floor(count)}
+      {suffix}
+    </span>
+  );
 }
 
 export default function FacultyPreviewClient({ professorId }: FacultyPreviewClientProps) {
@@ -44,7 +82,7 @@ export default function FacultyPreviewClient({ professorId }: FacultyPreviewClie
     try {
       const res = await processFacultyEvaluationSummary(professorId, academicYear, semester);
       if (res.success) {
-        toast.success("AI analysis narrative generated and cache updated!");
+        toast.success("AI analysis narrative generated successfully!");
         await fetchProfileData(professorId, academicYear, semester);
       } else {
         toast.error(res.message || "Failed to process qualitative summary.");
@@ -58,10 +96,10 @@ export default function FacultyPreviewClient({ professorId }: FacultyPreviewClie
 
   if (loading && !data) {
     return (
-      <div className="min-h-screen bg-slate-50/50 flex items-center justify-center p-8">
+      <div className="min-h-screen flex items-center justify-center p-8 bg-background">
         <div className="text-center space-y-3">
-          <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-slate-500 font-semibold text-xs uppercase tracking-wider">Syncing Faculty Workspace...</p>
+          <div className="w-10 h-10 border-4 border-ua-navy border-t-transparent dark:border-ua-gold dark:border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-muted-foreground font-semibold text-xs uppercase tracking-wider">Syncing Faculty Workspace...</p>
         </div>
       </div>
     );
@@ -72,179 +110,216 @@ export default function FacultyPreviewClient({ professorId }: FacultyPreviewClie
   const { professor, scoreCache, clusterScores, sectionScores, historicalScores, aiSummary, evaluationLog } = data;
 
   return (
-    <div className="min-h-screen bg-slate-50/50 py-10 px-4 sm:px-6">
-      <div className="max-w-6xl mx-auto space-y-8">
-        
-        {/* Admin Warning Banner */}
-        <div className="bg-amber-50 border border-amber-200 text-amber-900 px-5 py-3 rounded-2xl flex items-center justify-between text-xs font-bold shadow-sm">
-          <div className="flex items-center gap-2">
-            <span className="text-sm">🛡️</span>
-            <span>ADMIN PREVIEW: You are viewing this faculty performance report as a system administrator. Student identities are hidden.</span>
-          </div>
-          <Link href="/admin/management" className="text-indigo-700 hover:text-indigo-850 hover:underline">
+    <div className="space-y-6">
+      
+      {/* Admin Warning Banner */}
+      <div className="bg-ua-gold/10 border border-ua-gold/25 text-foreground px-5 py-3 rounded-lg flex items-center justify-between text-xs font-semibold shadow-sm flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          <ShieldAlert className="size-4 text-ua-gold shrink-0" />
+          <span>ADMIN PREVIEW: You are viewing this faculty performance report as a system administrator. Student identities are hidden.</span>
+        </div>
+        <Link href="/admin/management">
+          <Button uaVariant="outline" className="h-8 text-xs flex items-center justify-center">
+            <ChevronLeft className="size-3.5 mr-1" />
             Back to Management
-          </Link>
-        </div>
+          </Button>
+        </Link>
+      </div>
 
-        {/* Header Block */}
-        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 pb-6 border-b border-slate-200">
-          <div>
-            <div className="flex items-center gap-2.5">
-              <h1 className="text-3xl font-black text-slate-900 tracking-tight">{professor.name}</h1>
-              <span className="px-2.5 py-0.5 bg-indigo-50 border border-indigo-100 text-indigo-700 rounded-full font-bold text-[10px] uppercase">
-                {professor.level} - {professor.department}
-              </span>
-            </div>
-            <p className="text-sm text-slate-500 mt-1 font-semibold">{professor.email} · Classes: {professor.sections || 'None'}</p>
+      {/* Header Block */}
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 pb-4 border-b border-border/80">
+        <div>
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <h1 className="font-serif text-2xl font-bold text-foreground">{professor.name}</h1>
+            <span className="px-2.5 py-0.5 bg-ua-navy/5 border border-ua-navy/10 text-ua-navy dark:bg-ua-gold/15 dark:text-ua-gold dark:border-ua-gold/20 rounded-full font-bold text-[10px] uppercase">
+              {professor.level} - {professor.department}
+            </span>
           </div>
-          
-          {/* Controls */}
-          <div className="flex flex-wrap items-center gap-4 w-full lg:w-auto">
-            <div className="flex gap-2">
-              <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Academic Year</label>
-                <input 
-                  type="text" 
-                  value={academicYear} 
-                  onChange={(e) => setAcademicYear(e.target.value)} 
-                  className="p-2.5 border border-slate-200 rounded-xl text-xs bg-white font-semibold w-28 text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-600/10"
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Semester</label>
-                <select 
-                  value={semester} 
-                  onChange={(e) => setSemester(e.target.value)} 
-                  className="p-2.5 border border-slate-200 rounded-xl text-xs bg-white font-semibold w-28 text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-600/10"
-                >
-                  <option value="1st">1st Sem</option>
-                  <option value="2nd">2nd Sem</option>
-                  <option value="Summer">Summer</option>
-                </select>
-              </div>
-            </div>
-
-            <button 
-              onClick={handleGenerateSummary} 
-              disabled={isProcessing}
-              className="px-5 py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-lg shadow-indigo-600/10 hover:shadow-indigo-600/20 disabled:opacity-50 transition-all self-end cursor-pointer"
-            >
-              {isProcessing ? "Processing..." : "Regenerate AI Analysis"}
-            </button>
-          </div>
+          <p className="text-xs text-muted-foreground mt-1 font-semibold">
+            {professor.email} · Classes: {professor.sections || 'None'}
+          </p>
         </div>
+        
+        {/* Controls */}
+        <div className="flex flex-wrap items-center gap-4 w-full lg:w-auto">
+          <div className="flex gap-2">
+            <div>
+              <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Academic Year</label>
+              <input 
+                type="text" 
+                value={academicYear} 
+                onChange={(e) => setAcademicYear(e.target.value)} 
+                className="h-10 px-3 border border-border rounded-lg text-xs bg-card font-semibold w-28 text-foreground focus:ring-2 focus:ring-ua-gold/30 outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Semester</label>
+              <select 
+                value={semester} 
+                onChange={(e) => setSemester(e.target.value)} 
+                className="h-10 px-3 border border-border rounded-lg text-xs bg-card font-semibold w-28 text-foreground focus:ring-2 focus:ring-ua-gold/30 outline-none"
+              >
+                <option value="1st">1st Sem</option>
+                <option value="2nd">2nd Sem</option>
+                <option value="Summer">Summer</option>
+              </select>
+            </div>
+          </div>
 
-        {/* Metric Cards Row */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white border border-slate-200/80 p-5 rounded-2xl shadow-sm flex items-center justify-between">
+          <Button 
+            onClick={handleGenerateSummary} 
+            disabled={isProcessing}
+            uaVariant="primary"
+            className="h-10 text-xs self-end"
+          >
+            <RefreshCw className={cn("size-3.5 mr-1.5", isProcessing && "animate-spin")} />
+            {isProcessing ? "Analyzing..." : "Regenerate AI Analysis"}
+          </Button>
+        </div>
+      </div>
+
+      {/* Metric Cards Row */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card>
+          <CardContent className="p-6 flex items-center justify-between">
             <div className="space-y-1">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Composite Evaluation Score</p>
-              <h2 className="text-3xl font-black text-slate-900">
-                {scoreCache?.compositeScore !== null && scoreCache?.compositeScore !== undefined ? `${scoreCache.compositeScore}%` : 'N/A'}
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Composite Score</span>
+              <h2 className="text-3xl font-bold font-sans text-ua-navy dark:text-ua-gold">
+                {scoreCache?.compositeScore !== null && scoreCache?.compositeScore !== undefined ? (
+                  <CountUp end={scoreCache.compositeScore} suffix="%" />
+                ) : 'N/A'}
               </h2>
             </div>
             {scoreCache && scoreCache.compositeScore !== null && scoreCache.compositeScore !== undefined && (
-              <span className={`px-2.5 py-1 rounded-full text-xs font-black ${
-                scoreCache.compositeScore >= 80 ? 'bg-emerald-50 text-emerald-700' :
-                scoreCache.compositeScore >= 60 ? 'bg-amber-50 text-amber-700' : 'bg-red-50 text-red-700'
-              }`}>
+              <span className={cn(
+                "px-2.5 py-1 rounded-full text-[10px] font-bold uppercase",
+                scoreCache.compositeScore >= 80 ? 'bg-emerald-50 border border-emerald-150 text-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-400' :
+                scoreCache.compositeScore >= 60 ? 'bg-ua-gold/10 border border-ua-gold/25 text-ua-gold' : 'bg-ua-crimson/5 border border-ua-crimson/15 text-ua-crimson'
+              )}>
                 {scoreCache.compositeScore >= 80 ? 'Excellent' : scoreCache.compositeScore >= 60 ? 'Satisfactory' : 'Needs Work'}
               </span>
             )}
-          </div>
+          </CardContent>
+        </Card>
 
-          <div className="bg-white border border-slate-200/80 p-5 rounded-2xl shadow-sm space-y-1">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Mathematical Scale Score (70%)</p>
-            <h2 className="text-3xl font-black text-slate-700">
-              {scoreCache?.scaleScore !== null && scoreCache?.scaleScore !== undefined ? `${scoreCache.scaleScore}%` : 'N/A'}
+        <Card>
+          <CardContent className="p-6 flex flex-col justify-center space-y-1">
+            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Mathematical Score (70%)</span>
+            <h2 className="text-3xl font-bold font-sans text-muted-foreground">
+              {scoreCache?.scaleScore !== null && scoreCache?.scaleScore !== undefined ? (
+                <CountUp end={scoreCache.scaleScore} suffix="%" />
+              ) : 'N/A'}
             </h2>
-          </div>
+          </CardContent>
+        </Card>
 
-          <div className="bg-white border border-slate-200/80 p-5 rounded-2xl shadow-sm space-y-1">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">AI Sentiment Score (30%)</p>
-            <h2 className="text-3xl font-black text-slate-700">
-              {scoreCache?.aiQualityScore !== null && scoreCache?.aiQualityScore !== undefined ? `${scoreCache.aiQualityScore}%` : 'N/A'}
+        <Card>
+          <CardContent className="p-6 flex flex-col justify-center space-y-1">
+            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">AI Sentiment Score (30%)</span>
+            <h2 className="text-3xl font-bold font-sans text-muted-foreground">
+              {scoreCache?.aiQualityScore !== null && scoreCache?.aiQualityScore !== undefined ? (
+                <CountUp end={scoreCache.aiQualityScore} suffix="%" />
+              ) : 'N/A'}
             </h2>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
+      </div>
 
-        {/* AI Narrative Section */}
-        <div className="bg-white border border-indigo-100 rounded-2xl p-6 shadow-sm shadow-indigo-100/30 space-y-4">
-          <div className="flex justify-between items-center border-b pb-3">
-            <h2 className="text-lg font-extrabold text-indigo-950 flex items-center gap-2">
-              <span className="w-2.5 h-2.5 bg-indigo-600 rounded-full animate-ping" />
-              Gemini AI Evaluation Sentiment Analysis
-            </h2>
-            {aiSummary && (
-              <span className="text-xs bg-indigo-50 border border-indigo-100 text-indigo-700 px-3 py-1.5 rounded-xl font-bold uppercase tracking-wider">
-                Rating Sentiment: {aiSummary.ratingScore} / 100
-              </span>
-            )}
-          </div>
-
+      {/* AI Narrative Section */}
+      <Card className="relative overflow-hidden border-border/60">
+        <div className="absolute top-0 left-0 w-1.5 h-full bg-ua-navy dark:bg-ua-gold" />
+        <CardHeader className="border-b border-border/40 bg-muted/10 pb-4 flex flex-row justify-between items-center">
+          <CardTitle className="text-xs font-bold uppercase tracking-widest flex items-center gap-2">
+            <BrainCircuit className="size-4 text-ua-navy dark:text-ua-gold" />
+            Gemini AI Evaluation Sentiment Analysis
+          </CardTitle>
+          {aiSummary && (
+            <span className="text-xs bg-ua-navy/5 border border-ua-navy/10 text-ua-navy dark:bg-ua-gold/15 dark:text-ua-gold dark:border-ua-gold/20 px-3 py-1 rounded-full font-bold uppercase">
+              Rating Sentiment: {aiSummary.ratingScore} / 100
+            </span>
+          )}
+        </CardHeader>
+        <CardContent className="p-6">
           {loading ? (
-            <p className="text-slate-400 font-medium animate-pulse py-4">Syncing insights with Gemini...</p>
+            <p className="text-muted-foreground font-medium animate-pulse py-4">Syncing insights with Gemini...</p>
           ) : aiSummary ? (
-            <div className="space-y-4">
-              <p className="text-slate-700 leading-relaxed text-base italic">
-                "{aiSummary.summaryText}"
-              </p>
-            </div>
+            <blockquote className="border-l-4 border-ua-gold/40 pl-4 py-1 italic font-serif text-lg text-ua-navy dark:text-ua-gold leading-relaxed">
+              "{aiSummary.summaryText}"
+            </blockquote>
           ) : (
-            <div className="py-6 text-center text-slate-400">
+            <div className="py-6 text-center text-muted-foreground">
               <p className="font-semibold mb-2">No summary generated yet.</p>
-              <p className="text-xs text-slate-500 max-w-sm mx-auto">
+              <p className="text-xs text-muted-foreground max-w-sm mx-auto">
                 Click the "Regenerate AI Analysis" button above to evaluate student comments.
               </p>
             </div>
           )}
-        </div>
+        </CardContent>
+      </Card>
 
-        {/* Visual Charts Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-white border border-slate-200/80 p-6 rounded-2xl shadow-sm space-y-4">
-            <h3 className="font-bold text-slate-800 text-sm border-b pb-2">Cluster Breakdown (Radar)</h3>
+      {/* Visual Charts Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader className="border-b border-border/40 pb-4">
+            <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Cluster Breakdown (Radar)</CardTitle>
+          </CardHeader>
+          <CardContent className="p-6">
             <RadarClusterChart data={clusterScores} />
-          </div>
-          
-          <div className="bg-white border border-slate-200/80 p-6 rounded-2xl shadow-sm space-y-4">
-            <h3 className="font-bold text-slate-800 text-sm border-b pb-2">Section Performance (Bar)</h3>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="border-b border-border/40 pb-4">
+            <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Section Performance (Bar)</CardTitle>
+          </CardHeader>
+          <CardContent className="p-6">
             <SectionBarChart data={sectionScores} />
-          </div>
-        </div>
+          </CardContent>
+        </Card>
+      </div>
 
-        {/* Lower Grid: Trends & Audit Logs */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          
-          {/* Trend Analysis */}
-          <div className="bg-white border border-slate-200/80 p-6 rounded-2xl shadow-sm space-y-4 lg:col-span-2">
-            <h3 className="font-bold text-slate-800 text-sm border-b pb-2">Historical Composite Trends</h3>
+      {/* Lower Grid: Trends & Audit Logs */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        {/* Trend Analysis */}
+        <Card className="lg:col-span-2">
+          <CardHeader className="border-b border-border/40 pb-4">
+            <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Historical Composite Trends</CardTitle>
+          </CardHeader>
+          <CardContent className="p-6">
             <HistoricalTrendChart data={historicalScores} />
-          </div>
+          </CardContent>
+        </Card>
 
-          {/* Anonymized Evaluation Log */}
-          <div className="bg-white border border-slate-200/80 p-6 rounded-2xl shadow-sm space-y-4">
-            <h3 className="font-bold text-slate-800 text-sm border-b pb-2">Recent Evaluations ({evaluationLog.length})</h3>
-            <div className="max-h-64 overflow-y-auto divide-y divide-slate-100 pr-1">
+        {/* Anonymized Evaluation Log */}
+        <Card>
+          <CardHeader className="border-b border-border/40 pb-4">
+            <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+              <BarChart3 className="size-4" />
+              Recent Evaluations ({evaluationLog.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-6">
+            <div className="max-h-64 overflow-y-auto divide-y divide-border/40 pr-1">
               {evaluationLog.length === 0 ? (
-                <p className="text-xs text-slate-400 font-semibold italic text-center py-8">No responses logged for this term.</p>
+                <p className="text-xs text-muted-foreground font-semibold italic text-center py-8">No responses logged for this term.</p>
               ) : (
-                evaluationLog.map((log: any, idx: number) => (
+                evaluationLog.map((log: any) => (
                   <div key={log.id} className="py-2.5 flex justify-between items-center text-xs">
                     <div>
-                      <p className="font-bold text-slate-800">Section {log.sectionName}</p>
-                      <p className="text-[10px] text-slate-450 mt-0.5">{new Date(log.createdAt).toLocaleDateString()}</p>
+                      <p className="font-bold text-foreground">Section {log.sectionName}</p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">{new Date(log.createdAt).toLocaleDateString()}</p>
                     </div>
-                    <span className="text-[9px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded font-bold">SUBMITTED</span>
+                    <span className="text-[9px] bg-muted border border-border text-muted-foreground px-2 py-0.5 rounded font-bold">SUBMITTED</span>
                   </div>
                 ))
               )}
             </div>
-          </div>
-
-        </div>
+          </CardContent>
+        </Card>
 
       </div>
+
     </div>
   );
 }
