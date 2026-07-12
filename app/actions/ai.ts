@@ -115,9 +115,17 @@ export async function processFacultyEvaluationSummary(professorId: string, acade
 
       summaryText = cleanJson.summary || summaryText;
       ratingScore = typeof cleanJson.score === 'number' ? cleanJson.score : ratingScore;
-    } catch (e) {
-      console.error("Gemini processing error:", e);
-      summaryText = "AI summary generation failed due to technical constraints.";
+    } catch (e: any) {
+      const reason = e?.message || String(e);
+      console.error("Gemini processing error:", reason);
+      // Surface a more helpful message depending on the failure reason
+      if (reason.includes('API_KEY') || reason.includes('API key') || reason.includes('401')) {
+        summaryText = "AI summary unavailable: GEMINI_API_KEY is missing or invalid. Please set it in your Vercel environment variables.";
+      } else if (reason.includes('quota') || reason.includes('429')) {
+        summaryText = "AI summary unavailable: Gemini API quota exceeded. Try again later.";
+      } else {
+        summaryText = `AI summary generation failed: ${reason}`;
+      }
     }
 
   // Upsert the AI summary

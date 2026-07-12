@@ -74,29 +74,39 @@ export async function getFacultyRankings(academicYear?: string, semester?: strin
     termSem = settings.semester;
   }
 
-  const professors = await prisma.professor.findMany({
-    include: {
-      department: true,
-      sections: true,
-    },
-  });
+  // Fetch all professors and all score caches in just 2 queries (no N+1 loop)
+  const [professors, scoreCaches] = await Promise.all([
+    prisma.professor.findMany({
+      include: {
+        department: true,
+        sections: true,
+      },
+    }),
+    prisma.scoreCache.findMany({
+      where: {
+        academicYear: termYear,
+        semester: termSem,
+        isStale: false,
+      },
+    }),
+  ]);
 
-  const rankings = [];
-  for (const prof of professors) {
-    const cache = await getOrComputeScoreCache(prof.id, termYear, termSem);
-    rankings.push({
-      id: prof.id,
-      name: prof.name,
-      email: prof.email,
-      department: prof.department.name,
-      level: prof.department.level,
-      sections: prof.sections.map(s => s.name).join(', '),
-      averageScore: cache?.compositeScore ?? null,
-    });
-  }
+  // Build a quick lookup map: professorId -> cache
+  const cacheMap = new Map(scoreCaches.map(c => [c.professorId, c]));
+
+  const rankings = professors.map(prof => ({
+    id: prof.id,
+    name: prof.name,
+    email: prof.email,
+    department: prof.department.name,
+    level: prof.department.level,
+    sections: prof.sections.map(s => s.name).join(', '),
+    averageScore: cacheMap.get(prof.id)?.compositeScore ?? null,
+  }));
 
   return rankings;
 }
+
 
 export async function getFacultyFeedback(professorId: string, academicYear?: string, semester?: string) {
   let termYear = academicYear;
