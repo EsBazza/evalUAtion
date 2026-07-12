@@ -53,6 +53,13 @@
   --color-ua-crimson: #C8102E;
   --color-ua-warm-white: #FAFAF8;
   --color-ua-navy-black: #0A0E1A;
+  
+  /* Legacy Color Mappings */
+  --color-ua-blue: #0B2265;
+  --color-ua-blue-dark: #071643;
+  --color-ua-blue-light: #16358c;
+  --color-ua-red: #C8102E;
+  --color-ua-red-dark: #9e0c24;
 }
 
 :root {

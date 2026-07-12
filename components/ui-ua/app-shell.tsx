@@ -129,9 +129,9 @@ export function AppShell({
             <p className="text-xs font-bold text-ua-gold tracking-wide uppercase">{role}</p>
           </div>
           <Button
-            uaVariant="outline"
+            uaVariant="destructive"
             onClick={() => signOut({ callbackUrl: "/" })}
-            className="w-full h-10 border-ua-crimson/30 hover:bg-ua-crimson hover:text-white dark:hover:text-ua-navy"
+            className="w-full h-10"
           >
             <LogOut className="size-3.5 mr-2" />
             Sign Out
@@ -220,9 +220,9 @@ export function AppShell({
                   <p className="text-xs font-bold text-ua-gold tracking-wide uppercase">{role}</p>
                 </div>
                 <Button
-                  uaVariant="outline"
+                  uaVariant="destructive"
                   onClick={() => signOut({ callbackUrl: "/" })}
-                  className="w-full h-10 border-ua-crimson/30 hover:bg-ua-crimson hover:text-white"
+                  className="w-full h-10"
                 >
                   <LogOut className="size-3.5 mr-2" />
                   Sign Out
