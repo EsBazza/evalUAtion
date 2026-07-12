@@ -73,7 +73,7 @@ export function ClusterStepper({
           <Button
             uaVariant="outline"
             onClick={onBack}
-            disabled={currentIndex === 0 || isSubmitting}
+            disabled={isSubmitting}
             className="flex-1 h-11"
           >
             <ChevronLeft className="size-4 mr-2" />
