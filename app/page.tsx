@@ -28,8 +28,8 @@ export default async function HomePage() {
       <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-[#FFBD00]/8 rounded-full blur-[120px] pointer-events-none z-[-10]" />
       <div className="absolute bottom-10 left-10 w-64 h-64 bg-[#D2143A]/8 rounded-full blur-[80px] pointer-events-none z-[-10]" />
 
-      {/* LEFT COLUMN: Solid White Panel (Interactive) */}
-      <div className="w-full md:w-[45%] min-h-screen flex flex-col justify-between p-6 sm:p-8 md:p-12 relative border-b md:border-b-0 md:border-r border-slate-200 bg-white shrink-0 shadow-2xl">
+      {/* LEFT COLUMN: Transparent on mobile, White Panel on desktop */}
+      <div className="w-full md:w-[45%] min-h-screen flex flex-col justify-between p-6 sm:p-8 md:p-12 relative border-b border-transparent md:border-b-0 md:border-r md:border-slate-200 bg-transparent md:bg-white shrink-0 shadow-none md:shadow-2xl">
 
         {/* Top Block: Logo and Welcome Message */}
         <div className="space-y-8 z-10">
@@ -37,38 +37,38 @@ export default async function HomePage() {
           <div className="flex items-center gap-5">
             <img src="/ua-logo.png" alt="UA Logo" className="w-24 h-24 object-contain shrink-0 rounded-full" />
             <div>
-              <h2 className="text-[24px] font-bold text-slate-400 tracking-widest uppercase leading-none mb-1">University of the</h2>
-              <h2 className="text-[42px] font-black text-[#002366] tracking-wider uppercase leading-none">Assumption</h2>
+              <h2 className="text-[24px] font-bold text-slate-300 md:text-slate-400 tracking-widest uppercase leading-none mb-1">University of the</h2>
+              <h2 className="text-[42px] font-black text-ua-gold md:text-[#002366] tracking-wider uppercase leading-none">Assumption</h2>
             </div>
           </div>
           {/* Welcome message / Session status header */}
           {!session ? (
             <div className="space-y-2.5">
-              <h1 className="text-2xl font-black text-[#002366] tracking-tight uppercase">
+              <h1 className="text-2xl font-black text-white md:text-[#002366] tracking-tight uppercase">
                 Welcome Back
               </h1>
 
-              <p className="text-xs text-slate-500 font-medium leading-relaxed max-w-sm">
+              <p className="text-xs text-slate-200 md:text-slate-500 font-medium leading-relaxed max-w-sm">
                 Please sign in with your official University Google account to access your dashboard.
               </p>
 
               {/* Brand Title (visible only on mobile/tablet, centered and large) */}
               <div className="flex flex-col items-center justify-center text-center pt-8 pb-4 md:hidden select-none w-full">
                 <h1 className="font-black uppercase tracking-tighter text-[26vw] xs:text-[24vw] sm:text-[8rem] leading-[0.8] flex flex-col items-center w-full">
-                  <span className="text-[#002366] w-full text-center">EVAL</span>
+                  <span className="text-white w-full text-center">EVAL</span>
                   <span className="flex justify-center w-full">
                     <span className="text-[#FFBD00]">UA</span>
-                    <span className="text-[#002366]">TE</span>
+                    <span className="text-white">TE</span>
                   </span>
                 </h1>
               </div>
             </div>
           ) : (
             <div className="space-y-2.5">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#FFBD00]/10 border border-[#FFBD00]/25 text-[10px] font-bold text-[#FFBD00] uppercase tracking-wider w-fit">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#FFBD00]/15 border border-[#FFBD00]/30 text-[10px] font-bold text-[#FFBD00] uppercase tracking-wider w-fit">
                 Authenticated
               </span>
-              <h1 className="text-2xl font-black text-[#002366] tracking-tight uppercase">
+              <h1 className="text-2xl font-black text-white md:text-[#002366] tracking-tight uppercase">
                 Active Session
               </h1>
             </div>
@@ -82,21 +82,21 @@ export default async function HomePage() {
               <GoogleLoginButton />
 
               <div className="relative flex py-1 items-center">
-                <div className="flex-grow border-t border-slate-200"></div>
-                <span className="flex-shrink mx-4 text-slate-400 text-[10px] font-bold uppercase tracking-widest">or secure portal</span>
-                <div className="flex-grow border-t border-slate-200"></div>
+                <div className="flex-grow border-t border-white/20 md:border-slate-200"></div>
+                <span className="flex-shrink mx-4 text-slate-300 md:text-slate-400 text-[10px] font-bold uppercase tracking-widest">or secure portal</span>
+                <div className="flex-grow border-t border-white/20 md:border-slate-200"></div>
               </div>
 
               <div className="text-center">
-                <AdminLoginButton />
+                <AdminLoginButton className="bg-white/10 hover:bg-white/20 text-white border-white/15 hover:text-white md:bg-slate-50 md:hover:bg-slate-100 md:text-slate-600 md:border-slate-200" />
               </div>
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-1">
-                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Signed in as</p>
-                <p className="text-xs font-bold text-slate-700 truncate">{session.user?.email}</p>
-                <span className="inline-block mt-1.5 px-2.5 py-0.5 bg-[#002366]/10 text-[#002366] text-[10px] font-bold rounded-full border border-[#002366]/20">
+              <div className="p-4 bg-white/10 border border-white/20 md:bg-slate-50 md:border-slate-200 rounded-2xl space-y-1">
+                <p className="text-[10px] text-slate-300 md:text-slate-400 font-bold uppercase tracking-widest">Signed in as</p>
+                <p className="text-xs font-bold text-white md:text-slate-700 truncate">{session.user?.email}</p>
+                <span className="inline-block mt-1.5 px-2.5 py-0.5 bg-white/15 border border-white/20 text-ua-gold md:bg-[#002366]/10 md:border-[#002366]/20 md:text-[#002366] text-[10px] font-bold rounded-full">
                   {(session.user as any)?.role}
                 </span>
               </div>
@@ -131,7 +131,7 @@ export default async function HomePage() {
 
                 <Link
                   href="/api/auth/signout"
-                  className="inline-block w-full text-center py-3 px-4 bg-slate-50 hover:bg-slate-100 text-slate-500 hover:text-slate-700 font-bold text-xs uppercase tracking-wider rounded-xl border border-slate-200 transition-colors cursor-pointer"
+                  className="inline-block w-full text-center py-3 px-4 bg-white/10 hover:bg-white/20 text-slate-200 hover:text-white font-bold text-xs uppercase tracking-wider rounded-xl border border-white/15 transition-all md:bg-slate-50 md:hover:bg-slate-100 md:text-slate-500 md:hover:text-slate-700 md:border-slate-200 cursor-pointer"
                 >
                   Sign Out
                 </Link>
@@ -140,8 +140,8 @@ export default async function HomePage() {
           )}
 
           {/* Footer */}
-          <div className="pt-4 border-t border-slate-100">
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider leading-relaxed">
+          <div className="pt-4 border-t border-white/15 md:border-slate-100">
+            <p className="text-[10px] text-slate-350 md:text-slate-400 font-bold uppercase tracking-wider leading-relaxed">
               © 2026 University of the Assumption
             </p>
           </div>

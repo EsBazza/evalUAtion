@@ -4,8 +4,9 @@ import { signIn } from 'next-auth/react';
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { KeyRound, Mail, ShieldAlert, X } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
-export default function AdminLoginButton() {
+export default function AdminLoginButton({ className }: { className?: string }) {
   const [showModal, setShowModal] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -46,7 +47,10 @@ export default function AdminLoginButton() {
           setUsername('');
           setPassword('');
         }}
-        className="w-full inline-block text-center py-3 px-4 bg-slate-50 hover:bg-slate-100 text-slate-600 hover:text-slate-800 font-bold text-xs uppercase tracking-wider rounded-xl border border-slate-200 transition-all hover:shadow-sm active:scale-[0.99] cursor-pointer select-none"
+        className={cn(
+          "w-full inline-block text-center py-3 px-4 bg-slate-50 hover:bg-slate-100 text-slate-600 hover:text-slate-800 font-bold text-xs uppercase tracking-wider rounded-xl border border-slate-200 transition-all hover:shadow-sm active:scale-[0.99] cursor-pointer select-none",
+          className
+        )}
       >
         Credentials Sign In (Admin / Dev)
       </button>
