@@ -37,8 +37,8 @@ export default async function HomePage() {
           <div className="flex items-center gap-5">
             <img src="/ua-logo.png" alt="UA Logo" className="w-24 h-24 object-contain shrink-0 rounded-full" />
             <div>
-              <h2 className="text-[24px] font-bold text-slate-300 md:text-slate-400 tracking-widest uppercase leading-none mb-1">University of the</h2>
-              <h2 className="text-[42px] font-black text-ua-gold md:text-[#002366] tracking-wider uppercase leading-none">Assumption</h2>
+              <h2 className="text-[24px] font-bold text-slate-400 tracking-widest uppercase leading-none mb-1">University of the</h2>
+              <h2 className="text-[42px] font-black text-[#002366] tracking-wider uppercase leading-none">Assumption</h2>
             </div>
           </div>
           {/* Welcome message / Session status header */}
