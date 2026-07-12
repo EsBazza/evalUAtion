@@ -301,9 +301,9 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
             </div>
           </div>
           <Button
-            uaVariant="outline"
+            uaVariant="destructive"
             onClick={() => signOut({ callbackUrl: '/' })}
-            className="h-9 px-4 text-xs font-semibold text-ua-warm-white border-ua-warm-white/20 hover:bg-ua-warm-white/10"
+            className="h-9 px-4 text-xs"
           >
             Sign Out
           </Button>
@@ -361,9 +361,9 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
               Evaluate Another Section
             </Button>
             <Button
-              uaVariant="ghost"
+              uaVariant="destructive"
               onClick={() => signOut({ callbackUrl: '/' })}
-              className="w-full text-muted-foreground hover:text-foreground"
+              className="w-full h-9 text-xs"
             >
               Sign Out
             </Button>
@@ -387,9 +387,9 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
             </div>
           </div>
           <Button
-            uaVariant="outline"
+            uaVariant="destructive"
             onClick={() => signOut({ callbackUrl: '/' })}
-            className="h-9 px-4 text-xs font-semibold text-ua-warm-white border-ua-warm-white/20 hover:bg-ua-warm-white/10 dark:text-ua-navy"
+            className="h-9 px-4 text-xs"
           >
             Sign Out
           </Button>
