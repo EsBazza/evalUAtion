@@ -34,21 +34,25 @@ export default async function HomePage() {
         {/* Top Block: Logo and Welcome Message */}
         <div className="space-y-8 z-10">
           {/* Branding / Logo */}
-          <div className="flex items-center gap-5">
-            <img src="/ua-logo.png" alt="UA Logo" className="w-24 h-24 object-contain shrink-0 rounded-full" />
-            <div>
-              <h2 className="text-[24px] font-bold text-white md:text-slate-400 tracking-widest uppercase leading-none mb-1">University of the</h2>
-              <h2 className="text-[42px] font-black text-[#002366] tracking-wider uppercase leading-none">Assumption</h2>
+          <div className="flex flex-col md:flex-row items-center md:items-center text-center md:text-left gap-5 md:gap-6">
+            <div className="order-1 md:order-2 text-center md:text-left w-full md:w-auto">
+              <h2 className="text-[24px] sm:text-[26px] md:text-[28px] font-bold text-white md:text-slate-400 tracking-widest uppercase leading-none mb-2 md:mb-1">University of the</h2>
+              <h2 className="text-[42px] sm:text-[48px] md:text-[50px] font-black text-[#002366] tracking-wider uppercase leading-none">Assumption</h2>
             </div>
+            <img 
+              src="/ua-logo.png" 
+              alt="UA Logo" 
+              className="order-2 md:order-1 w-28 h-28 md:w-32 md:h-32 object-contain shrink-0 rounded-full mx-auto md:mx-0" 
+            />
           </div>
           {/* Welcome message / Session status header */}
           {!session ? (
-            <div className="space-y-2.5">
-              <h1 className="text-2xl font-black text-white md:text-[#002366] tracking-tight uppercase">
+            <div className="space-y-2.5 text-center md:text-left">
+              <h1 className="text-2xl font-black text-white md:text-[#002366] tracking-tight uppercase animate-fade-in">
                 Welcome Back
               </h1>
 
-              <p className="text-xs text-slate-200 md:text-slate-500 font-medium leading-relaxed max-w-sm">
+              <p className="text-xs text-slate-200 md:text-slate-500 font-medium leading-relaxed max-w-sm mx-auto md:mx-0">
                 Please sign in with your official University Google account to access your dashboard.
               </p>
 
@@ -64,8 +68,8 @@ export default async function HomePage() {
               </div>
             </div>
           ) : (
-            <div className="space-y-2.5">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#FFBD00]/15 border border-[#FFBD00]/30 text-[10px] font-bold text-[#FFBD00] uppercase tracking-wider w-fit">
+            <div className="space-y-2.5 text-center md:text-left">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#FFBD00]/15 border border-[#FFBD00]/30 text-[10px] font-bold text-[#FFBD00] uppercase tracking-wider w-fit mx-auto md:mx-0">
                 Authenticated
               </span>
               <h1 className="text-2xl font-black text-white md:text-[#002366] tracking-tight uppercase">
