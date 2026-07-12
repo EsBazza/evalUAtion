@@ -97,14 +97,24 @@ export async function processFacultyEvaluationSummary(professorId: string, acade
   try {
       const response = await ai.models.generateContent({
         model: "gemini-2.5-flash",
-        contents: `Analyze the following raw student feedback comments collected for a university professor. 
-        Synthesize them down to a definitive 3-sentence summary highlighting core instructional strengths and areas needing development. 
-        Additionally, output an integer scale rating between 1 and 100 assessing baseline text performance sentiment.
+        contents: `You are a warm, professional academic performance coach at the University of the Assumption. 
+        Your role is to read through anonymous student evaluation feedback for a faculty member and write a personal, 
+        encouraging, and honest summary addressed directly TO the faculty member (use "you" and "your").
         
-        Format output strictly as JSON matching this structure:
-        {"summary": "text...", "score": 85}
+        The summary should:
+        - Open with a genuine acknowledgment of their overall performance this term
+        - Highlight 1-2 specific strengths students noticed (be specific, not generic)
+        - Honestly but kindly address 1-2 areas where students feel improvement would help
+        - Close with 1-2 concrete, actionable tips they can apply next semester
+        - Sound human, warm, and supportive — not robotic or corporate
+        - Be 4-5 sentences total
+        
+        Also output an integer score from 1-100 reflecting the overall sentiment quality of the feedback.
+        
+        Format your output STRICTLY as JSON with no extra text outside it:
+        {"summary": "Your students this term...", "score": 85}
 
-        Feedback data:
+        Student feedback comments:
         - ${feedbackData}`,
       });
 
