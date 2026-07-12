@@ -3,7 +3,6 @@
 import { Suspense } from 'react';
 import { Award, ShieldAlert, Settings, FolderKanban, FileSpreadsheet } from 'lucide-react';
 import { AppShell } from '@/components/ui-ua/app-shell';
-import { Footer } from '@/components/layout/Footer';
 
 const navItems = [
   { id: 'rankings', label: 'Rankings Ledger', href: '/admin', icon: Award },
@@ -21,11 +20,8 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
       title="Assumption"
       subtitle="Admin Console"
     >
-      <div className="flex flex-col justify-between min-h-[calc(100vh-64px)] md:min-h-[calc(100vh-64px)]">
-        <div className="flex-1 max-w-7xl w-full mx-auto space-y-8 pb-12">
-          {children}
-        </div>
-        <Footer />
+      <div className="max-w-7xl w-full mx-auto space-y-8 pb-12">
+        {children}
       </div>
     </AppShell>
   );

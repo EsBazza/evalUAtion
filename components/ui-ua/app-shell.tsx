@@ -8,6 +8,7 @@ import { Menu, X, LogOut, LucideIcon } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
 import { Button } from "./button"
+import { Footer } from "@/components/layout/Footer"
 
 export interface NavItem {
   id: string
@@ -238,6 +239,7 @@ export function AppShell({
         <main className="flex-grow p-4 sm:p-6 md:p-8">
           {children}
         </main>
+        <Footer />
       </div>
 
     </div>
