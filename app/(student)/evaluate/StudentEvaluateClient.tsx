@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { getDepartments, getSections, getProfessorsBySection, getEvaluationTemplate, submitProfessorEvaluation } from '@/app/actions/student';
+import { getDepartments, getSections, getProfessorsBySection, getEvaluationTemplate, submitProfessorEvaluation, getCompletedEvaluations } from '@/app/actions/student';
 import { DynamicQuestionRenderer } from '@/components/form/DynamicQuestionRenderer';
 import { toast } from '@/components/ui-ua/toast';
 import { Button } from '@/components/ui-ua/button';
@@ -138,6 +138,7 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
   const [selectedProf, setSelectedProf] = useState<any | null>(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isRestored, setIsRestored] = useState(false);
 
   const { control, watch, setValue, formState: { errors } } = useForm<SelectionFormValues>({
     resolver: zodResolver(selectionSchema),
@@ -158,21 +159,86 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
   const selectedLevel = watch('level');
   const selectedDepartmentId = watch('departmentId');
   const selectedSectionId = watch('sectionId');
+  const answers = evaluationForm.watch("answers") || {};
+
+  // Restore progress from sessionStorage on mount
+  useEffect(() => {
+    const saved = sessionStorage.getItem('ua_evaluation_progress');
+    if (saved) {
+      try {
+        const data = JSON.parse(saved);
+        if (data.level) setValue('level', data.level);
+        if (data.departmentId) setValue('departmentId', data.departmentId);
+        if (data.sectionId) setValue('sectionId', data.sectionId);
+        if (data.selectedProf) setSelectedProf(data.selectedProf);
+        if (data.template) setTemplate(data.template);
+        if (data.wizardStep) setWizardStep(data.wizardStep);
+        if (data.currentClusterIndex !== undefined) setCurrentClusterIndex(data.currentClusterIndex);
+        if (data.answers) {
+          evaluationForm.reset({ answers: data.answers });
+        }
+      } catch (e) {
+        console.error("Failed to restore saved progress:", e);
+      }
+    }
+    setIsRestored(true);
+  }, [setValue, evaluationForm]);
+
+  // Save progress to sessionStorage whenever relevant state changes
+  useEffect(() => {
+    if (!isRestored) return;
+
+    const stateToSave = {
+      level: selectedLevel,
+      departmentId: selectedDepartmentId,
+      sectionId: selectedSectionId,
+      selectedProf,
+      template,
+      wizardStep,
+      currentClusterIndex,
+      answers
+    };
+
+    sessionStorage.setItem('ua_evaluation_progress', JSON.stringify(stateToSave));
+  }, [
+    selectedLevel,
+    selectedDepartmentId,
+    selectedSectionId,
+    selectedProf,
+    template,
+    wizardStep,
+    currentClusterIndex,
+    answers,
+    isRestored
+  ]);
+
+  const clearFormProgress = () => {
+    const saved = sessionStorage.getItem('ua_evaluation_progress');
+    if (saved) {
+      try {
+        const data = JSON.parse(saved);
+        const updated = {
+          level: data.level,
+          departmentId: data.departmentId,
+          sectionId: data.sectionId,
+          selectedProf: null,
+          template: null,
+          wizardStep: 1,
+          currentClusterIndex: 0,
+          answers: {}
+        };
+        sessionStorage.setItem('ua_evaluation_progress', JSON.stringify(updated));
+      } catch (e) {
+        sessionStorage.removeItem('ua_evaluation_progress');
+      }
+    }
+  };
 
   useEffect(() => {
     if (selectedLevel) {
-      setDepartments([]);
-      setSections([]);
-      setProfessors([]);
-      setTemplate(null);
-      setValue('departmentId', '');
-      setValue('sectionId', '');
-      evaluationForm.reset();
-
       if (selectedLevel === 'JHS' || selectedLevel === 'SHS') {
         getDepartments(selectedLevel as any).then((deps) => {
           if (deps.length > 0) {
-            setValue('departmentId', deps[0].id);
             getSections(deps[0].id).then(setSections);
           }
         });
@@ -180,23 +246,18 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
         getDepartments(selectedLevel as any).then(setDepartments);
       }
     }
-  }, [selectedLevel, setValue]);
+  }, [selectedLevel]);
 
   useEffect(() => {
     if (selectedDepartmentId) {
-      setSections([]);
-      setProfessors([]);
-      setTemplate(null);
-      setValue('sectionId', '');
-      evaluationForm.reset();
       getSections(selectedDepartmentId).then(setSections);
     }
-  }, [selectedDepartmentId, setValue]);
+  }, [selectedDepartmentId]);
 
   useEffect(() => {
     if (selectedSectionId) {
       getProfessorsBySection(selectedSectionId).then(setProfessors);
-      evaluationForm.reset();
+      getCompletedEvaluations(studentEmail, selectedSectionId).then(setCompletedProfs);
       
       if (selectedLevel === 'JHS' || selectedLevel === 'SHS') {
         getDepartments(selectedLevel as any).then((deps) => {
@@ -208,9 +269,7 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
         getEvaluationTemplate(selectedLevel as any, selectedDepartmentId).then(setTemplate);
       }
     }
-  }, [selectedSectionId, selectedLevel, selectedDepartmentId]);
-
-  const answers = evaluationForm.watch("answers") || {};
+  }, [selectedSectionId, selectedLevel, selectedDepartmentId, studentEmail]);
 
   const isClusterAnswered = (cluster: any) => {
     if (!cluster) return true;
@@ -258,7 +317,7 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
         sessionKey
       );
 
-      await submitProfessorEvaluation({
+      const res = await submitProfessorEvaluation({
         studentEmail,
         sectionId: selectedSectionId,
         professorId: selectedProf.id,
@@ -272,9 +331,16 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
         sessionId,
       });
 
+      if (res && 'success' in res && !res.success) {
+        toast.error(res.error || "Failed to submit evaluation.");
+        setIsSubmitting(false);
+        return;
+      }
+
       setCompletedProfs(prev => [...prev, selectedProf.id]);
       toast.success(`Evaluation for ${selectedProf.name} submitted successfully!`);
       
+      clearFormProgress();
       evaluationForm.reset();
       setSelectedProf(null);
       setWizardStep(1);
@@ -286,6 +352,31 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
       setIsSubmitting(false);
     }
   };
+
+  const showLoading = wizardStep > 1 && (!template || !selectedProf);
+
+  if (showLoading) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col font-sans">
+        <header className="sticky top-0 z-40 w-full bg-ua-navy text-ua-warm-white border-b border-border/20 shadow-md">
+          <div className="max-w-5xl mx-auto flex items-center justify-between px-4 sm:px-6 py-4">
+            <div className="flex items-center gap-3">
+              <img src="/ua-logo.png" alt="UA Logo" className="w-10 h-10 object-contain rounded-full" />
+              <div>
+                <h1 className="text-[10px] font-semibold tracking-wider text-ua-gold leading-none mb-1">UNIVERSITY OF THE</h1>
+                <h2 className="text-base font-bold tracking-wide uppercase leading-tight">Assumption</h2>
+              </div>
+            </div>
+          </div>
+        </header>
+        <main className="flex-grow flex flex-col items-center justify-center space-y-4">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-ua-gold"></div>
+          <p className="text-sm font-medium text-muted-foreground animate-pulse">Restoring your evaluation progress...</p>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   const allCompleted = professors.length > 0 && professors.every(p => completedProfs.includes(p.id));
 
@@ -350,6 +441,7 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
             <Button
               uaVariant="primary"
               onClick={() => {
+                sessionStorage.removeItem('ua_evaluation_progress');
                 setValue('sectionId', '');
                 setValue('departmentId', '');
                 setTemplate(null);
@@ -491,7 +583,16 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
                               <button
                                 key={option.id}
                                 type="button"
-                                onClick={() => field.onChange(option.id)}
+                                onClick={() => {
+                                  field.onChange(option.id);
+                                  setValue('departmentId', '');
+                                  setValue('sectionId', '');
+                                  setDepartments([]);
+                                  setSections([]);
+                                  setProfessors([]);
+                                  setTemplate(null);
+                                  evaluationForm.reset();
+                                }}
                                 className={cn(
                                   "p-4 border rounded-lg text-left transition-all duration-200 cursor-pointer min-h-[44px]",
                                   isActive 
@@ -522,7 +623,14 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
                             render={({ field }) => (
                               <SearchableSelector
                                 value={field.value || ''}
-                                onChange={field.onChange}
+                                onChange={(val) => {
+                                  field.onChange(val);
+                                  setValue('sectionId', '');
+                                  setSections([]);
+                                  setProfessors([]);
+                                  setTemplate(null);
+                                  evaluationForm.reset();
+                                }}
                                 options={departments}
                                 placeholder="Search & select department..."
                                 emptyMessage="No departments found matching search."
@@ -542,7 +650,11 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
                           render={({ field }) => (
                             <SearchableSelector
                               value={field.value}
-                              onChange={field.onChange}
+                              onChange={(val) => {
+                                field.onChange(val);
+                                setProfessors([]);
+                                evaluationForm.reset();
+                              }}
                               options={sections}
                               placeholder="Search & select section..."
                               emptyMessage="No sections found matching search."
@@ -873,7 +985,7 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
 }
 
 function RatingScaleLegend({ level, scaleType }: { level: string; scaleType?: string }) {
-  const isZeroToFour = scaleType ? scaleType === '0_TO_4' : (level === 'COLLEGE' || level === 'GRADUATE');
+  const isZeroToFour = (level === 'COLLEGE' || level === 'GRADUATE');
   const steps = isZeroToFour 
     ? [
         { val: 0, label: 'Not at all true' },

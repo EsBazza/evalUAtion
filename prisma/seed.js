@@ -262,6 +262,7 @@ async function main() {
       title: "JHS Faculty Evaluation Form 2026",
       level: "JHS",
       departmentId: jhsDept.id,
+      scaleType: "1_TO_5",
       isActive: true
     }
   });
@@ -310,6 +311,7 @@ async function main() {
       title: "SHS Faculty Evaluation Form 2026",
       level: "SHS",
       departmentId: shsDept.id,
+      scaleType: "1_TO_5",
       isActive: true
     }
   });

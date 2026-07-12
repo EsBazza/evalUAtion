@@ -160,7 +160,10 @@ export function DynamicQuestionRenderer({ question, control }: DynamicQuestionRe
           <Controller
             name={`answers.${question.id}.textVal`}
             control={control}
-            rules={{ required: "This feedback field is required" }}
+            rules={{ 
+              required: "This feedback field is required",
+              validate: (val) => (typeof val === 'string' && val.trim() !== "") || "This feedback field is required"
+            }}
             render={({ field, fieldState: { error } }) => (
               <div className="space-y-2">
                 <Textarea 
