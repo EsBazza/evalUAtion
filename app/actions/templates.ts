@@ -171,6 +171,17 @@ export async function saveEvaluationTemplate(templateId: string, data: {
 
   // 4. Perform deletions
   if (criteriaIdsToDelete.length > 0) {
+    const answeredCount = await prisma.answer.count({
+      where: {
+        criterionId: { in: criteriaIdsToDelete }
+      }
+    });
+    if (answeredCount > 0) {
+      throw new Error(
+        "Cannot delete questions that already have student responses. " +
+        "Please deactivate this template, duplicate it, and make changes on the copy instead."
+      );
+    }
     await prisma.criterion.deleteMany({
       where: { id: { in: criteriaIdsToDelete } }
     });
