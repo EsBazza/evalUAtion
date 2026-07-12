@@ -90,6 +90,11 @@ function AdminDashboardContent() {
   const [adminSortField, setAdminSortField] = useState('email');
   const [adminSortDirection, setAdminSortDirection] = useState<'asc' | 'desc'>('asc');
 
+  // Sorting and searching states for audit logs
+  const [logSortField, setLogSortField] = useState<'date' | 'type' | 'actor'>('date');
+  const [logSortDirection, setLogSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [logSearch, setLogSearch] = useState('');
+
   // Form states
   const [depName, setDepName] = useState('');
   const [depLevel, setDepLevel] = useState<EducationLevel>('COLLEGE');
@@ -468,15 +473,74 @@ function AdminDashboardContent() {
               <CardContent className="p-6 space-y-6">
                 {nestedLogTab === 'audit' ? (
                   <div className="space-y-4 pt-2">
-                    <div className="flex justify-between items-center pb-2">
-                      <h3 className="text-sm font-semibold text-foreground">Recent Security & Configuration Events</h3>
+                    {/* Audit Logs Filter Toolbar */}
+                    <div className="flex flex-col sm:flex-row gap-3 justify-between items-start sm:items-center bg-muted/20 p-4 rounded-lg border border-border/60">
+                      <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+                        <input
+                          type="text"
+                          value={logSearch}
+                          onChange={(e) => setLogSearch(e.target.value)}
+                          placeholder="Search logs by actor, event, description..."
+                          className="p-2 border border-border rounded-lg text-xs bg-card focus:ring-2 focus:ring-ua-gold/30 outline-none w-full sm:w-64 text-foreground font-semibold"
+                        />
+                        <select
+                          value={logSortField}
+                          onChange={(e) => setLogSortField(e.target.value as any)}
+                          className="p-2 border border-border rounded-lg text-xs bg-card font-semibold text-foreground focus:ring-2 focus:ring-ua-gold/30 outline-none"
+                        >
+                          <option value="date">Sort by Date</option>
+                          <option value="type">Sort by Event Type</option>
+                          <option value="actor">Sort by Actor</option>
+                        </select>
+                        <Button
+                          type="button"
+                          uaVariant="outline"
+                          onClick={() => setLogSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')}
+                          className="h-8 text-xs font-semibold px-2.5"
+                        >
+                          {logSortDirection === 'asc' ? 'Ascending ▴' : 'Descending ▾'}
+                        </Button>
+                      </div>
                       <span className="text-[10px] bg-muted text-muted-foreground px-2.5 py-0.5 rounded-full font-bold">Encrypted Audit Logs</span>
                     </div>
+
                     <div className="border border-border/60 rounded-lg divide-y divide-border/45 bg-muted/10 overflow-hidden font-mono text-xs text-muted-foreground">
-                      {auditLogs.length === 0 ? (
-                        <div className="p-8 text-center text-muted-foreground font-semibold text-xs bg-card">No decrypted audit entries logged yet.</div>
-                      ) : (
-                        auditLogs.map((log: any, index: number) => (
+                      {(() => {
+                        const filteredAndSortedLogs = [...auditLogs]
+                          .filter(log => {
+                            const search = logSearch.toLowerCase();
+                            const eventType = (log.eventType || '').toLowerCase();
+                            const actor = (log.actorEmail || '').toLowerCase();
+                            const desc = (log.details?.desc || log.details?.message || JSON.stringify(log.details) || '').toLowerCase();
+                            return eventType.includes(search) || actor.includes(search) || desc.includes(search);
+                          })
+                          .sort((a, b) => {
+                            let comparison = 0;
+                            if (logSortField === 'date') {
+                              const timeA = new Date(a.createdAt).getTime();
+                              const timeB = new Date(b.createdAt).getTime();
+                              comparison = timeA - timeB;
+                            } else if (logSortField === 'type') {
+                              const valA = (a.eventType || '').toLowerCase();
+                              const valB = (b.eventType || '').toLowerCase();
+                              comparison = valA.localeCompare(valB);
+                            } else if (logSortField === 'actor') {
+                              const valA = (a.actorEmail || '').toLowerCase();
+                              const valB = (b.actorEmail || '').toLowerCase();
+                              comparison = valA.localeCompare(valB);
+                            }
+                            return logSortDirection === 'asc' ? comparison : -comparison;
+                          });
+
+                        if (filteredAndSortedLogs.length === 0) {
+                          return (
+                            <div className="p-8 text-center text-muted-foreground font-semibold text-xs bg-card">
+                              {logSearch ? "No matching audit log entries found." : "No decrypted audit entries logged yet."}
+                            </div>
+                          );
+                        }
+
+                        return filteredAndSortedLogs.map((log: any, index: number) => (
                           <div key={log.id || index} className="p-4 hover:bg-card transition-all flex items-start gap-4">
                             <span className="text-muted-foreground select-none shrink-0">{new Date(log.createdAt).toLocaleString()}</span>
                             <span className="bg-ua-navy/5 border border-ua-navy/10 text-ua-navy dark:bg-ua-gold/15 dark:text-ua-gold dark:border-ua-gold/20 font-bold px-1.5 py-0.5 rounded text-[10px] uppercase tracking-wider shrink-0">{log.eventType}</span>
@@ -485,8 +549,8 @@ function AdminDashboardContent() {
                               <p className="text-[10px] text-muted-foreground">Actor: {log.actorEmail}</p>
                             </div>
                           </div>
-                        ))
-                      )}
+                        ));
+                      })()}
                     </div>
                   </div>
                 ) : (
