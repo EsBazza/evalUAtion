@@ -46,7 +46,7 @@ export default function AdminLoginButton() {
           setUsername('');
           setPassword('');
         }}
-        className="text-[10px] font-bold text-slate-500 hover:text-[#FFBD00] uppercase tracking-widest transition-colors cursor-pointer select-none"
+        className="w-full inline-block text-center py-3 px-4 bg-slate-50 hover:bg-slate-100 text-slate-600 hover:text-slate-800 font-bold text-xs uppercase tracking-wider rounded-xl border border-slate-200 transition-all hover:shadow-sm active:scale-[0.99] cursor-pointer select-none"
       >
         Credentials Sign In (Admin / Dev)
       </button>

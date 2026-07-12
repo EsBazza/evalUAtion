@@ -34,21 +34,16 @@ export default async function HomePage() {
         {/* Top Block: Logo and Welcome Message */}
         <div className="space-y-8 z-10">
           {/* Branding / Logo */}
-          <div className="flex items-center gap-4">
-            <img src="/ua-logo.png" alt="UA Logo" className="w-20 h-20 object-contain shrink-0 rounded-full" />
+          <div className="flex items-center gap-5">
+            <img src="/ua-logo.png" alt="UA Logo" className="w-24 h-24 object-contain shrink-0 rounded-full" />
             <div>
-              <h2 className="text-[20px] font-bold text-slate-400 tracking-widest uppercase leading-none mb-1">University of the</h2>
-              <h2 className="text-[35px] font-black text-[#002366] tracking-wider uppercase leading-none">Assumption</h2>
+              <h2 className="text-[24px] font-bold text-slate-400 tracking-widest uppercase leading-none mb-1">University of the</h2>
+              <h2 className="text-[42px] font-black text-[#002366] tracking-wider uppercase leading-none">Assumption</h2>
             </div>
           </div>
           {/* Welcome message / Session status header */}
           {!session ? (
             <div className="space-y-2.5">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#002366]/5 border border-[#002366]/10 text-[10px] font-bold text-[#002366] uppercase tracking-wider w-fit">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#FFBD00] animate-pulse" />
-                Faculty Evaluation
-              </span>
-
               <h1 className="text-2xl font-black text-[#002366] tracking-tight uppercase">
                 Welcome Back
               </h1>
