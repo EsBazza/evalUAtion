@@ -1,11 +1,57 @@
 import crypto from 'crypto';
 
-// In-memory store for active session keys (ephemeral)
-// In production, a distributed cache like Redis or a fast database table can be used,
-// but for development and standard single-instance deployment, a global memory map is perfect.
-const globalSessionKeys = (global as any).sessionKeys || new Map<string, string>();
-if (!(global as any).sessionKeys) {
-  (global as any).sessionKeys = globalSessionKeys;
+import fs from 'fs';
+import path from 'path';
+
+const KEYS_DIR = path.join(process.cwd(), '.session-keys');
+
+function ensureKeysDir() {
+  if (!fs.existsSync(KEYS_DIR)) {
+    fs.mkdirSync(KEYS_DIR, { recursive: true });
+  }
+}
+
+function setSessionKey(sessionId: string, privateKey: string) {
+  ensureKeysDir();
+  const filePath = path.join(KEYS_DIR, sessionId);
+  fs.writeFileSync(filePath, privateKey, 'utf8');
+}
+
+function getSessionKey(sessionId: string): string | undefined {
+  const filePath = path.join(KEYS_DIR, sessionId);
+  if (fs.existsSync(filePath)) {
+    return fs.readFileSync(filePath, 'utf8');
+  }
+  return undefined;
+}
+
+function deleteSessionKey(sessionId: string) {
+  const filePath = path.join(KEYS_DIR, sessionId);
+  if (fs.existsSync(filePath)) {
+    try {
+      fs.unlinkSync(filePath);
+    } catch (e) {
+      // ignore
+    }
+  }
+}
+
+function cleanupOldKeys() {
+  ensureKeysDir();
+  try {
+    const files = fs.readdirSync(KEYS_DIR);
+    const now = Date.now();
+    const oneHour = 1000 * 60 * 60;
+    for (const file of files) {
+      const filePath = path.join(KEYS_DIR, file);
+      const stat = fs.statSync(filePath);
+      if (now - stat.mtimeMs > oneHour) {
+        fs.unlinkSync(filePath);
+      }
+    }
+  } catch (e) {
+    // ignore
+  }
 }
 
 /**
@@ -21,13 +67,10 @@ export function generateServerECDHSession(): { sessionId: string; publicKey: str
   const privateKey = ecdh.getPrivateKey('base64');
   
   // Store private key for this session
-  globalSessionKeys.set(sessionId, privateKey);
+  setSessionKey(sessionId, privateKey);
   
-  // Clean up keys older than 1 hour to prevent memory leaks
-  // We can run a quick cleanup on generate
-  setTimeout(() => {
-    globalSessionKeys.delete(sessionId);
-  }, 1000 * 60 * 60); // 1 hour TTL
+  // Clean up any keys older than 1 hour
+  cleanupOldKeys();
   
   return { sessionId, publicKey };
 }
@@ -42,13 +85,13 @@ export function decryptClientPayload(
   ivBase64: string,
   authTagBase64: string
 ): any {
-  const serverPrivateKeyBase64 = globalSessionKeys.get(sessionId);
+  const serverPrivateKeyBase64 = getSessionKey(sessionId);
   if (!serverPrivateKeyBase64) {
     throw new Error('Crypto session expired or invalid. Please refresh the page and try again.');
   }
 
   // Remove the single-use key to enforce ephemerality
-  globalSessionKeys.delete(sessionId);
+  deleteSessionKey(sessionId);
 
   // Compute ECDH shared secret
   const serverECDH = crypto.createECDH('prime256v1');
