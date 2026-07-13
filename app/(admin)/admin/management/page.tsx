@@ -39,6 +39,7 @@ export default function FacultyDepartmentManagement() {
   
   const [newFacultyName, setNewFacultyName] = useState('');
   const [newFacultyEmail, setNewFacultyEmail] = useState('');
+  const [newSelectedSections, setNewSelectedSections] = useState<string[]>([]);
 
   const [editingFaculty, setEditingFaculty] = useState<any | null>(null);
   const [editFacultyName, setEditFacultyName] = useState('');
@@ -131,9 +132,10 @@ export default function FacultyDepartmentManagement() {
     e.preventDefault();
     if (!selectedDeptId || !newFacultyName.trim() || !newFacultyEmail.trim()) return;
     try {
-      await createProfessor(newFacultyName, newFacultyEmail, selectedDeptId);
+      await createProfessor(newFacultyName, newFacultyEmail, selectedDeptId, newSelectedSections);
       setNewFacultyName('');
       setNewFacultyEmail('');
+      setNewSelectedSections([]);
       setIsFacultyModalOpen(false);
       toast.success("Faculty created successfully!");
       loadDeptDetails(selectedDeptId);
@@ -589,6 +591,34 @@ export default function FacultyDepartmentManagement() {
                 className="w-full h-11 px-3 border border-border rounded-lg text-sm bg-card text-foreground focus:ring-2 focus:ring-ua-gold/30 outline-none font-semibold"
                 required
               />
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider">Map Teaching Sections</label>
+              {deptDetails.sections.length === 0 ? (
+                <p className="text-xs text-muted-foreground italic">No sections exist in this department. Create sections first.</p>
+              ) : (
+                <div className="grid grid-cols-2 gap-3 p-3 bg-muted/20 border border-border rounded-lg max-h-48 overflow-y-auto">
+                  {deptDetails.sections.map((sec: any) => (
+                    <label key={sec.id} className="flex items-center space-x-2.5 cursor-pointer p-1.5 hover:bg-muted/40 rounded transition-all">
+                      <input 
+                        type="checkbox"
+                        checked={newSelectedSections.includes(sec.id)}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          if (checked) {
+                            setNewSelectedSections(prev => [...prev, sec.id]);
+                          } else {
+                            setNewSelectedSections(prev => prev.filter(id => id !== sec.id));
+                          }
+                        }}
+                        className="h-4 w-4 text-ua-navy dark:text-ua-gold rounded bg-card border-border focus:ring-ua-gold/30"
+                      />
+                      <span className="text-xs font-bold text-foreground">{sec.name}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
             </div>
           </form>
         </Modal>
