@@ -89,9 +89,16 @@ function AdminDashboardContent() {
   const [ledgerPage, setLedgerPage] = useState(1);
   const ledgerItemsPerPage = 10;
 
+  const [attendancePage, setAttendancePage] = useState(1);
+  const attendanceItemsPerPage = 10;
+
   useEffect(() => {
     setLedgerPage(1);
   }, [selectedLedgerDept]);
+
+  useEffect(() => {
+    setAttendancePage(1);
+  }, [receiptSearch, receiptYearFilter, receiptSemFilter, receiptLevelFilter, receiptDepFilter, receiptSecFilter]);
 
   // Sorting states for admins
   const [adminSortField, setAdminSortField] = useState('email');
@@ -825,7 +832,10 @@ function AdminDashboardContent() {
                               );
                             }
 
-                            return finalFiltered.map((rec) => (
+                            const startIndex = (attendancePage - 1) * attendanceItemsPerPage;
+                            const paginated = finalFiltered.slice(startIndex, startIndex + attendanceItemsPerPage);
+
+                            return paginated.map((rec) => (
                               <tr key={rec.id} className="hover:bg-muted/10 transition-all">
                                 <td className="p-4 font-bold text-foreground">{rec.studentEmail}</td>
                                 <td className="p-4 font-bold uppercase text-muted-foreground text-[10px]">{rec.level}</td>
@@ -844,9 +854,79 @@ function AdminDashboardContent() {
                         </tbody>
                       </table>
                     </div>
+
+                    {/* Pagination Controls */}
+                    {(() => {
+                      const selectedDeptObj = departments.find(d => d.id === receiptDepFilter);
+                      const selectedSecObj = departments.flatMap(d => d.sections || []).find((s: any) => s.id === receiptSecFilter);
+                      const finalFiltered = receipts.filter(r => {
+                        const matchesSearch = r.studentEmail.toLowerCase().includes(receiptSearch.toLowerCase()) ||
+                                              r.professorName.toLowerCase().includes(receiptSearch.toLowerCase()) ||
+                                              r.sectionName.toLowerCase().includes(receiptSearch.toLowerCase()) ||
+                                              r.departmentName.toLowerCase().includes(receiptSearch.toLowerCase()) ||
+                                              r.level.toLowerCase().includes(receiptSearch.toLowerCase());
+                        const matchesYear = receiptYearFilter ? r.academicYear === receiptYearFilter : true;
+                        const matchesSem = receiptSemFilter ? r.semester === receiptSemFilter : true;
+                        const matchesLevel = receiptLevelFilter ? r.level === receiptLevelFilter : true;
+                        const matchesDept = receiptDepFilter ? r.departmentName === selectedDeptObj?.name : true;
+                        const matchesSec = receiptSecFilter ? r.sectionName === selectedSecObj?.name : true;
+                        return matchesSearch && matchesYear && matchesSem && matchesLevel && matchesDept && matchesSec;
+                      });
+
+                      const totalItems = finalFiltered.length;
+                      const totalPages = Math.ceil(totalItems / attendanceItemsPerPage);
+                      const startIndex = (attendancePage - 1) * attendanceItemsPerPage;
+
+                      if (totalPages <= 1) return null;
+
+                      return (
+                        <div className="border border-border rounded-lg bg-muted/5 p-4 flex items-center justify-between mt-4">
+                          <p className="text-xs text-muted-foreground font-medium">
+                            Showing <span className="font-semibold text-foreground">{startIndex + 1}</span> to{" "}
+                            <span className="font-semibold text-foreground">
+                              {Math.min(startIndex + attendanceItemsPerPage, totalItems)}
+                            </span>{" "}
+                            of <span className="font-semibold text-foreground">{totalItems}</span> records
+                          </p>
+                          <div className="flex gap-1">
+                            <Button
+                              uaVariant="outline"
+                              onClick={() => setAttendancePage(p => Math.max(p - 1, 1))}
+                              disabled={attendancePage === 1}
+                              className="h-8 px-3 text-xs font-semibold"
+                            >
+                              Previous
+                            </Button>
+                            {Array.from({ length: totalPages }).map((_, index) => {
+                              const pageNum = index + 1;
+                              return (
+                                <Button
+                                  key={pageNum}
+                                  onClick={() => setAttendancePage(pageNum)}
+                                  uaVariant={attendancePage === pageNum ? "primary" : "outline"}
+                                  className={cn(
+                                    "h-8 w-8 p-0 text-xs font-semibold",
+                                    attendancePage === pageNum ? "bg-ua-gold text-ua-navy border-ua-gold" : ""
+                                  )}
+                                >
+                                  {pageNum}
+                                </Button>
+                              );
+                            })}
+                            <Button
+                              uaVariant="outline"
+                              onClick={() => setAttendancePage(p => Math.min(p + 1, totalPages))}
+                              disabled={attendancePage === totalPages}
+                              className="h-8 px-3 text-xs font-semibold"
+                            >
+                              Next
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
-                )}
-              </CardContent>
+                )}              </CardContent>
             </Card>
           )}
 

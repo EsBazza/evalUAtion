@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { auth } from '@/auth';
 import { getSystemSettings } from './settings';
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY?.replace(/"/g, "").trim() });
 
 export async function getFacultyProfessorId() {
   const session = await auth();

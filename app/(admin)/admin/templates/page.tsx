@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { getTemplates, getDepartments } from '@/app/actions/admin';
 import { createTemplateAction, deleteTemplateAction, setActiveTemplateAction, deactivateTemplateAction } from '@/app/actions/templates';
-import { importTemplateFromFile } from '@/app/actions/importTemplate';
 import { EducationLevel } from '@prisma/client';
 import Link from 'next/link';
 import { Trash2, Edit, Play, Power, HelpCircle, FileText, Upload, Plus, ChevronRight, Layers } from 'lucide-react';
@@ -116,7 +115,15 @@ export default function TemplatesDashboard() {
       formData.append('title', importTitle);
       formData.append('level', importLevel);
 
-      const res = await importTemplateFromFile(formData);
+      const response = await fetch('/api/templates/import', {
+        method: 'POST',
+        body: formData,
+      });
+      const res = await response.json();
+      if (!response.ok) {
+        throw new Error(res.error || "Failed to parse document using AI");
+      }
+      
       if (res.success) {
         setShowImportModal(false);
         setImportTitle('');
