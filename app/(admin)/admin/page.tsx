@@ -77,6 +77,7 @@ function AdminDashboardContent() {
   const [receiptDepFilter, setReceiptDepFilter] = useState('');
   const [receiptSecFilter, setReceiptSecFilter] = useState('');
   const [rankings, setRankings] = useState<any[]>([]);
+  const [selectedLedgerDept, setSelectedLedgerDept] = useState<string>('All');
   const [departments, setDepartments] = useState<any[]>([]);
   const [templates, setTemplates] = useState<any[]>([]);
   const [admins, setAdmins] = useState<any[]>([]);
@@ -278,6 +279,13 @@ function AdminDashboardContent() {
       ) : (
         <>
           {activeView === 'rankings' && (() => {
+            const uniqueDepts = Array.from(
+              new Set(rankings.map(r => r.level === 'COLLEGE' ? 'College' : r.department))
+            ).filter(Boolean).sort();
+            const filteredRankings = selectedLedgerDept === 'All' 
+              ? sortedRankings 
+              : sortedRankings.filter(r => (r.level === 'COLLEGE' ? 'College' : r.department) === selectedLedgerDept);
+
             const rankingChartData = sortedRankings.map((r) => ({
               name: r.name,
               score: r.averageScore || 0,
@@ -365,9 +373,42 @@ function AdminDashboardContent() {
 
                 {/* Performance ledger table */}
                 <Card className="border border-border/80">
-                  <CardHeader className="border-b border-border/45 bg-muted/10 pb-4">
-                    <CardTitle className="text-base font-bold text-slate-800 dark:text-ua-gold">Faculty Ratings Ledger</CardTitle>
-                    <CardDescription>Aggregated rating scores computed directly from submitted evaluations</CardDescription>
+                  <CardHeader className="border-b border-border/45 bg-muted/10 pb-4 flex flex-col md:flex-row justify-between md:items-center gap-4">
+                    <div>
+                      <CardTitle className="text-base font-bold text-slate-800 dark:text-ua-gold">Faculty Ratings Ledger</CardTitle>
+                      <CardDescription>Aggregated rating scores computed directly from submitted evaluations</CardDescription>
+                    </div>
+
+                    {/* Department Tabs */}
+                    {uniqueDepts.length > 0 && (
+                      <div className="flex flex-wrap bg-muted p-1 rounded-lg gap-1 self-start md:self-center">
+                        <button
+                          onClick={() => setSelectedLedgerDept('All')}
+                          className={cn(
+                            "px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer",
+                            selectedLedgerDept === 'All'
+                              ? 'bg-card text-foreground shadow-sm border-l-2 border-ua-gold font-bold'
+                              : 'text-muted-foreground hover:text-foreground'
+                          )}
+                        >
+                          All
+                        </button>
+                        {uniqueDepts.map((dept) => (
+                          <button
+                            key={dept}
+                            onClick={() => setSelectedLedgerDept(dept)}
+                            className={cn(
+                              "px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer",
+                              selectedLedgerDept === dept
+                                ? 'bg-card text-foreground shadow-sm border-l-2 border-ua-gold font-bold'
+                                : 'text-muted-foreground hover:text-foreground'
+                            )}
+                          >
+                            {dept}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </CardHeader>
                   <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
@@ -403,14 +444,14 @@ function AdminDashboardContent() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border/40">
-                        {sortedRankings.length === 0 ? (
+                        {filteredRankings.length === 0 ? (
                           <tr>
                             <td colSpan={5} className="p-12 text-center text-muted-foreground font-semibold italic">
                               No evaluations recorded yet.
                             </td>
                           </tr>
                         ) : (
-                          sortedRankings.map((rank) => (
+                          filteredRankings.map((rank) => (
                             <tr key={rank.id} className="hover:bg-muted/10 transition-all">
                               <td className="p-4 text-sm font-bold text-foreground">{rank.name}</td>
                               <td className="p-4 text-sm text-muted-foreground font-medium">{rank.email}</td>
