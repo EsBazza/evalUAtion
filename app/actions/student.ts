@@ -248,3 +248,20 @@ export async function submitProfessorEvaluation(data: {
   }
 }
 
+export async function getSectionByCode(code: string) {
+  const cleanCode = code.trim().toUpperCase();
+  if (!cleanCode) return null;
+
+  return prisma.section.findFirst({
+    where: {
+      code: {
+        equals: cleanCode,
+        mode: 'insensitive'
+      }
+    },
+    include: {
+      department: true
+    }
+  });
+}
+

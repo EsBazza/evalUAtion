@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { getDepartments, getSections, getProfessorsBySection, getEvaluationTemplate, submitProfessorEvaluation, getCompletedEvaluations } from '@/app/actions/student';
+import { getDepartments, getSections, getProfessorsBySection, getEvaluationTemplate, submitProfessorEvaluation, getCompletedEvaluations, getSectionByCode } from '@/app/actions/student';
 import { DynamicQuestionRenderer } from '@/components/form/DynamicQuestionRenderer';
 import { toast } from '@/components/ui-ua/toast';
 import { Button } from '@/components/ui-ua/button';
@@ -139,6 +139,39 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRestored, setIsRestored] = useState(false);
+  
+  const [sectionCode, setSectionCode] = useState('');
+  const [isVerifyingCode, setIsVerifyingCode] = useState(false);
+
+  const handleVerifyCode = async () => {
+    if (!sectionCode.trim()) {
+      toast.error("Please enter your section code.");
+      return;
+    }
+    setIsVerifyingCode(true);
+    try {
+      const sec = await getSectionByCode(sectionCode);
+      if (sec) {
+        setDepartments([sec.department]);
+        setSections([sec]);
+        setValue('level', sec.department.level);
+        setValue('departmentId', sec.department.id);
+        setValue('sectionId', sec.id);
+        toast.success(`Access granted: ${sec.name}`);
+      } else {
+        toast.error("Invalid evaluation code. Please check your credentials.");
+        setValue('level', undefined as any);
+        setValue('departmentId', '');
+        setValue('sectionId', '');
+        setDepartments([]);
+        setSections([]);
+      }
+    } catch (e) {
+      toast.error("An error occurred while verifying the code.");
+    } finally {
+      setIsVerifyingCode(false);
+    }
+  };
 
   const { control, watch, setValue, formState: { errors } } = useForm<SelectionFormValues>({
     resolver: zodResolver(selectionSchema),
@@ -167,6 +200,15 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
     if (saved) {
       try {
         const data = JSON.parse(saved);
+        if (data.sectionCode) {
+          setSectionCode(data.sectionCode);
+          getSectionByCode(data.sectionCode).then(sec => {
+            if (sec) {
+              setDepartments([sec.department]);
+              setSections([sec]);
+            }
+          });
+        }
         if (data.level) setValue('level', data.level);
         if (data.departmentId) setValue('departmentId', data.departmentId);
         if (data.sectionId) setValue('sectionId', data.sectionId);
@@ -189,6 +231,7 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
     if (!isRestored) return;
 
     const stateToSave = {
+      sectionCode,
       level: selectedLevel,
       departmentId: selectedDepartmentId,
       sectionId: selectedSectionId,
@@ -201,6 +244,7 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
 
     sessionStorage.setItem('ua_evaluation_progress', JSON.stringify(stateToSave));
   }, [
+    sectionCode,
     selectedLevel,
     selectedDepartmentId,
     selectedSectionId,
@@ -218,6 +262,7 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
       try {
         const data = JSON.parse(saved);
         const updated = {
+          sectionCode: data.sectionCode,
           level: data.level,
           departmentId: data.departmentId,
           sectionId: data.sectionId,
@@ -459,6 +504,7 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
               uaVariant="primary"
               onClick={() => {
                 sessionStorage.removeItem('ua_evaluation_progress');
+                setSectionCode('');
                 setValue('sectionId', '');
                 setValue('departmentId', '');
                 setTemplate(null);
@@ -581,106 +627,49 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-6 space-y-6">
-                  {/* Level Select Cards */}
-                  <div className="space-y-2">
-                    <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider">Education Level</label>
-                    <Controller
-                      name="level"
-                      control={control}
-                      render={({ field }) => (
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                          {[
-                            { id: 'JHS', title: 'Junior High', desc: 'JHS Grade Levels' },
-                            { id: 'SHS', title: 'Senior High', desc: 'SHS Grade Levels' },
-                            { id: 'COLLEGE', title: 'College', desc: 'Undergraduate Depts' },
-                            { id: 'GRADUATE', title: 'Graduate School', desc: 'Postgraduate Programs' }
-                          ].map((option) => {
-                            const isActive = field.value === option.id;
-                            return (
-                              <button
-                                key={option.id}
-                                type="button"
-                                onClick={() => {
-                                  field.onChange(option.id);
-                                  setValue('departmentId', '');
-                                  setValue('sectionId', '');
-                                  setDepartments([]);
-                                  setSections([]);
-                                  setProfessors([]);
-                                  setCompletedProfs([]);
-                                  setTemplate(null);
-                                  evaluationForm.reset();
-                                }}
-                                className={cn(
-                                  "p-4 border rounded-lg text-left transition-all duration-200 cursor-pointer min-h-[44px]",
-                                  isActive 
-                                    ? 'border-ua-navy bg-ua-navy/5 dark:border-ua-gold dark:bg-ua-gold/5 ring-2 ring-ua-gold/30' 
-                                    : 'border-border bg-card hover:bg-muted/40'
-                                )}
-                              >
-                                <span className={cn("font-bold text-sm block", isActive ? 'text-ua-navy dark:text-ua-gold' : 'text-foreground')}>{option.title}</span>
-                                <span className="text-[10px] text-muted-foreground mt-1 font-medium block">{option.desc}</span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      )}
-                    />
-                    {errors.level && <p className="text-ua-crimson text-xs mt-1.5 font-bold">{errors.level.message}</p>}
+                  {/* Alphanumeric Code Input */}
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Section Access Code</label>
+                      <div className="flex gap-3">
+                        <input
+                          type="text"
+                          value={sectionCode}
+                          onChange={(e) => setSectionCode(e.target.value)}
+                          placeholder="Enter system-generated 8-character code (e.g. A1B2C3D4)"
+                          className="flex-grow h-11 px-4 border border-border rounded-lg text-sm bg-card font-semibold uppercase tracking-wider text-foreground focus:ring-2 focus:ring-ua-gold/30 outline-none"
+                        />
+                        <Button 
+                          type="button"
+                          onClick={handleVerifyCode}
+                          disabled={isVerifyingCode}
+                          uaVariant="primary"
+                          className="h-11 px-6 text-xs font-bold uppercase tracking-wider"
+                        >
+                          {isVerifyingCode ? "Verifying..." : "Verify Code"}
+                        </Button>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground mt-2 font-medium">Input the code provided by the administrator to load your course details.</p>
+                    </div>
                   </div>
 
-                  {/* Department and Section dropdowns */}
-                  {selectedLevel && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-2">
-                      {selectedLevel !== 'JHS' && selectedLevel !== 'SHS' && (
-                        <div className="space-y-1.5">
-                          <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider">Department</label>
-                          <Controller
-                            name="departmentId"
-                            control={control}
-                            render={({ field }) => (
-                              <SearchableSelector
-                                value={field.value || ''}
-                                onChange={(val) => {
-                                  field.onChange(val);
-                                  setValue('sectionId', '');
-                                  setSections([]);
-                                  setProfessors([]);
-                                  setTemplate(null);
-                                  evaluationForm.reset();
-                                }}
-                                options={departments}
-                                placeholder="Search & select department..."
-                                emptyMessage="No departments found matching search."
-                                disabled={!departments.length}
-                              />
-                            )}
-                          />
-                          {errors.departmentId && <p className="text-ua-crimson text-xs mt-1.5 font-bold">{errors.departmentId.message}</p>}
+                  {/* Verified Course parameters layout */}
+                  {selectedSectionId && (
+                    <div className="p-5 border border-border/80 rounded-lg bg-muted/10 space-y-4 animate-fade-in">
+                      <h3 className="text-xs font-bold text-ua-navy dark:text-ua-gold uppercase tracking-wider border-b border-border/50 pb-2">Verified Course Parameters</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="space-y-1">
+                          <span className="block text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Education Level</span>
+                          <span className="block text-sm font-bold text-foreground bg-card border border-border/60 px-3 py-1.5 rounded-lg shadow-sm">{selectedLevel}</span>
                         </div>
-                      )}
-
-                      <div className={(selectedLevel === 'JHS' || selectedLevel === 'SHS') ? 'md:col-span-2 space-y-1.5' : 'space-y-1.5'}>
-                        <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider">Assigned Section</label>
-                        <Controller
-                          name="sectionId"
-                          control={control}
-                          render={({ field }) => (
-                            <SearchableSelector
-                              value={field.value}
-                              onChange={(val) => {
-                                field.onChange(val);
-                                setProfessors([]);
-                                evaluationForm.reset();
-                              }}
-                              options={sections}
-                              placeholder="Search & select section..."
-                              emptyMessage="No sections found matching search."
-                              disabled={!sections.length}
-                            />
-                          )}
-                        />
-                        {errors.sectionId && <p className="text-ua-crimson text-xs mt-1.5 font-bold">{errors.sectionId.message}</p>}
+                        <div className="space-y-1">
+                          <span className="block text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Department</span>
+                          <span className="block text-sm font-bold text-foreground bg-card border border-border/60 px-3 py-1.5 rounded-lg shadow-sm truncate">{departments.find(d => d.id === selectedDepartmentId)?.name || "N/A (School Core)"}</span>
+                        </div>
+                        <div className="space-y-1">
+                          <span className="block text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Year & Section</span>
+                          <span className="block text-sm font-bold text-foreground bg-card border border-border/60 px-3 py-1.5 rounded-lg shadow-sm">{sections.find(s => s.id === selectedSectionId)?.name || "Assigned Section"}</span>
+                        </div>
                       </div>
                     </div>
                   )}

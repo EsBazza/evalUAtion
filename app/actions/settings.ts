@@ -6,6 +6,28 @@ import { writeAuditLog } from './audit';
 
 
 export async function getSystemSettings() {
+  // Auto-heal missing section codes
+  try {
+    const sectionsWithNullCode = await prisma.section.findMany({
+      where: { code: null }
+    });
+    if (sectionsWithNullCode.length > 0) {
+      const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+      for (const sec of sectionsWithNullCode) {
+        let generatedCode = "";
+        for (let i = 0; i < 8; i++) {
+          generatedCode += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        await prisma.section.update({
+          where: { id: sec.id },
+          data: { code: generatedCode }
+        });
+      }
+    }
+  } catch (err) {
+    console.error("Failed to auto-heal section codes:", err);
+  }
+
   const settings = await prisma.systemSetting.findUnique({
     where: { id: 'active' }
   });
