@@ -23,9 +23,23 @@ export async function getDepartmentDetails(departmentId: string) {
 
 export async function createSection(name: string, departmentId: string) {
   if (!name.trim()) throw new Error("Section name cannot be empty");
+
+  const dept = await prisma.department.findUnique({
+    where: { id: departmentId }
+  });
+  if (!dept) throw new Error("Department not found");
+
+  // Generate random 8-character alphanumeric code
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  let generatedCode = "";
+  for (let i = 0; i < 8; i++) {
+    generatedCode += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+
   return prisma.section.create({
     data: {
       name,
+      code: generatedCode,
       departmentId,
     },
   });

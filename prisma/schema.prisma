@@ -41,6 +41,7 @@ model Department {
 model Section {
   id           String      @id @default(cuid())
   name         String      // e.g., "4-A", "Grade 7-St. Jude"
+  code         String?
   departmentId String
   department   Department  @relation(fields: [departmentId], references: [id], onDelete: Cascade)
   professors   Professor[] @relation("SectionToProfessor")

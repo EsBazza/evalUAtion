@@ -345,14 +345,39 @@ export default function FacultyDepartmentManagement() {
                 {/* Action Buttons */}
                 <div className="flex gap-2">
                   {activeTab === 'sections' ? (
-                    <Button 
-                      onClick={() => setIsSectionModalOpen(true)}
-                      uaVariant="primary"
-                      className="h-10 text-xs"
-                    >
-                      <Plus className="size-4 mr-1.5" />
-                      Add Year & Section
-                    </Button>
+                    <>
+                      <Button
+                        onClick={() => {
+                          const headers = ["Year and Section", "random-generated-code"];
+                          const rows = (deptDetails.sections || []).map((sec: any) => [
+                            sec.name,
+                            sec.code || "N/A"
+                          ]);
+                          const csvContent = "data:text/csv;charset=utf-8," 
+                            + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+                          const encodedUri = encodeURI(csvContent);
+                          const link = document.createElement("a");
+                          link.setAttribute("href", encodedUri);
+                          link.setAttribute("download", `${deptDetails.name.toLowerCase().replace(/[^a-z0-9]/g, "_")}_sections.csv`);
+                          document.body.appendChild(link);
+                          link.click();
+                          document.body.removeChild(link);
+                        }}
+                        disabled={!deptDetails.sections || deptDetails.sections.length === 0}
+                        uaVariant="outline"
+                        className="h-10 text-xs"
+                      >
+                        📤 Export Sections
+                      </Button>
+                      <Button 
+                        onClick={() => setIsSectionModalOpen(true)}
+                        uaVariant="primary"
+                        className="h-10 text-xs"
+                      >
+                        <Plus className="size-4 mr-1.5" />
+                        Add Year & Section
+                      </Button>
+                    </>
                   ) : (
                     <Button 
                       onClick={() => setIsFacultyModalOpen(true)}
@@ -398,12 +423,9 @@ export default function FacultyDepartmentManagement() {
                     ) : (
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                         {deptDetails.sections.map((sec: any) => (
-                          <div key={sec.id} className="p-4 border border-border bg-card rounded-lg flex items-center justify-between shadow-sm hover:shadow transition-all duration-200">
-                            <span className="font-bold text-foreground text-sm">{sec.name}</span>
-                            <div className="flex items-center gap-2">
-                              <span className="text-[9px] bg-muted text-muted-foreground px-2 py-0.5 rounded-full font-bold uppercase">
-                                SEC
-                              </span>
+                          <div key={sec.id} className="p-4 border border-border bg-card rounded-lg flex flex-col justify-between shadow-sm hover:shadow transition-all duration-200">
+                            <div className="flex items-start justify-between">
+                              <span className="font-bold text-foreground text-sm">{sec.name}</span>
                               <Button
                                 onClick={() => handleDeleteSection(sec.id, sec.name)}
                                 uaVariant="ghost"
@@ -412,7 +434,14 @@ export default function FacultyDepartmentManagement() {
                                 <Trash2 className="size-4" />
                               </Button>
                             </div>
-                          </div>
+                            <div className="flex items-center justify-between mt-3 pt-2 border-t border-border/40">
+                              <span className="text-xs font-mono font-bold text-muted-foreground bg-muted/40 border border-border/80 px-2.5 py-1 rounded tracking-wider">
+                                {sec.code || "NO CODE"}
+                              </span>
+                              <span className="text-[9px] bg-muted text-muted-foreground px-2 py-0.5 rounded-full font-bold uppercase">
+                                SEC
+                              </span>
+                            </div>                          </div>
                         ))}
                       </div>
                     )}
