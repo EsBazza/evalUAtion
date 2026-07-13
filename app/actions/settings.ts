@@ -15,7 +15,8 @@ export async function getSystemSettings() {
       data: {
         id: 'active',
         academicYear: '2026-2027',
-        semester: '1st'
+        semester: '1st',
+        isFacultyPageEnabled: true
       }
     });
   }
@@ -23,18 +24,30 @@ export async function getSystemSettings() {
   return settings;
 }
 
-export async function updateSystemSettings(academicYear: string, semester: string) {
+export async function updateSystemSettings(academicYear: string, semester: string, isFacultyPageEnabled?: boolean) {
   if (!academicYear.trim() || !semester.trim()) {
     throw new Error("Academic Year and Semester cannot be empty");
   }
 
+  const updateData: any = { academicYear, semester };
+  if (isFacultyPageEnabled !== undefined) {
+    updateData.isFacultyPageEnabled = isFacultyPageEnabled;
+  }
+
   const res = await prisma.systemSetting.upsert({
     where: { id: 'active' },
-    update: { academicYear, semester },
-    create: { id: 'active', academicYear, semester }
+    update: updateData,
+    create: { 
+      id: 'active', 
+      academicYear, 
+      semester, 
+      isFacultyPageEnabled: isFacultyPageEnabled ?? true 
+    }
   });
 
-  await writeAuditLog('CONFIG_UPDATE', { desc: `Updated system terms to ${academicYear} ${semester}` });
+  await writeAuditLog('CONFIG_UPDATE', { 
+    desc: `Updated system terms to ${academicYear} ${semester} (Faculty Page: ${res.isFacultyPageEnabled ? 'Enabled' : 'Disabled'})` 
+  });
 
   return res;
 }

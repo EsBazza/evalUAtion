@@ -3,6 +3,7 @@
 import { useEffect, useState, Suspense } from 'react';
 import { processFacultyEvaluationSummary, getFacultyProfessorId } from '@/app/actions/ai';
 import { getFacultyProfileData } from '@/app/actions/management';
+import { getSystemSettings } from '@/app/actions/settings';
 import { RadarClusterChart } from '@/components/charts/RadarClusterChart';
 import { SectionBarChart } from '@/components/charts/SectionBarChart';
 import { Award, BrainCircuit, RefreshCw, BarChart3, AlertCircle } from 'lucide-react';
@@ -53,13 +54,19 @@ function FacultyDashboardContent() {
   const [profileData, setProfileData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isPageEnabled, setIsPageEnabled] = useState<boolean | null>(null);
   
   useEffect(() => {
     async function init() {
       setIsLoading(true);
       try {
-        const id = await getFacultyProfessorId();
-        setProfessorId(id);
+        const settings = await getSystemSettings();
+        setIsPageEnabled(settings.isFacultyPageEnabled);
+        
+        if (settings.isFacultyPageEnabled) {
+          const id = await getFacultyProfessorId();
+          setProfessorId(id);
+        }
       } catch (err) {
         toast.error("Failed to authenticate faculty session.");
       } finally {
@@ -105,6 +112,33 @@ function FacultyDashboardContent() {
       setIsProcessing(false);
     }
   };
+
+  if (isPageEnabled === false && !isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-6">
+        <Card className="max-w-md w-full border-border/80 shadow-lg">
+          <CardHeader className="text-center pb-2">
+            <AlertCircle className="size-12 text-ua-gold mx-auto mb-2" />
+            <CardTitle className="font-serif text-xl font-bold uppercase tracking-wider text-slate-800 dark:text-ua-gold">Portal Suspended</CardTitle>
+            <CardDescription className="text-xs uppercase font-bold text-muted-foreground">System Notice</CardDescription>
+          </CardHeader>
+          <CardContent className="text-center text-sm text-muted-foreground space-y-4 py-4">
+            <p className="leading-relaxed">
+              The Faculty Analytics portal has been temporarily disabled by the system administrator.
+            </p>
+            <p className="text-xs font-semibold italic text-muted-foreground">
+              Please check back later or contact the administration for details.
+            </p>
+            <div className="pt-4">
+              <Button onClick={() => window.location.href = "/"} uaVariant="outline" className="w-full font-bold text-xs uppercase tracking-wider">
+                Return to Login
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   if (professorId === null && !isLoading) {
     return (

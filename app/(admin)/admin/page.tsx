@@ -125,6 +125,7 @@ function AdminDashboardContent() {
 
   const [sysYear, setSysYear] = useState('2026-2027');
   const [sysSem, setSysSem] = useState('1st');
+  const [sysFacultyPageEnabled, setSysFacultyPageEnabled] = useState(true);
 
   const loadData = async () => {
     setLoading(true);
@@ -149,6 +150,7 @@ function AdminDashboardContent() {
         const settings = await getSystemSettings();
         setSysYear(settings.academicYear);
         setSysSem(settings.semester);
+        setSysFacultyPageEnabled(settings.isFacultyPageEnabled);
         const adminUsers = await getAdmins();
         setAdmins(adminUsers);
       }
@@ -220,7 +222,7 @@ function AdminDashboardContent() {
   const handleUpdateSettings = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await updateSystemSettings(sysYear, sysSem);
+      await updateSystemSettings(sysYear, sysSem, sysFacultyPageEnabled);
       toast.success("System academic term settings updated successfully!");
     } catch (err: any) {
       toast.error(err.message || "Failed to update system settings");
@@ -965,6 +967,21 @@ function AdminDashboardContent() {
                         <option value="2nd">2nd Semester</option>
                         <option value="Summer">Summer Term</option>
                       </select>
+                    </div>
+                    <div className="flex items-center justify-between p-3 border border-border/85 rounded-lg bg-muted/20">
+                      <div>
+                        <label className="block text-xs font-bold text-foreground uppercase tracking-wider">Faculty Portal Access</label>
+                        <span className="text-[10px] text-muted-foreground">Enable or disable faculty page access</span>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer select-none">
+                        <input 
+                          type="checkbox" 
+                          checked={sysFacultyPageEnabled}
+                          onChange={(e) => setSysFacultyPageEnabled(e.target.checked)}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-slate-300 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-ua-gold"></div>
+                      </label>
                     </div>
                     <Button type="submit" uaVariant="primary" className="w-full">
                       Update System Terms

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { getFacultyProfileData } from '@/app/actions/management';
 import { processFacultyEvaluationSummary } from '@/app/actions/ai';
+import { getSystemSettings } from '@/app/actions/settings';
 import { RadarClusterChart } from '@/components/charts/RadarClusterChart';
 import { SectionBarChart } from '@/components/charts/SectionBarChart';
 import { HistoricalTrendChart } from '@/components/charts/HistoricalTrendChart';
@@ -57,6 +58,7 @@ export default function FacultyPreviewClient({ professorId }: FacultyPreviewClie
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isFacultyPageEnabled, setIsFacultyPageEnabled] = useState(true);
 
   const fetchProfileData = async (id: string, year: string, sem: string) => {
     setLoading(true);
@@ -69,6 +71,18 @@ export default function FacultyPreviewClient({ professorId }: FacultyPreviewClie
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    async function loadSettings() {
+      try {
+        const settings = await getSystemSettings();
+        setIsFacultyPageEnabled(settings.isFacultyPageEnabled);
+      } catch (err) {
+        console.error("Failed to load settings in faculty preview", err);
+      }
+    }
+    loadSettings();
+  }, []);
 
   useEffect(() => {
     if (professorId) {
@@ -125,6 +139,13 @@ export default function FacultyPreviewClient({ professorId }: FacultyPreviewClie
           </Button>
         </Link>
       </div>
+
+      {!isFacultyPageEnabled && (
+        <div className="bg-ua-crimson/10 border border-ua-crimson/25 text-ua-crimson px-5 py-3 rounded-lg flex items-center gap-2 text-xs font-semibold shadow-sm animate-pulse">
+          <ShieldAlert className="size-4 shrink-0" />
+          <span>PORTAL SUSPENDED: Faculty Page access is currently DISABLED in System Settings. Faculty members will not see any of this dashboard information and will only see a suspension notice when they log in.</span>
+        </div>
+      )}
 
       {/* Header Block */}
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 pb-4 border-b border-border/80">

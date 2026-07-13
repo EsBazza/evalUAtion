@@ -135,9 +135,10 @@ model Evaluation {
 }
 
 model SystemSetting {
-  id            String @id @default("active")
-  academicYear  String @default("2026-2027")
-  semester      String @default("1st")
+  id                   String  @id @default("active")
+  academicYear         String  @default("2026-2027")
+  semester             String  @default("1st")
+  isFacultyPageEnabled Boolean @default(true)
 }
 
 model Answer {
