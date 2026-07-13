@@ -346,13 +346,21 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
         return;
       }
 
-      setCompletedProfs(prev => [...prev, selectedProf.id]);
+      const updatedCompleted = [...completedProfs, selectedProf.id];
+      setCompletedProfs(updatedCompleted);
       toast.success(`Evaluation for ${selectedProf.name} submitted successfully!`);
       
       clearFormProgress();
       evaluationForm.reset();
-      setSelectedProf(null);
-      setWizardStep(1);
+      
+      const nextPendingProf = professors.find(p => !updatedCompleted.includes(p.id));
+      if (nextPendingProf) {
+        setSelectedProf(nextPendingProf);
+        setWizardStep(2);
+      } else {
+        setSelectedProf(null);
+        setWizardStep(1);
+      }
       setCurrentClusterIndex(0);
       setShowConfirmModal(false);
     } catch (err: any) {
