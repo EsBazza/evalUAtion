@@ -248,3 +248,27 @@ export async function getFacultyProfileData(professorId: string, academicYear?: 
     evaluationLog,
   };
 }
+
+export async function deleteSection(sectionId: string) {
+  const section = await prisma.section.findUnique({
+    where: { id: sectionId },
+    include: { department: true }
+  });
+  if (!section) throw new Error("Section not found");
+
+  await prisma.$transaction([
+    prisma.evaluationReceipt.deleteMany({
+      where: { sectionId },
+    }),
+    prisma.evaluation.deleteMany({
+      where: { sectionId },
+    }),
+    prisma.section.delete({
+      where: { id: sectionId },
+    }),
+  ]);
+
+  await writeAuditLog('SECTION_DELETED', { desc: `Deleted section ${section.name} under department ${section.department.name}` });
+  
+  return { success: true };
+}

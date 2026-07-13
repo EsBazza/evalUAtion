@@ -7,10 +7,11 @@ import {
   getDepartmentDetails, 
   createSection, 
   createProfessor, 
-  updateProfessor 
+  updateProfessor,
+  deleteSection
 } from '@/app/actions/management';
 import Link from 'next/link';
-import { FolderKanban, Plus, UserPlus, FileText, CheckSquare, Settings, ArrowUp, ArrowDown, Edit3 } from 'lucide-react';
+import { FolderKanban, Plus, UserPlus, FileText, CheckSquare, Settings, ArrowUp, ArrowDown, Edit3, Trash2 } from 'lucide-react';
 
 // UA Primitives
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui-ua/card';
@@ -178,6 +179,19 @@ export default function FacultyDepartmentManagement() {
       }
     } catch (err: any) {
       toast.error(err.message || "Failed to update faculty");
+    }
+  };
+
+  const handleDeleteSection = async (sectionId: string, sectionName: string) => {
+    if (!confirm(`Are you sure you want to delete the section "${sectionName}"? This will also delete any related evaluations.`)) return;
+    try {
+      await deleteSection(sectionId);
+      toast.success("Section deleted successfully!");
+      if (selectedDeptId) {
+        loadDeptDetails(selectedDeptId);
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to delete section");
     }
   };
 
@@ -386,9 +400,18 @@ export default function FacultyDepartmentManagement() {
                         {deptDetails.sections.map((sec: any) => (
                           <div key={sec.id} className="p-4 border border-border bg-card rounded-lg flex items-center justify-between shadow-sm hover:shadow transition-all duration-200">
                             <span className="font-bold text-foreground text-sm">{sec.name}</span>
-                            <span className="text-[9px] bg-muted text-muted-foreground px-2 py-0.5 rounded-full font-bold uppercase">
-                              SEC
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[9px] bg-muted text-muted-foreground px-2 py-0.5 rounded-full font-bold uppercase">
+                                SEC
+                              </span>
+                              <Button
+                                onClick={() => handleDeleteSection(sec.id, sec.name)}
+                                uaVariant="ghost"
+                                className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30"
+                              >
+                                <Trash2 className="size-4" />
+                              </Button>
+                            </div>
                           </div>
                         ))}
                       </div>
