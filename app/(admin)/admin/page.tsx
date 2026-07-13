@@ -84,8 +84,14 @@ function AdminDashboardContent() {
   const [loading, setLoading] = useState(false);
 
   // Sorting states for rankings
-  const [sortField, setSortField] = useState('name');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [sortField, setSortField] = useState('score');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [ledgerPage, setLedgerPage] = useState(1);
+  const ledgerItemsPerPage = 10;
+
+  useEffect(() => {
+    setLedgerPage(1);
+  }, [selectedLedgerDept]);
 
   // Sorting states for admins
   const [adminSortField, setAdminSortField] = useState('email');
@@ -215,6 +221,7 @@ function AdminDashboardContent() {
   };
 
   const handleSort = (field: string) => {
+    setLedgerPage(1);
     if (sortField === field) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
     } else {
@@ -285,6 +292,11 @@ function AdminDashboardContent() {
             const filteredRankings = selectedLedgerDept === 'All' 
               ? sortedRankings 
               : sortedRankings.filter(r => (r.level === 'COLLEGE' ? 'College' : r.department) === selectedLedgerDept);
+
+            const totalItems = filteredRankings.length;
+            const totalPages = Math.ceil(totalItems / ledgerItemsPerPage);
+            const startIndex = (ledgerPage - 1) * ledgerItemsPerPage;
+            const paginatedRankings = filteredRankings.slice(startIndex, startIndex + ledgerItemsPerPage);
 
             const rankingChartData = sortedRankings.map((r) => ({
               name: r.name,
@@ -444,14 +456,14 @@ function AdminDashboardContent() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border/40">
-                        {filteredRankings.length === 0 ? (
+                        {paginatedRankings.length === 0 ? (
                           <tr>
                             <td colSpan={5} className="p-12 text-center text-muted-foreground font-semibold italic">
                               No evaluations recorded yet.
                             </td>
                           </tr>
                         ) : (
-                          filteredRankings.map((rank) => (
+                          paginatedRankings.map((rank) => (
                             <tr key={rank.id} className="hover:bg-muted/10 transition-all">
                               <td className="p-4 text-sm font-bold text-foreground">{rank.name}</td>
                               <td className="p-4 text-sm text-muted-foreground font-medium">{rank.email}</td>
@@ -472,6 +484,52 @@ function AdminDashboardContent() {
                       </tbody>
                     </table>
                   </div>
+
+                  {totalPages > 1 && (
+                    <CardFooter className="border-t border-border/60 bg-muted/5 p-4 flex items-center justify-between">
+                      <p className="text-xs text-muted-foreground font-medium">
+                        Showing <span className="font-semibold text-foreground">{startIndex + 1}</span> to{" "}
+                        <span className="font-semibold text-foreground">
+                          {Math.min(startIndex + ledgerItemsPerPage, totalItems)}
+                        </span>{" "}
+                        of <span className="font-semibold text-foreground">{totalItems}</span> faculty members
+                      </p>
+                      <div className="flex gap-1">
+                        <Button
+                          uaVariant="outline"
+                          onClick={() => setLedgerPage(p => Math.max(p - 1, 1))}
+                          disabled={ledgerPage === 1}
+                          className="h-8 px-3 text-xs font-semibold"
+                        >
+                          Previous
+                        </Button>
+                        {Array.from({ length: totalPages }).map((_, index) => {
+                          const pageNum = index + 1;
+                          return (
+                            <Button
+                              key={pageNum}
+                              onClick={() => setLedgerPage(pageNum)}
+                              uaVariant={ledgerPage === pageNum ? "primary" : "outline"}
+                              className={cn(
+                                "h-8 w-8 p-0 text-xs font-semibold",
+                                ledgerPage === pageNum ? "bg-ua-gold text-ua-navy border-ua-gold" : ""
+                              )}
+                            >
+                              {pageNum}
+                            </Button>
+                          );
+                        })}
+                        <Button
+                          uaVariant="outline"
+                          onClick={() => setLedgerPage(p => Math.min(p + 1, totalPages))}
+                          disabled={ledgerPage === totalPages}
+                          className="h-8 px-3 text-xs font-semibold"
+                        >
+                          Next
+                        </Button>
+                      </div>
+                    </CardFooter>
+                  )}
                 </Card>
               </>
             );

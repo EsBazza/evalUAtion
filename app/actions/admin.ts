@@ -74,7 +74,7 @@ export async function getFacultyRankings(academicYear?: string, semester?: strin
     termSem = settings.semester;
   }
 
-  // Fetch all professors and all score caches in just 2 queries (no N+1 loop)
+  // Fetch all professors and all score caches
   const [professors, scoreCaches] = await Promise.all([
     prisma.professor.findMany({
       include: {
@@ -86,13 +86,29 @@ export async function getFacultyRankings(academicYear?: string, semester?: strin
       where: {
         academicYear: termYear,
         semester: termSem,
-        isStale: false,
       },
     }),
   ]);
 
   // Build a quick lookup map: professorId -> cache
   const cacheMap = new Map(scoreCaches.map(c => [c.professorId, c]));
+
+  // Resolve any stale/missing caches in parallel
+  await Promise.all(
+    professors.map(async (prof) => {
+      const cache = cacheMap.get(prof.id);
+      if (!cache || cache.isStale) {
+        try {
+          const newCache = await getOrComputeScoreCache(prof.id, termYear, termSem);
+          if (newCache) {
+            cacheMap.set(prof.id, newCache);
+          }
+        } catch (err) {
+          console.error(`Error computing score cache for ${prof.name}:`, err);
+        }
+      }
+    })
+  );
 
   const rankings = professors.map(prof => ({
     id: prof.id,
