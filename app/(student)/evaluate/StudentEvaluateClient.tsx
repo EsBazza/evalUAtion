@@ -896,7 +896,9 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
                 {/* Active Cluster questions */}
                 <div className="space-y-6">
                   <div className="border-b border-border/50 pb-2 mb-4">
-                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-0.5">Evaluating: {selectedProf.name}</span>
+                    <span className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
+                      Evaluating: <span className="text-ua-navy dark:text-ua-gold font-bold">{selectedProf.name}</span>
+                    </span>
                     <h3 className="font-serif text-xl font-bold text-ua-navy dark:text-ua-gold uppercase tracking-wide">
                       {template.clusters[currentClusterIndex].title}
                     </h3>
