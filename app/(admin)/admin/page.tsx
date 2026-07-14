@@ -12,12 +12,14 @@ import {
   getEvaluationAttendanceLogsForExport,
   getEvaluationReceiptFilters
 } from '@/app/actions/admin';
-import { Modal } from '@/components/ui-ua/modal';
+import dynamic from 'next/dynamic';
+
+const Modal = dynamic(() => import('@/components/ui-ua/modal').then((mod) => mod.Modal), { ssr: false });
+const FacultyRankingChart = dynamic(() => import('@/components/charts/FacultyRankingChart').then((mod) => mod.FacultyRankingChart), { ssr: false });
+const DepartmentDonutChart = dynamic(() => import('@/components/charts/DepartmentDonutChart').then((mod) => mod.DepartmentDonutChart), { ssr: false });
 import { EducationLevel, Role } from '@prisma/client';
 import Link from 'next/link';
 import { Search, Filter, Download, RefreshCw, SlidersHorizontal } from 'lucide-react';
-import { FacultyRankingChart } from '@/components/charts/FacultyRankingChart';
-import { DepartmentDonutChart } from '@/components/charts/DepartmentDonutChart';
 import { getAuditLogs } from '@/app/actions/audit';
 import { 
   getSystemSettings, 

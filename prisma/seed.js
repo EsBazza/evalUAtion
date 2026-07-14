@@ -7,13 +7,68 @@ const pool = new Pool({ connectionString });
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
+// Section code helpers
+function generateCodeSegment(length) {
+  const CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  let result = '';
+  for (let i = 0; i < length; i++) {
+    result += CODE_CHARS.charAt(Math.floor(Math.random() * CODE_CHARS.length));
+  }
+  return result;
+}
+
+function getDeptAbbreviation(level, deptName) {
+  const nameUpper = deptName.toUpperCase();
+  if (level === 'JHS' || nameUpper.includes('JUNIOR HIGH')) return 'JHS';
+  if (level === 'SHS' || nameUpper.includes('SENIOR HIGH')) return 'SHS';
+  if (level === 'GRADUATE') return 'GRAD';
+
+  if (nameUpper.includes('ENGINEERING') || nameUpper.includes('ARCHITECTURE') || nameUpper.includes('CEA')) return 'CEA';
+  if (nameUpper.includes('COMPUTER') || nameUpper.includes('INFORMATION TECHNOLOGY') || nameUpper.includes('CIT')) return 'CIT';
+  if (nameUpper.includes('EDUCATION') || nameUpper.includes('TEACHER') || nameUpper.includes('SED')) return 'SED';
+  if (nameUpper.includes('BUSINESS') || nameUpper.includes('PUBLIC ADMINISTRATION') || nameUpper.includes('SBPA')) return 'SBPA';
+  if (nameUpper.includes('ACCOUNTANCY') || nameUpper.includes('COA')) return 'COA';
+  if (nameUpper.includes('NURSING') || nameUpper.includes('PHARMACY') || nameUpper.includes('CONP')) return 'CONP';
+  if (nameUpper.includes('HOSPITALITY') || nameUpper.includes('TOURISM') || nameUpper.includes('CHTM')) return 'CHTM';
+  if (nameUpper.includes('ARTS') || nameUpper.includes('SCIENCES') || nameUpper.includes('SAS')) return 'SAS';
+
+  return 'COL';
+}
+
+function formatAcademicYear(year) {
+  const digits = year.replace(/[^0-9]/g, '');
+  if (digits.length === 8) {
+    return digits.slice(2, 4) + digits.slice(6, 8);
+  }
+  return digits.slice(-4) || '2627';
+}
+
+function formatSemester(semester) {
+  const clean = semester.toUpperCase();
+  if (clean.includes('1ST') || clean.includes('1')) return '1S';
+  if (clean.includes('2ND') || clean.includes('2')) return '2S';
+  return 'SU';
+}
+
+function buildSectionCode(level, deptName, randomPart, academicYear, semester) {
+  const dept = getDeptAbbreviation(level, deptName);
+  const year = formatAcademicYear(academicYear);
+  const sem = formatSemester(semester);
+  return `UA-${dept}-${randomPart}-${sem}${year}`;
+}
+
 async function main() {
   console.log("Starting database seeding...");
 
-  // Clean existing data
+  // Clean existing data in correct dependency order
+  await prisma.cryptoSession.deleteMany();
+  await prisma.auditLog.deleteMany();
+  await prisma.scoreCache.deleteMany();
+  await prisma.secureEvaluation.deleteMany();
   await prisma.aiSummary.deleteMany();
   await prisma.answer.deleteMany();
   await prisma.evaluation.deleteMany();
+  await prisma.evaluationReceipt.deleteMany();
   await prisma.criterion.deleteMany();
   await prisma.cluster.deleteMany();
   await prisma.template.deleteMany();
@@ -23,6 +78,9 @@ async function main() {
   await prisma.department.deleteMany();
 
   console.log("Existing data cleaned.");
+
+  const activeYear = "2026-2027";
+  const activeSem = "1st";
 
   // 1. Define Department and Section configurations
   const deptConfigs = [
@@ -49,12 +107,19 @@ async function main() {
     createdDepts[config.code] = dept;
     createdSectionsByDept[config.code] = [];
 
-    // Create 3 sections for each grade/year
+    // Create 3 sections for each grade/year with auto-generated code
     for (let yr = config.minYear; yr <= config.maxYear; yr++) {
       for (const letter of ["A", "B", "C"]) {
         const secName = `${config.code} ${config.namePrefix}${yr}-${letter}`;
+        const randPart = generateCodeSegment(4);
+        const secCode = buildSectionCode(config.level, config.name, randPart, activeYear, activeSem);
+        
         const sec = await prisma.section.create({
-          data: { name: secName, departmentId: dept.id }
+          data: { 
+            name: secName, 
+            code: secCode,
+            departmentId: dept.id 
+          }
         });
         createdSectionsByDept[config.code].push(sec);
       }
