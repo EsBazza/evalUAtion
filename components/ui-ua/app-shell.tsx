@@ -105,23 +105,55 @@ export function AppShell({
           {/* Logo Branding */}
           <div 
             className={cn(
-              "p-6 border-b border-border/10 flex items-center gap-3 bg-ua-navy-black/10 transition-all duration-300 ease-in-out motion-reduce:transition-none",
-              mounted && isCollapsed ? "justify-center px-4" : "px-6"
+              "p-6 border-b border-border/10 flex items-center bg-ua-navy-black/10 transition-all duration-300 ease-in-out motion-reduce:transition-none",
+              mounted && isCollapsed ? "justify-center px-4" : "justify-between px-6 gap-3"
             )}
           >
-            <img
-              src="/ua-logo.png"
-              alt="UA Logo"
-              className="w-11 h-11 object-contain rounded-full border border-white/10 shrink-0"
-            />
-            {!(mounted && isCollapsed) && (
-              <div className="animate-fade-in">
-                <h3 className="text-[9px] font-semibold text-ua-warm-white/70 tracking-widest uppercase leading-none mb-1">University of the</h3>
-                <h2 className="text-base font-bold text-ua-gold tracking-wide uppercase leading-none">{title}</h2>
-                <span className="inline-block mt-1 text-[8px] font-semibold text-white/40 tracking-wider uppercase">
-                  {subtitle}
-                </span>
-              </div>
+            {mounted && isCollapsed ? (
+              <button
+                onClick={() => {
+                  setIsCollapsed(false)
+                  localStorage.setItem("ua_sidebar_collapsed", "false")
+                }}
+                className="relative group focus:outline-none flex items-center justify-center cursor-pointer"
+                title="Expand Sidebar"
+              >
+                <img
+                  src="/ua-logo.png"
+                  alt="UA Logo"
+                  className="w-11 h-11 object-contain rounded-full border border-white/10 shrink-0 transition-transform group-hover:scale-105 duration-200"
+                />
+                <div className="absolute inset-0 bg-black/50 rounded-full opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity duration-150">
+                  <ChevronRight className="size-4 text-ua-gold" />
+                </div>
+              </button>
+            ) : (
+              <>
+                <div className="flex items-center gap-3">
+                  <img
+                    src="/ua-logo.png"
+                    alt="UA Logo"
+                    className="w-11 h-11 object-contain rounded-full border border-white/10 shrink-0"
+                  />
+                  <div className="animate-fade-in">
+                    <h3 className="text-[9px] font-semibold text-ua-warm-white/70 tracking-widest uppercase leading-none mb-1">University of the</h3>
+                    <h2 className="text-base font-bold text-ua-gold tracking-wide uppercase leading-none">{title}</h2>
+                    <span className="inline-block mt-1 text-[8px] font-semibold text-white/40 tracking-wider uppercase">
+                      {subtitle}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setIsCollapsed(true)
+                    localStorage.setItem("ua_sidebar_collapsed", "true")
+                  }}
+                  className="p-1.5 rounded-md hover:bg-white/10 text-ua-warm-white/60 hover:text-ua-warm-white transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ua-gold shrink-0"
+                  title="Collapse Sidebar"
+                >
+                  <ChevronLeft className="size-4" />
+                </button>
+              </>
             )}
           </div>
 
@@ -213,31 +245,8 @@ export function AppShell({
           </div>
         </div>
 
-        {/* Bottom Panel (Collapse Toggle & Profile/Logout) */}
+        {/* Bottom Panel (Profile/Logout) */}
         <div>
-          {/* Collapse Toggle Button */}
-          {mounted && (
-            <button
-              onClick={() => {
-                const nextState = !isCollapsed
-                setIsCollapsed(nextState)
-                localStorage.setItem("ua_sidebar_collapsed", String(nextState))
-              }}
-              className={cn(
-                "h-12 w-full flex items-center gap-3 px-4 hover:bg-ua-navy-black/20 text-ua-warm-white/60 hover:text-ua-warm-white transition-all duration-300 border-t border-border/10 cursor-pointer outline-none justify-start",
-                isCollapsed && "justify-center px-0"
-              )}
-            >
-              {isCollapsed ? (
-                <ChevronRight className="size-4 shrink-0" />
-              ) : (
-                <>
-                  <ChevronLeft className="size-4 shrink-0" />
-                  <span className="text-xs font-semibold uppercase tracking-wider">Collapse Rail</span>
-                </>
-              )}
-            </button>
-          )}
 
           {/* Profile Card & Logout */}
           <div className="p-4 border-t border-border/10 bg-ua-navy-black/15 space-y-3">
