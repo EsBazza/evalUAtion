@@ -171,8 +171,10 @@ export async function processFacultyEvaluationSummary(professorId: string, acade
   const scaleScore = await calculateScaleScore(professorId, termYear, termSem);
   
   // Weighted blend: 70% scale, 30% AI rating
+  // If AI generation failed/unavailable, use 100% mathematical scale score to avoid distorting rankings.
+  const isAiAvailable = !summaryText.startsWith("AI summary unavailable") && !summaryText.startsWith("AI summary generation failed");
   const compositeScore = scaleScore !== null 
-    ? Number(((scaleScore * 0.7) + (ratingScore * 0.3)).toFixed(2))
+    ? (isAiAvailable ? Number(((scaleScore * 0.7) + (ratingScore * 0.3)).toFixed(2)) : scaleScore)
     : ratingScore;
 
   // Cache the result
