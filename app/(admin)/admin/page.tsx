@@ -10,7 +10,8 @@ import {
   getFacultyRankings,
   getEvaluationAttendanceLogs,
   getEvaluationAttendanceLogsForExport,
-  getEvaluationReceiptFilters
+  getEvaluationReceiptFilters,
+  recalculateStaleScoreCaches
 } from '@/app/actions/admin';
 import dynamic from 'next/dynamic';
 
@@ -66,6 +67,25 @@ function CountUp({ end, duration = 0.8, suffix = "" }: { end: number; duration?:
       {isDecimal ? count.toFixed(1) : Math.floor(count)}
       {suffix}
     </span>
+  );
+}
+
+function UAPremiumLoader({ message = "Syncing database parameters...", submessage = "Please wait while we fetch ledger records..." }: { message?: string; submessage?: string }) {
+  return (
+    <div className="py-24 flex flex-col items-center justify-center space-y-4 bg-card border border-border/80 rounded-lg shadow-sm w-full">
+      <div className="relative flex items-center justify-center">
+        <div className="absolute size-14 border-2 border-ua-gold/20 rounded-full animate-ping"></div>
+        <div className="size-10 border-4 border-ua-navy dark:border-ua-gold border-t-transparent rounded-full animate-spin"></div>
+      </div>
+      <div className="flex flex-col items-center space-y-1 text-center px-4">
+        <span className="text-xs font-bold text-slate-800 dark:text-ua-gold uppercase tracking-widest animate-pulse">
+          {message}
+        </span>
+        <span className="text-[10px] text-muted-foreground font-medium">
+          {submessage}
+        </span>
+      </div>
+    </div>
   );
 }
 
@@ -425,13 +445,31 @@ function AdminDashboardContent() {
               : 'Configure school terms and administration permissions'}
           </p>
         </div>
+
+        {activeView === 'rankings' && (
+          <Button
+            onClick={async () => {
+              const id = toast.loading("Recalculating ledger scores...");
+              try {
+                const res = await recalculateStaleScoreCaches();
+                toast.success(`Ledger updated! Recalculated ${res.updatedCount} stale score caches.`, undefined, { id });
+                loadData();
+              } catch (err) {
+                toast.error("Failed to recalculate scores.", undefined, { id });
+              }
+            }}
+            uaVariant="primary"
+            className="h-10 text-xs flex items-center gap-1.5 shrink-0 self-start sm:self-center font-bold"
+          >
+            <RefreshCw className="size-3.5" />
+            Refresh Scores
+          </Button>
+        )}
       </div>
 
       {/* Dynamic Panel */}
       {loading ? (
-        <div className="py-20 text-center text-muted-foreground font-semibold animate-pulse bg-card border border-border/80 rounded-lg shadow-sm">
-          Syncing database parameters...
-        </div>
+        <UAPremiumLoader />
       ) : (
         <>
           {activeView === 'rankings' && (() => {
@@ -1359,7 +1397,7 @@ function AdminDashboardContent() {
                 </CardHeader>
                 <CardContent className="p-6">
                   {admins.length === 0 ? (
-                    <div className="text-center text-muted-foreground font-semibold py-8 animate-pulse">Syncing system administrators...</div>
+                    <UAPremiumLoader message="Syncing system administrators..." submessage="Fetching authentication privileges..." />
                   ) : (
                     <div className="overflow-visible border border-border rounded-lg bg-card">
                       <table className="w-full text-left border-collapse text-sm">
@@ -1434,9 +1472,7 @@ function AdminDashboardContent() {
 export default function AdminDashboard() {
   return (
     <Suspense fallback={
-      <div className="py-20 text-center text-muted-foreground font-semibold animate-pulse bg-card border border-border/80 rounded-lg shadow-sm">
-        Loading admin dashboard ledger...
-      </div>
+      <UAPremiumLoader message="Loading Admin Dashboard" submessage="Initializing application console..." />
     }>
       <AdminDashboardContent />
     </Suspense>

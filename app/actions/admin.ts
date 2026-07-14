@@ -93,44 +93,6 @@ export async function getFacultyRankings(academicYear?: string, semester?: strin
   // Build a quick lookup map: professorId -> cache
   const cacheMap = new Map(scoreCaches.map(c => [c.professorId, c]));
 
-  // Only recompute stale/missing caches for professors who actually have evaluations.
-  // Process in batches of 3 to avoid firing dozens of simultaneous Gemini calls.
-  const BATCH_SIZE = 3;
-  const staleProfIds = professors
-    .filter(prof => {
-      const cache = cacheMap.get(prof.id);
-      return !cache || cache.isStale;
-    })
-    .map(p => p.id);
-
-  for (let i = 0; i < staleProfIds.length; i += BATCH_SIZE) {
-    const batch = staleProfIds.slice(i, i + BATCH_SIZE);
-    await Promise.all(
-      batch.map(async (profId) => {
-        try {
-          // Quick check: skip AI if there are no answers yet (avoids Gemini call)
-          const hasAnswers = await prisma.answer.count({
-            where: {
-              evaluation: {
-                professorId: profId,
-                academicYear: termYear,
-                semester: termSem,
-              },
-            },
-          });
-          if (hasAnswers === 0) return;
-
-          const newCache = await getOrComputeScoreCache(profId, termYear, termSem);
-          if (newCache) {
-            cacheMap.set(profId, newCache);
-          }
-        } catch (err) {
-          console.error(`Error computing score cache for professor ${profId}:`, err);
-        }
-      })
-    );
-  }
-
   const rankings = professors.map(prof => ({
     id: prof.id,
     name: prof.name,
@@ -142,6 +104,66 @@ export async function getFacultyRankings(academicYear?: string, semester?: strin
   }));
 
   return rankings;
+}
+
+export async function recalculateStaleScoreCaches(academicYear?: string, semester?: string) {
+  let termYear = academicYear;
+  let termSem = semester;
+
+  if (!termYear || !termSem) {
+    const settings = await getSystemSettings();
+    termYear = settings.academicYear;
+    termSem = settings.semester;
+  }
+
+  const [professors, scoreCaches] = await Promise.all([
+    prisma.professor.findMany(),
+    prisma.scoreCache.findMany({
+      where: {
+        academicYear: termYear,
+        semester: termSem,
+      },
+    }),
+  ]);
+
+  const cacheMap = new Map(scoreCaches.map(c => [c.professorId, c]));
+
+  const staleProfIds = professors
+    .filter(prof => {
+      const cache = cacheMap.get(prof.id);
+      return !cache || cache.isStale;
+    })
+    .map(p => p.id);
+
+  let updatedCount = 0;
+  const BATCH_SIZE = 3;
+
+  for (let i = 0; i < staleProfIds.length; i += BATCH_SIZE) {
+    const batch = staleProfIds.slice(i, i + BATCH_SIZE);
+    await Promise.all(
+      batch.map(async (profId) => {
+        try {
+          const hasAnswers = await prisma.answer.count({
+            where: {
+              evaluation: {
+                professorId: profId,
+                academicYear: termYear,
+                semester: termSem,
+              },
+            },
+          });
+          if (hasAnswers === 0) return;
+
+          await getOrComputeScoreCache(profId, termYear, termSem);
+          updatedCount++;
+        } catch (err) {
+          console.error(`Error computing score cache for professor ${profId}:`, err);
+        }
+      })
+    );
+  }
+
+  return { updatedCount, totalStaleChecked: staleProfIds.length };
 }
 
 
