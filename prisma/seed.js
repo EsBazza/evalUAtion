@@ -381,9 +381,9 @@ async function main() {
     }
   });
 
-  // Cluster: Adviser Evaluation
+  // Cluster: Homeroom/Class Adviser
   const clusterShsAdviser = await prisma.cluster.create({
-    data: { title: "Adviser Evaluation", order: 1, templateId: shsTemplate.id }
+    data: { title: "Homeroom/Class Adviser", order: 1, templateId: shsTemplate.id }
   });
 
   const shsAdviserScaleQuestions = [
@@ -414,7 +414,7 @@ async function main() {
 
   // Cluster 1: Communication Skills
   const clusterShsComm = await prisma.cluster.create({
-    data: { title: "Cluster 1: Communication Skills", order: 2, templateId: shsTemplate.id }
+    data: { title: "CLUSTER 1. Communication Skills", order: 2, templateId: shsTemplate.id }
   });
 
   const shsCommQuestions = [
@@ -438,7 +438,7 @@ async function main() {
 
   // Cluster 2: Instructional Skills, Classroom Management, Student Engagement, and Progress
   const clusterShsInstruction = await prisma.cluster.create({
-    data: { title: "Cluster 2: Instructional Skills, Classroom Management, Student Engagement, and Monitoring Student Progress", order: 3, templateId: shsTemplate.id }
+    data: { title: "CLUSTER 2. Instructional Skills, Classroom Management, Student Engagement in the Learning Process, and Monitoring Student Progress", order: 3, templateId: shsTemplate.id }
   });
 
   const shsInstructionQuestions = [
@@ -462,7 +462,7 @@ async function main() {
 
   // Cluster 3: Command of the Subject Matter
   const clusterShsSubject = await prisma.cluster.create({
-    data: { title: "Cluster 3: Command of the Subject Matter", order: 4, templateId: shsTemplate.id }
+    data: { title: "CLUSTER 3. Command of the Subject Matter", order: 4, templateId: shsTemplate.id }
   });
 
   const shsSubjectQuestions = [
@@ -484,9 +484,9 @@ async function main() {
     });
   }
 
-  // Cluster: Other Comments and Suggestions
+  // Cluster: OTHER COMMENTS AND SUGGESTIONS
   const clusterShsFeedback = await prisma.cluster.create({
-    data: { title: "Other Comments and Suggestions", order: 5, templateId: shsTemplate.id }
+    data: { title: "OTHER COMMENTS AND SUGGESTIONS", order: 5, templateId: shsTemplate.id }
   });
 
   await prisma.criterion.create({
@@ -528,7 +528,132 @@ async function main() {
     }
   });
 
-  console.log("Templates, Clusters, Criteria and Users seeded successfully!");
+  // 5. Generate mock evaluations and pre-computed scores for all professors
+  console.log("Generating mock evaluations & rankings cache...");
+  const professors = await prisma.professor.findMany({
+    include: {
+      sections: true,
+      department: true
+    }
+  });
+
+  const templates = await prisma.template.findMany({
+    include: {
+      clusters: {
+        include: { criteria: true }
+      }
+    }
+  });
+
+  const students = [
+    { email: "student1@ua.edu.ph", name: "Juan Dela Cruz" },
+    { email: "student2@ua.edu.ph", name: "Maria Clara" },
+    { email: "student3@ua.edu.ph", name: "Jose Rizal" },
+  ];
+
+  // Only generate evaluation metrics for the first 10 professors to keep seeding fast (~15s)
+  const rankingProfessors = professors.slice(0, 10);
+  for (const prof of rankingProfessors) {
+    const profTemplate = templates.find(t => 
+      t.level === prof.department.level && 
+      (t.departmentId === prof.departmentId || t.departmentId === null)
+    );
+    if (!profTemplate) continue;
+
+    const sections = prof.sections;
+    if (sections.length === 0) continue;
+
+    // Simulate 3 students evaluating this professor
+    for (let s = 0; s < 3; s++) {
+      const student = students[s];
+      const section = sections[s % sections.length];
+
+      // Create Evaluation Receipt
+      await prisma.evaluationReceipt.create({
+        data: {
+          studentEmail: student.email,
+          professorId: prof.id,
+          sectionId: section.id,
+          academicYear: activeYear,
+          semester: activeSem
+        }
+      });
+
+      // Create answers
+      const answersData = [];
+      for (const cluster of profTemplate.clusters) {
+        for (const crit of cluster.criteria) {
+          let score = null;
+          let textVal = null;
+          let jsonVal = null;
+
+          if (crit.type === 'SCALE_0_TO_4') {
+            score = Math.floor(Math.random() * 3) + 2; // 2, 3, 4
+          } else if (crit.type === 'SCALE_1_TO_5') {
+            score = Math.floor(Math.random() * 3) + 3; // 3, 4, 5
+          } else if (crit.type === 'RADIO_EXPECTATION') {
+            textVal = crit.options ? JSON.parse(JSON.stringify(crit.options))[Math.floor(Math.random() * 3)] : "The teacher meets my expectations.";
+          } else if (crit.type === 'CHECKBOX_AREAS') {
+            jsonVal = ["Communication Skills", "Instructional Skills"];
+          } else if (crit.type === 'TEXT_LONG') {
+            textVal = "Great teacher, very interactive and helpful in class discussions.";
+          }
+
+          answersData.push({
+            criterionId: crit.id,
+            score,
+            textVal,
+            jsonVal
+          });
+        }
+      }
+
+      // Create Evaluation
+      await prisma.evaluation.create({
+        data: {
+          sectionId: section.id,
+          professorId: prof.id,
+          departmentId: prof.departmentId,
+          templateId: profTemplate.id,
+          academicYear: activeYear,
+          semester: activeSem,
+          answers: {
+            create: answersData
+          }
+        }
+      });
+    }
+
+    // Create mock ScoreCache and AiSummary records directly (prevents triggering rate-limited Gemini calls during seed)
+    const mathScore = Math.floor(Math.random() * 20) + 76; // 76% to 95%
+    const aiScore = Math.floor(Math.random() * 20) + 76; // 76% to 95%
+    const compositeScore = Math.round(mathScore * 0.7 + aiScore * 0.3);
+
+    await prisma.scoreCache.create({
+      data: {
+        professorId: prof.id,
+        academicYear: activeYear,
+        semester: activeSem,
+        scaleScore: mathScore,
+        aiQualityScore: aiScore,
+        compositeScore: compositeScore,
+        isStale: false,
+        lastComputedAt: new Date()
+      }
+    });
+
+    await prisma.aiSummary.create({
+      data: {
+        professorId: prof.id,
+        academicYear: activeYear,
+        semester: activeSem,
+        summaryText: "Students generally appreciate the professor's clarity and organized method of teaching. Strong skills in explanation and student engagement are consistently demonstrated.",
+        ratingScore: aiScore
+      }
+    });
+  }
+
+  console.log("Templates, Clusters, Criteria, Users, and Mock Rankings seeded successfully!");
 }
 
 main()
