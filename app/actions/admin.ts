@@ -212,19 +212,19 @@ export async function getEvaluationAttendanceLogs(filters: AttendanceLogFilters)
 
   if (filters.search?.trim()) {
     const searchPattern = `%${filters.search.trim()}%`;
-    conditions.push(Prisma.sql`(r."studentEmail" ILIKE ${searchPattern} OR u."name" ILIKE ${searchPattern})`);
+    conditions.push(Prisma.sql`(lr."studentEmail" ILIKE ${searchPattern} OR u."name" ILIKE ${searchPattern})`);
   }
   if (filters.departments && filters.departments.length > 0) {
     conditions.push(Prisma.sql`s."departmentId" IN (${Prisma.join(filters.departments)})`);
   }
   if (filters.sections && filters.sections.length > 0) {
-    conditions.push(Prisma.sql`r."sectionId" IN (${Prisma.join(filters.sections)})`);
+    conditions.push(Prisma.sql`lr."sectionId" IN (${Prisma.join(filters.sections)})`);
   }
   if (filters.academicYears && filters.academicYears.length > 0) {
-    conditions.push(Prisma.sql`r."academicYear" IN (${Prisma.join(filters.academicYears)})`);
+    conditions.push(Prisma.sql`lr."academicYear" IN (${Prisma.join(filters.academicYears)})`);
   }
   if (filters.semesters && filters.semesters.length > 0) {
-    conditions.push(Prisma.sql`r."semester" IN (${Prisma.join(filters.semesters)})`);
+    conditions.push(Prisma.sql`lr."semester" IN (${Prisma.join(filters.semesters)})`);
   }
 
   const whereClause = conditions.length > 0 
@@ -301,19 +301,19 @@ export async function getEvaluationAttendanceLogsForExport(filters: Omit<Attenda
 
   if (filters.search?.trim()) {
     const searchPattern = `%${filters.search.trim()}%`;
-    conditions.push(Prisma.sql`(r."studentEmail" ILIKE ${searchPattern} OR u."name" ILIKE ${searchPattern})`);
+    conditions.push(Prisma.sql`(lr."studentEmail" ILIKE ${searchPattern} OR u."name" ILIKE ${searchPattern})`);
   }
   if (filters.departments && filters.departments.length > 0) {
     conditions.push(Prisma.sql`s."departmentId" IN (${Prisma.join(filters.departments)})`);
   }
   if (filters.sections && filters.sections.length > 0) {
-    conditions.push(Prisma.sql`r."sectionId" IN (${Prisma.join(filters.sections)})`);
+    conditions.push(Prisma.sql`lr."sectionId" IN (${Prisma.join(filters.sections)})`);
   }
   if (filters.academicYears && filters.academicYears.length > 0) {
-    conditions.push(Prisma.sql`r."academicYear" IN (${Prisma.join(filters.academicYears)})`);
+    conditions.push(Prisma.sql`lr."academicYear" IN (${Prisma.join(filters.academicYears)})`);
   }
   if (filters.semesters && filters.semesters.length > 0) {
-    conditions.push(Prisma.sql`r."semester" IN (${Prisma.join(filters.semesters)})`);
+    conditions.push(Prisma.sql`lr."semester" IN (${Prisma.join(filters.semesters)})`);
   }
 
   const whereClause = conditions.length > 0 

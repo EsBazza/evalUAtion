@@ -105,6 +105,7 @@ function AdminDashboardContent() {
   const [templates, setTemplates] = useState<any[]>([]);
   const [admins, setAdmins] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [logsLoading, setLogsLoading] = useState(false);
 
   // Sorting states for rankings
   const [sortField, setSortField] = useState('score');
@@ -170,6 +171,7 @@ function AdminDashboardContent() {
         setAvailableYears(filterOptions.academicYears);
         setAvailableSems(filterOptions.semesters);
 
+        // Fetch logs for the first time on tab switch
         const attendanceData = await getEvaluationAttendanceLogs({
           search: receiptSearch,
           departments: selectedDepts,
@@ -197,9 +199,39 @@ function AdminDashboardContent() {
     }
   };
 
+  const fetchAttendance = async () => {
+    setLogsLoading(true);
+    try {
+      const attendanceData = await getEvaluationAttendanceLogs({
+        search: receiptSearch,
+        departments: selectedDepts,
+        sections: selectedSections,
+        academicYears: selectedYears,
+        semesters: selectedSems,
+        page: attendancePage,
+        pageSize: attendanceItemsPerPage
+      });
+      setReceipts(attendanceData.logs);
+      setAttendanceTotalPages(attendanceData.totalPages);
+      setAttendanceTotalCount(attendanceData.totalCount);
+    } catch (err) {
+      console.error("Failed to load attendance logs silently", err);
+    } finally {
+      setLogsLoading(false);
+    }
+  };
+
+  // Run full data fetch only on view change
   useEffect(() => {
     loadData();
-  }, [activeView, attendancePage, attendanceItemsPerPage, receiptSearch, selectedDepts, selectedSections, selectedYears, selectedSems]);
+  }, [activeView]);
+
+  // Run silent updates for filters and pages
+  useEffect(() => {
+    if (activeView === 'logs') {
+      fetchAttendance();
+    }
+  }, [attendancePage, attendanceItemsPerPage, receiptSearch, selectedDepts, selectedSections, selectedYears, selectedSems]);
 
   const handleCreateDepartment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -994,7 +1026,12 @@ function AdminDashboardContent() {
                     )}
 
                     {/* Table View */}
-                    <div className="border border-border rounded-lg overflow-hidden bg-card">
+                    <div className="border border-border rounded-lg overflow-hidden bg-card relative">
+                      {logsLoading && (
+                        <div className="absolute inset-0 bg-background/50 backdrop-blur-[1px] flex items-center justify-center z-10 transition-all duration-150">
+                          <div className="w-8 h-8 border-4 border-ua-gold border-t-transparent rounded-full animate-spin"></div>
+                        </div>
+                      )}
                       <table className="w-full text-left border-collapse text-xs">
                         <thead className="bg-muted/30 border-b border-border/50 text-muted-foreground">
                           <tr>
