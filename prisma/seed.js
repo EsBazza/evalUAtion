@@ -551,6 +551,15 @@ async function main() {
     { email: "student3@ua.edu.ph", name: "Jose Rizal" },
   ];
 
+  // Seed mock student users so their names are resolved in attendance logs
+  for (const s of students) {
+    await prisma.user.upsert({
+      where: { email: s.email },
+      update: { name: s.name, role: "STUDENT" },
+      create: { email: s.email, name: s.name, role: "STUDENT" }
+    });
+  }
+
   // Only generate evaluation metrics for the first 10 professors to keep seeding fast (~15s)
   const rankingProfessors = professors.slice(0, 10);
   for (const prof of rankingProfessors) {
