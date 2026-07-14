@@ -560,8 +560,17 @@ async function main() {
     });
   }
 
-  // Only generate evaluation metrics for the first 10 professors to keep seeding fast (~15s)
-  const rankingProfessors = professors.slice(0, 10);
+  // Pick 2 professors per department so all departments are represented in rankings
+  const profsByDept = new Map();
+  for (const prof of professors) {
+    const deptId = prof.departmentId;
+    if (!profsByDept.has(deptId)) profsByDept.set(deptId, []);
+    profsByDept.get(deptId).push(prof);
+  }
+  const rankingProfessors = [];
+  for (const [, profs] of profsByDept) {
+    rankingProfessors.push(...profs.slice(0, 2));
+  }
   for (const prof of rankingProfessors) {
     const profTemplate = templates.find(t => 
       t.level === prof.department.level && 
