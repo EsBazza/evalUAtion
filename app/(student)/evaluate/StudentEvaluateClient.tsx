@@ -412,6 +412,7 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
 
       const res = await submitProfessorEvaluation({
         studentEmail,
+        studentName,
         sectionId: selectedSectionId,
         professorId: selectedProf.id,
         departmentId: sections.find(s => s.id === selectedSectionId)?.departmentId || selectedDepartmentId || departments[0]?.id || "", 

@@ -97,6 +97,7 @@ import { createHash } from 'crypto';
 
 export async function submitProfessorEvaluation(data: {
   studentEmail: string;
+  studentName?: string;
   sectionId: string;
   professorId: string;
   departmentId: string;
@@ -119,6 +120,27 @@ export async function submitProfessorEvaluation(data: {
     const termSem = settings?.semester || "1st";
 
     const result = await prisma.$transaction(async (tx) => {
+      // Ensure student user record exists/is updated in User table for attendance logs
+      if (data.studentName) {
+        const existingUser = await tx.user.findUnique({
+          where: { email: data.studentEmail }
+        });
+        if (!existingUser) {
+          await tx.user.create({
+            data: {
+              email: data.studentEmail,
+              name: data.studentName,
+              role: 'STUDENT'
+            }
+          });
+        } else if (!existingUser.name) {
+          await tx.user.update({
+            where: { email: data.studentEmail },
+            data: { name: data.studentName }
+          });
+        }
+      }
+
       // 1. Check if receipt already exists to prevent duplicate submissions
       const existingReceipt = await tx.evaluationReceipt.findUnique({
         where: {

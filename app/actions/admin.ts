@@ -267,7 +267,25 @@ export async function getEvaluationAttendanceLogs(filters: AttendanceLogFilters)
         "academicYear",
         "semester",
         "createdAt" AS "mostRecentSubmitted"
-      FROM "EvaluationReceipt"
+      FROM "EvaluationReceipt" er
+      WHERE 
+        (
+          SELECT COUNT(*) 
+          FROM "EvaluationReceipt" er2 
+          WHERE er2."studentEmail" = er."studentEmail" 
+            AND er2."sectionId" = er."sectionId" 
+            AND er2."academicYear" = er."academicYear" 
+            AND er2."semester" = er."semester"
+        ) = (
+          SELECT COUNT(*) 
+          FROM "_SectionToProfessor" sp 
+          WHERE sp."B" = er."sectionId"
+        )
+        AND (
+          SELECT COUNT(*) 
+          FROM "_SectionToProfessor" sp 
+          WHERE sp."B" = er."sectionId"
+        ) > 0
       ORDER BY "studentEmail", "createdAt" DESC, id DESC
     )
     SELECT 
@@ -299,7 +317,25 @@ export async function getEvaluationAttendanceLogs(filters: AttendanceLogFilters)
         "sectionId",
         "academicYear",
         "semester"
-      FROM "EvaluationReceipt"
+      FROM "EvaluationReceipt" er
+      WHERE 
+        (
+          SELECT COUNT(*) 
+          FROM "EvaluationReceipt" er2 
+          WHERE er2."studentEmail" = er."studentEmail" 
+            AND er2."sectionId" = er."sectionId" 
+            AND er2."academicYear" = er."academicYear" 
+            AND er2."semester" = er."semester"
+        ) = (
+          SELECT COUNT(*) 
+          FROM "_SectionToProfessor" sp 
+          WHERE sp."B" = er."sectionId"
+        )
+        AND (
+          SELECT COUNT(*) 
+          FROM "_SectionToProfessor" sp 
+          WHERE sp."B" = er."sectionId"
+        ) > 0
     )
     SELECT COUNT(*)::integer AS count
     FROM latest_receipts lr
@@ -356,7 +392,25 @@ export async function getEvaluationAttendanceLogsForExport(filters: Omit<Attenda
         "academicYear",
         "semester",
         "createdAt" AS "mostRecentSubmitted"
-      FROM "EvaluationReceipt"
+      FROM "EvaluationReceipt" er
+      WHERE 
+        (
+          SELECT COUNT(*) 
+          FROM "EvaluationReceipt" er2 
+          WHERE er2."studentEmail" = er."studentEmail" 
+            AND er2."sectionId" = er."sectionId" 
+            AND er2."academicYear" = er."academicYear" 
+            AND er2."semester" = er."semester"
+        ) = (
+          SELECT COUNT(*) 
+          FROM "_SectionToProfessor" sp 
+          WHERE sp."B" = er."sectionId"
+        )
+        AND (
+          SELECT COUNT(*) 
+          FROM "_SectionToProfessor" sp 
+          WHERE sp."B" = er."sectionId"
+        ) > 0
       ORDER BY "studentEmail", "createdAt" DESC, id DESC
     )
     SELECT 
