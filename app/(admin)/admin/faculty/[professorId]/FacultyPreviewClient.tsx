@@ -121,7 +121,8 @@ export default function FacultyPreviewClient({ professorId }: FacultyPreviewClie
 
   if (!data) return null;
 
-  const { professor, scoreCache, clusterScores, sectionScores, historicalScores, aiSummary, evaluationLog } = data;
+  const { professor, scoreCache, clusterScores, sectionScores, historicalScores, aiSummary, comments, evaluationLog } = data;
+  const commentsList = comments || [];
 
   return (
     <div className="space-y-6">
@@ -199,7 +200,7 @@ export default function FacultyPreviewClient({ professorId }: FacultyPreviewClie
         </div>
       </div>
 
-      {/* Metric Cards Row */}
+      {/* 1. Analytics (Metric Cards Row) */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card>
           <CardContent className="p-6 flex items-center justify-between">
@@ -246,7 +247,110 @@ export default function FacultyPreviewClient({ professorId }: FacultyPreviewClie
         </Card>
       </div>
 
-      {/* AI Narrative Section */}
+      {/* 2. Graphs Section */}
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Card>
+            <CardHeader className="border-b border-border/40 pb-4">
+              <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Cluster Breakdown (Radar)</CardTitle>
+            </CardHeader>
+            <CardContent className="p-6">
+              <RadarClusterChart data={clusterScores} />
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="border-b border-border/40 pb-4">
+              <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Section Performance (Bar)</CardTitle>
+            </CardHeader>
+            <CardContent className="p-6">
+              <SectionBarChart data={sectionScores} />
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <Card className="lg:col-span-2">
+            <CardHeader className="border-b border-border/40 pb-4">
+              <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Historical Composite Trends</CardTitle>
+            </CardHeader>
+            <CardContent className="p-6">
+              <HistoricalTrendChart data={historicalScores} />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="border-b border-border/40 pb-4">
+              <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+                <BarChart3 className="size-4" />
+                Recent Evaluations ({evaluationLog.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6">
+              <div className="max-h-64 overflow-y-auto divide-y divide-border/40 pr-1">
+                {evaluationLog.length === 0 ? (
+                  <p className="text-xs text-muted-foreground font-semibold italic text-center py-8">No responses logged for this term.</p>
+                ) : (
+                  evaluationLog.map((log: any) => (
+                    <div key={log.id} className="py-2.5 flex justify-between items-center text-xs">
+                      <div>
+                        <p className="font-bold text-foreground">Section {log.sectionName}</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">{new Date(log.createdAt).toLocaleDateString()}</p>
+                      </div>
+                      <span className="text-[9px] bg-muted border border-border text-muted-foreground px-2 py-0.5 rounded font-bold">SUBMITTED</span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* 3. Average Score Per Cluster */}
+      <Card>
+        <CardHeader className="border-b border-border/40 pb-4">
+          <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Average Score Per Cluster</CardTitle>
+        </CardHeader>
+        <CardContent className="p-6">
+          <div className="divide-y divide-border/40">
+            {clusterScores && clusterScores.length > 0 ? (
+              clusterScores.map((item: any, i: number) => (
+                <div key={i} className="py-3.5 flex justify-between items-center text-xs">
+                  <span className="font-semibold text-foreground pr-4 leading-normal">{item.subject}</span>
+                  <span className="font-bold text-ua-navy dark:text-ua-gold bg-muted px-2.5 py-1 rounded border border-border shrink-0">
+                    {item.score}%
+                  </span>
+                </div>
+              ))
+            ) : (
+              <p className="text-xs text-muted-foreground italic py-4 text-center font-semibold">No cluster scores available.</p>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 4. Anonymous Student Comments */}
+      <Card>
+        <CardHeader className="border-b border-border/40 pb-4">
+          <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Anonymous Student Comments</CardTitle>
+        </CardHeader>
+        <CardContent className="p-6">
+          <div className="max-h-80 overflow-y-auto space-y-3 pr-1">
+            {commentsList.length === 0 ? (
+              <p className="text-xs text-muted-foreground font-semibold italic text-center py-8">No comments submitted for this term.</p>
+            ) : (
+              commentsList.map((comment: string, i: number) => (
+                <div key={i} className="p-4 bg-muted/40 border border-border/60 rounded-lg text-xs leading-relaxed text-foreground font-medium shadow-inner">
+                  "{comment}"
+                </div>
+              ))
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 5. Gemini AI Evaluation Sentiment Analysis */}
       <Card className="relative overflow-hidden border-border/60">
         <div className="absolute top-0 left-0 w-1.5 h-full bg-ua-navy dark:bg-ua-gold" />
         <CardHeader className="border-b border-border/40 bg-muted/10 pb-4 flex flex-row justify-between items-center">
@@ -277,69 +381,6 @@ export default function FacultyPreviewClient({ professorId }: FacultyPreviewClie
           )}
         </CardContent>
       </Card>
-
-      {/* Visual Charts Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader className="border-b border-border/40 pb-4">
-            <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Cluster Breakdown (Radar)</CardTitle>
-          </CardHeader>
-          <CardContent className="p-6">
-            <RadarClusterChart data={clusterScores} />
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="border-b border-border/40 pb-4">
-            <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Section Performance (Bar)</CardTitle>
-          </CardHeader>
-          <CardContent className="p-6">
-            <SectionBarChart data={sectionScores} />
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Lower Grid: Trends & Audit Logs */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        {/* Trend Analysis */}
-        <Card className="lg:col-span-2">
-          <CardHeader className="border-b border-border/40 pb-4">
-            <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Historical Composite Trends</CardTitle>
-          </CardHeader>
-          <CardContent className="p-6">
-            <HistoricalTrendChart data={historicalScores} />
-          </CardContent>
-        </Card>
-
-        {/* Anonymized Evaluation Log */}
-        <Card>
-          <CardHeader className="border-b border-border/40 pb-4">
-            <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
-              <BarChart3 className="size-4" />
-              Recent Evaluations ({evaluationLog.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-6">
-            <div className="max-h-64 overflow-y-auto divide-y divide-border/40 pr-1">
-              {evaluationLog.length === 0 ? (
-                <p className="text-xs text-muted-foreground font-semibold italic text-center py-8">No responses logged for this term.</p>
-              ) : (
-                evaluationLog.map((log: any) => (
-                  <div key={log.id} className="py-2.5 flex justify-between items-center text-xs">
-                    <div>
-                      <p className="font-bold text-foreground">Section {log.sectionName}</p>
-                      <p className="text-[10px] text-muted-foreground mt-0.5">{new Date(log.createdAt).toLocaleDateString()}</p>
-                    </div>
-                    <span className="text-[9px] bg-muted border border-border text-muted-foreground px-2 py-0.5 rounded font-bold">SUBMITTED</span>
-                  </div>
-                ))
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-      </div>
 
     </div>
   );

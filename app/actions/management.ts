@@ -233,7 +233,17 @@ export async function getFacultyProfileData(professorId: string, academicYear?: 
     },
   });
 
-  // 6. Fetch raw evaluation log (anonymized)
+  // 6. Extract student comments from answers
+  const comments: string[] = [];
+  evaluations.forEach((evaluation) => {
+    evaluation.answers.forEach((ans) => {
+      if (ans.textVal && ans.textVal.trim()) {
+        comments.push(ans.textVal.trim());
+      }
+    });
+  });
+
+  // 7. Fetch raw evaluation log (anonymized)
   const evaluationLog = evaluations.map(e => ({
     id: e.id,
     sectionName: e.section.name,
@@ -263,6 +273,7 @@ export async function getFacultyProfileData(professorId: string, academicYear?: 
       summaryText: aiSummary.summaryText,
       ratingScore: aiSummary.ratingScore,
     } : null,
+    comments,
     evaluationLog,
   };
 }
