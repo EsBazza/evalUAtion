@@ -197,12 +197,44 @@ export async function getFacultyProfileData(professorId: string, academicYear?: 
     });
   });
 
-  const clusterScores = Array.from(clusterMap.entries()).map(([title, val]) => ({
-    title: title,
-    subject: title.replace(/^Cluster \d+:\s*/, ''), // Clean standard prefixes
-    score: Number((val.total / val.count).toFixed(1)),
-    fullMark: 100,
-  }));
+  // Find the active template for this professor's department/level to get all clusters
+  let activeTemplate = await prisma.template.findFirst({
+    where: {
+      level: professor.department.level,
+      isActive: true,
+      departmentId: professor.departmentId,
+    },
+    include: {
+      clusters: {
+        orderBy: { order: 'asc' }
+      }
+    }
+  });
+
+  if (!activeTemplate) {
+    activeTemplate = await prisma.template.findFirst({
+      where: {
+        level: professor.department.level,
+        isActive: true,
+        departmentId: null,
+      },
+      include: {
+        clusters: {
+          orderBy: { order: 'asc' }
+        }
+      }
+    });
+  }
+
+  const clusterScores = (activeTemplate?.clusters || []).map((cluster) => {
+    const val = clusterMap.get(cluster.title);
+    return {
+      title: cluster.title,
+      subject: cluster.title.replace(/^Cluster \d+:\s*/, ''), // Clean standard prefixes
+      score: val && val.count > 0 ? Number((val.total / val.count).toFixed(1)) : null,
+      fullMark: 100,
+    };
+  });
 
   const sectionScores = Array.from(sectionMap.entries()).map(([name, val]) => ({
     name,

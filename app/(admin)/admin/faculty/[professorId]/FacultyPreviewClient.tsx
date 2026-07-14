@@ -319,7 +319,7 @@ export default function FacultyPreviewClient({ professorId }: FacultyPreviewClie
                 <div key={i} className="py-3.5 flex justify-between items-center text-xs">
                   <span className="font-semibold text-foreground pr-4 leading-normal">{item.title || item.subject}</span>
                   <span className="font-bold text-ua-navy dark:text-ua-gold bg-muted px-2.5 py-1 rounded border border-border shrink-0">
-                    {item.score}%
+                    {item.score !== null ? `${item.score}%` : 'N/A'}
                   </span>
                 </div>
               ))
