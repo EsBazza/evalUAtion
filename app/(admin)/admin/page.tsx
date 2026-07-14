@@ -248,6 +248,22 @@ function AdminDashboardContent() {
     loadData();
   }, [activeView]);
 
+  // Live sync: silently refresh rankings every 15 seconds
+  useEffect(() => {
+    if (activeView !== 'rankings') return;
+
+    const interval = setInterval(async () => {
+      try {
+        const data = await getFacultyRankings();
+        setRankings(data);
+      } catch (err) {
+        // Silently ignore refresh errors
+      }
+    }, 15000);
+
+    return () => clearInterval(interval);
+  }, [activeView]);
+
   // Run silent updates for filters and pages
   useEffect(() => {
     if (activeView === 'logs') {
