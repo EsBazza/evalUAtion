@@ -560,96 +560,100 @@ async function main() {
     });
   }
 
-  // Pick 2 professors per department so all departments are represented in rankings
-  const profsByDept = new Map();
-  for (const prof of professors) {
-    const deptId = prof.departmentId;
-    if (!profsByDept.has(deptId)) profsByDept.set(deptId, []);
-    profsByDept.get(deptId).push(prof);
-  }
-  const rankingProfessors = [];
-  for (const [, profs] of profsByDept) {
-    rankingProfessors.push(...profs.slice(0, 2));
-  }
-  for (const prof of rankingProfessors) {
-    const profTemplate = templates.find(t => 
-      t.level === prof.department.level && 
-      (t.departmentId === prof.departmentId || t.departmentId === null)
-    );
-    if (!profTemplate) continue;
-
-    const sections = prof.sections;
-    if (sections.length === 0) continue;
-
-    // Simulate 3 students evaluating this professor
-    for (let s = 0; s < 3; s++) {
-      const student = students[s];
-      const section = sections[s % sections.length];
-
-      // Create Evaluation Receipt
-      await prisma.evaluationReceipt.create({
-        data: {
-          studentEmail: student.email,
-          professorId: prof.id,
-          sectionId: section.id,
-          academicYear: activeYear,
-          semester: activeSem
-        }
-      });
-
-      // Create answers
-      const answersData = [];
-      for (const cluster of profTemplate.clusters) {
-        for (const crit of cluster.criteria) {
-          let score = null;
-          let textVal = null;
-          let jsonVal = null;
-
-          if (crit.type === 'SCALE_0_TO_4') {
-            score = Math.floor(Math.random() * 3) + 2; // 2, 3, 4
-          } else if (crit.type === 'SCALE_1_TO_5') {
-            score = Math.floor(Math.random() * 3) + 3; // 3, 4, 5
-          } else if (crit.type === 'RADIO_EXPECTATION') {
-            textVal = crit.options ? JSON.parse(JSON.stringify(crit.options))[Math.floor(Math.random() * 3)] : "The teacher meets my expectations.";
-          } else if (crit.type === 'CHECKBOX_AREAS') {
-            jsonVal = ["Communication Skills", "Instructional Skills"];
-          } else if (crit.type === 'TEXT_LONG') {
-            textVal = "Great teacher, very interactive and helpful in class discussions.";
-          }
-
-          answersData.push({
-            criterionId: crit.id,
-            score,
-            textVal,
-            jsonVal
-          });
-        }
-      }
-
-      // Create Evaluation
-      await prisma.evaluation.create({
-        data: {
-          sectionId: section.id,
-          professorId: prof.id,
-          departmentId: prof.departmentId,
-          templateId: profTemplate.id,
-          academicYear: activeYear,
-          semester: activeSem,
-          answers: {
-            create: answersData
-          }
-        }
-      });
+  // Build a section -> professors map from the database join table
+  const allSections = await prisma.section.findMany({
+    include: {
+      professors: true,
+      department: true
     }
+  });
 
-    // Create mock ScoreCache and AiSummary records directly (prevents triggering rate-limited Gemini calls during seed)
-    const mathScore = Math.floor(Math.random() * 20) + 76; // 76% to 95%
-    const aiScore = Math.floor(Math.random() * 20) + 76; // 76% to 95%
+  // Pick 1 section per department to keep seeding fast
+  const seededSections = new Map();
+  for (const sec of allSections) {
+    if (sec.professors.length === 0) continue;
+    const deptId = sec.departmentId;
+    if (!seededSections.has(deptId)) {
+      seededSections.set(deptId, sec);
+    }
+  }
+
+  const evaluatedProfIds = new Set();
+
+  for (const [, section] of seededSections) {
+    const sectionProfs = section.professors;
+
+    // Each mock student evaluates ALL professors in this section
+    for (const student of students) {
+      for (const prof of sectionProfs) {
+        const profTemplate = templates.find(t =>
+          t.level === section.department.level &&
+          (t.departmentId === section.departmentId || t.departmentId === null)
+        );
+        if (!profTemplate) continue;
+
+        // Create Evaluation Receipt
+        await prisma.evaluationReceipt.create({
+          data: {
+            studentEmail: student.email,
+            professorId: prof.id,
+            sectionId: section.id,
+            academicYear: activeYear,
+            semester: activeSem
+          }
+        });
+
+        // Create answers
+        const answersData = [];
+        for (const cluster of profTemplate.clusters) {
+          for (const crit of cluster.criteria) {
+            let score = null;
+            let textVal = null;
+            let jsonVal = null;
+
+            if (crit.type === 'SCALE_0_TO_4') {
+              score = Math.floor(Math.random() * 3) + 2;
+            } else if (crit.type === 'SCALE_1_TO_5') {
+              score = Math.floor(Math.random() * 3) + 3;
+            } else if (crit.type === 'RADIO_EXPECTATION') {
+              textVal = crit.options ? JSON.parse(JSON.stringify(crit.options))[Math.floor(Math.random() * 3)] : "The teacher meets my expectations.";
+            } else if (crit.type === 'CHECKBOX_AREAS') {
+              jsonVal = ["Communication Skills", "Instructional Skills"];
+            } else if (crit.type === 'TEXT_LONG') {
+              textVal = "Great teacher, very interactive and helpful in class discussions.";
+            }
+
+            answersData.push({ criterionId: crit.id, score, textVal, jsonVal });
+          }
+        }
+
+        // Create Evaluation
+        await prisma.evaluation.create({
+          data: {
+            sectionId: section.id,
+            professorId: prof.id,
+            departmentId: section.departmentId,
+            templateId: profTemplate.id,
+            academicYear: activeYear,
+            semester: activeSem,
+            answers: { create: answersData }
+          }
+        });
+
+        evaluatedProfIds.add(prof.id);
+      }
+    }
+  }
+
+  // Create ScoreCache and AiSummary for each evaluated professor
+  for (const profId of evaluatedProfIds) {
+    const mathScore = Math.floor(Math.random() * 20) + 76;
+    const aiScore = Math.floor(Math.random() * 20) + 76;
     const compositeScore = Math.round(mathScore * 0.7 + aiScore * 0.3);
 
     await prisma.scoreCache.create({
       data: {
-        professorId: prof.id,
+        professorId: profId,
         academicYear: activeYear,
         semester: activeSem,
         scaleScore: mathScore,
@@ -662,7 +666,7 @@ async function main() {
 
     await prisma.aiSummary.create({
       data: {
-        professorId: prof.id,
+        professorId: profId,
         academicYear: activeYear,
         semester: activeSem,
         summaryText: "Students generally appreciate the professor's clarity and organized method of teaching. Strong skills in explanation and student engagement are consistently demonstrated.",
