@@ -2,6 +2,7 @@
 
 import { prisma } from '@/lib/prisma';
 import { writeAuditLog } from './audit';
+import { generateCodeSegment, buildSectionCode } from '@/lib/codegen';
 
 
 export async function getDepartmentDetails(departmentId: string) {
@@ -29,17 +30,20 @@ export async function createSection(name: string, departmentId: string) {
   });
   if (!dept) throw new Error("Department not found");
 
-  // Generate random 8-character alphanumeric code
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-  let generatedCode = "";
-  for (let i = 0; i < 8; i++) {
-    generatedCode += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
+  const settings = await prisma.systemSetting.findUnique({
+    where: { id: 'active' }
+  });
+  const academicYear = settings?.academicYear || "2026-2027";
+  const semester = settings?.semester || "1st";
+
+  // Generate random segment and construct formatted code
+  const randomSegment = generateCodeSegment(4);
+  const formattedCode = buildSectionCode(dept.level, dept.name, randomSegment, academicYear, semester);
 
   return prisma.section.create({
     data: {
       name,
-      code: generatedCode,
+      code: formattedCode,
       departmentId,
     },
   });

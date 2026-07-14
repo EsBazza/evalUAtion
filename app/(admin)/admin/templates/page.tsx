@@ -103,8 +103,13 @@ export default function TemplatesDashboard() {
     if (!importFile || !importTitle.trim() || !importLevel) return;
 
     const fileName = importFile.name.toLowerCase();
-    if (!fileName.endsWith('.docx') && !fileName.endsWith('.pdf') && !fileName.endsWith('.txt')) {
-      toast.error("Unsupported file type. Please upload a .docx, .pdf, or .txt file.");
+    if (!fileName.endsWith('.docx') && !fileName.endsWith('.txt')) {
+      toast.error("Unsupported file type. Only .docx and .txt files are accepted.");
+      return;
+    }
+
+    if (importFile.size > 5 * 1024 * 1024) {
+      toast.error("File is too large. Maximum allowed size is 5 MB.");
       return;
     }
 
@@ -373,10 +378,10 @@ export default function TemplatesDashboard() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Select File (.docx, .pdf, .txt)</label>
+                    <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Select File (.docx or .txt only, max 5 MB)</label>
                     <input 
                       type="file" 
-                      accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.pdf,application/pdf,.txt,text/plain"
+                      accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.doc,application/msword,.txt,text/plain"
                       onChange={(e) => {
                         if (e.target.files && e.target.files.length > 0) {
                           setImportFile(e.target.files[0]);

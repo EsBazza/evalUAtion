@@ -27,7 +27,7 @@ export async function writeAuditLog(eventType: string, payload: any) {
   }
 }
 
-export async function getAuditLogs() {
+export async function getAuditLogs(limit = 100) {
   try {
     // Authenticate admin access
     const session = await auth();
@@ -41,7 +41,7 @@ export async function getAuditLogs() {
 
     const logs = await prisma.auditLog.findMany({
       orderBy: { createdAt: 'desc' },
-      take: 100, // Limit to recent 100 logs
+      take: Math.min(limit, 500), // Hard ceiling at 500 to avoid accidental large fetches
     });
 
     return logs.map((log: any) => {

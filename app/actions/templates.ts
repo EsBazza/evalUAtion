@@ -280,7 +280,7 @@ export async function setActiveTemplateAction(
 
   if (!target) throw new Error("Template not found");
 
-  return prisma.$transaction(async (tx) => {
+  await prisma.$transaction(async (tx) => {
     if (activationType === 'GLOBAL') {
       // Deactivate all active templates for this level that are GLOBAL (departmentId is null)
       await tx.template.updateMany({
@@ -358,6 +358,7 @@ export async function setActiveTemplateAction(
     }
   });
 
+  // Only audit after the transaction fully committed — not before
   await writeAuditLog('TEMPLATE_ACTIVATE', { desc: `Activated template "${target?.title || ''}" (Scope: ${activationType})` });
 }
 

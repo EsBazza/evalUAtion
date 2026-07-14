@@ -3,31 +3,42 @@
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { writeAuditLog } from './audit';
+import { generateCodeSegment, buildSectionCode } from '@/lib/codegen';
 
 
-export async function getSystemSettings() {
-  // Auto-heal missing section codes
+/**
+ * One-time repair utility — fills in missing section codes with formatted ones.
+ * Should be called explicitly (e.g. during settings save or a dedicated admin action),
+ * NOT on every settings read.
+ */
+export async function healMissingSectionCodes() {
   try {
     const sectionsWithNullCode = await prisma.section.findMany({
-      where: { code: null }
+      where: { code: null },
+      include: { department: true },
     });
-    if (sectionsWithNullCode.length > 0) {
-      const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-      for (const sec of sectionsWithNullCode) {
-        let generatedCode = "";
-        for (let i = 0; i < 8; i++) {
-          generatedCode += chars.charAt(Math.floor(Math.random() * chars.length));
-        }
-        await prisma.section.update({
-          where: { id: sec.id },
-          data: { code: generatedCode }
-        });
-      }
-    }
-  } catch (err) {
-    console.error("Failed to auto-heal section codes:", err);
-  }
+    if (sectionsWithNullCode.length === 0) return { healed: 0 };
 
+    const settings = await prisma.systemSetting.findUnique({ where: { id: 'active' } });
+    const activeYear = settings?.academicYear || '2026-2027';
+    const activeSem = settings?.semester || '1st';
+
+    for (const sec of sectionsWithNullCode) {
+      const rand = generateCodeSegment(4);
+      const formatted = buildSectionCode(sec.department.level, sec.department.name, rand, activeYear, activeSem);
+      await prisma.section.update({
+        where: { id: sec.id },
+        data: { code: formatted },
+      });
+    }
+    return { healed: sectionsWithNullCode.length };
+  } catch (err) {
+    console.error('Failed to heal section codes:', err);
+    return { healed: 0 };
+  }
+}
+
+export async function getSystemSettings() {
   const settings = await prisma.systemSetting.findUnique({
     where: { id: 'active' }
   });
@@ -51,6 +62,9 @@ export async function updateSystemSettings(academicYear: string, semester: strin
     throw new Error("Academic Year and Semester cannot be empty");
   }
 
+  const currentSettings = await prisma.systemSetting.findUnique({ where: { id: 'active' } });
+  const termChanged = !currentSettings || currentSettings.academicYear !== academicYear || currentSettings.semester !== semester;
+
   const updateData: any = { academicYear, semester };
   if (isFacultyPageEnabled !== undefined) {
     updateData.isFacultyPageEnabled = isFacultyPageEnabled;
@@ -67,8 +81,27 @@ export async function updateSystemSettings(academicYear: string, semester: strin
     }
   });
 
+  // If the term/semester changed, regenerate all section access codes for the new term
+  if (termChanged) {
+    try {
+      const allSections = await prisma.section.findMany({
+        include: { department: true }
+      });
+      for (const sec of allSections) {
+        const rand = generateCodeSegment(4);
+        const newCode = buildSectionCode(sec.department.level, sec.department.name, rand, academicYear, semester);
+        await prisma.section.update({
+          where: { id: sec.id },
+          data: { code: newCode }
+        });
+      }
+    } catch (err) {
+      console.error("Failed to automatically rotate section codes upon semester change:", err);
+    }
+  }
+
   await writeAuditLog('CONFIG_UPDATE', { 
-    desc: `Updated system terms to ${academicYear} ${semester} (Faculty Page: ${res.isFacultyPageEnabled ? 'Enabled' : 'Disabled'})` 
+    desc: `Updated system terms to ${academicYear} ${semester} (Faculty Page: ${res.isFacultyPageEnabled ? 'Enabled' : 'Disabled'})${termChanged ? ' - Regenerated all section access codes.' : ''}` 
   });
 
   return res;

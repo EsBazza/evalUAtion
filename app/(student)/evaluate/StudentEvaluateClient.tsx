@@ -768,6 +768,24 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
             >
+              {/* Introductory Letter — always visible throughout all cluster screens */}
+              <Card className="border border-ua-navy/20 dark:border-ua-gold/20 bg-ua-navy/5 dark:bg-ua-gold/5 mb-5">
+                <CardContent className="p-5 space-y-2 relative overflow-hidden">
+                  <h4 className="text-sm font-bold text-ua-navy dark:text-ua-gold">
+                    Dear Student,
+                  </h4>
+                  <p className="text-xs sm:text-sm text-foreground/80 leading-relaxed">
+                    Please accomplish this instrument with all sincerity and honesty. Your objective assessment is counted for the further improvement of instruction. Rest assured that your responses will be held strictly confidential and will not in any manner affect your grade in the subject. The summary of the results of this evaluation will only be made available to the instructor being evaluated in the next semester.
+                  </p>
+                  <div className="flex justify-between items-center pt-2 border-t border-border/40 text-[10px] font-semibold text-muted-foreground">
+                    <span>Thank You.</span>
+                    <span className="text-[9px] uppercase tracking-wider text-muted-foreground/50">
+                      Anonymous &amp; Confidential
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+
               <ClusterStepper
                 clusters={template.clusters}
                 currentIndex={currentClusterIndex}
@@ -809,27 +827,8 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
                   }
                 }}
               >
-                {/* Introductory Letter on first screen */}
-                {currentClusterIndex === 0 && (
-                  <Card className="border border-border/80 bg-card mb-6">
-                    <CardContent className="p-6 space-y-3 relative overflow-hidden">
-                      <h4 className="text-sm font-bold text-ua-navy dark:text-ua-gold">
-                        Dear Student,
-                      </h4>
-                      <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed italic">
-                        Please accomplish this instrument with all sincerity and honesty. Your objective assessment is counted for the further improvement of instruction. Rest assured that your responses will be held strictly confidential and will not in any manner affect your grade in the subject. The summary of the results of this evaluation will only be made available to the instructor being evaluated in the next semester.
-                      </p>
-                      <div className="flex justify-between items-center pt-2 border-t border-border/40 text-[10px] font-semibold text-muted-foreground">
-                        <span>Thank You.</span>
-                        <span className="text-[9px] uppercase tracking-wider text-muted-foreground/50">
-                          Anonymous & Confidential
-                        </span>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
 
-                {/* Template Instructions & Legend on first screen */}
+                {/* Template Instructions & Legend on first screen only */}
                 {currentClusterIndex === 0 && (
                   <div className="space-y-4 mb-6">
                     {template.instructions && (

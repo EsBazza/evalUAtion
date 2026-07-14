@@ -5,6 +5,9 @@ import { prisma } from '@/lib/prisma';
 import { auth } from '@/auth';
 import { getSystemSettings } from './settings';
 
+// Use the lightweight model for all AI evaluation work
+const GEMINI_MODEL = 'gemini-3.1-flash-lite-preview';
+
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY?.replace(/"/g, "").trim() });
 
 export async function getFacultyProfessorId() {
@@ -95,28 +98,35 @@ export async function processFacultyEvaluationSummary(professorId: string, acade
   let summaryText = "No qualitative text feedback submitted yet.";
 
   try {
-      const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents: `You are a warm, professional academic performance coach at the University of the Assumption. 
-        Your role is to read through anonymous student evaluation feedback for a faculty member and write a personal, 
-        encouraging, and honest summary addressed directly TO the faculty member (use "you" and "your").
-        
-        The summary should:
-        - Open with a genuine acknowledgment of their overall performance this term
-        - Highlight 1-2 specific strengths students noticed (be specific, not generic)
-        - Honestly but kindly address 1-2 areas where students feel improvement would help
-        - Close with 1-2 concrete, actionable tips they can apply next semester
-        - Sound human, warm, and supportive — not robotic or corporate
-        - Be 4-5 sentences total
-        
-        Also output an integer score from 1-100 reflecting the overall sentiment quality of the feedback.
-        
-        Format your output STRICTLY as JSON with no extra text outside it:
-        {"summary": "Your students this term...", "score": 85}
+    const aiPromise = ai.models.generateContent({
+      model: GEMINI_MODEL,
+      contents: `You are a warm, professional academic performance coach at the University of the Assumption. 
+      Your role is to read through anonymous student evaluation feedback for a faculty member and write a personal, 
+      encouraging, and honest summary addressed directly TO the faculty member (use "you" and "your").
+      
+      The summary should:
+      - Open with a genuine acknowledgment of their overall performance this term
+      - Highlight 1-2 specific strengths students noticed (be specific, not generic)
+      - Honestly but kindly address 1-2 areas where students feel improvement would help
+      - Close with 1-2 concrete, actionable tips they can apply next semester
+      - Sound human, warm, and supportive — not robotic or corporate
+      - Be 4-5 sentences total
+      
+      Also output an integer score from 1-100 reflecting the overall sentiment quality of the feedback.
+      
+      Format your output STRICTLY as JSON with no extra text outside it:
+      {"summary": "Your students this term...", "score": 85}
 
-        Student feedback comments:
-        - ${feedbackData}`,
-      });
+      Student feedback comments:
+      - ${feedbackData}`,
+    });
+
+    // 30-second timeout guard — prevents slow Gemini calls from blocking rankings page
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('AI request timed out after 30 seconds')), 30000)
+    );
+
+    const response = await Promise.race([aiPromise, timeoutPromise]);
 
       // Simple cleaning to extract JSON block if wrapped
       const text = response.text || "{}";
