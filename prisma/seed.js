@@ -333,7 +333,7 @@ async function main() {
   });
 
   const clusterJhsPerformance = await prisma.cluster.create({
-    data: { title: "Teacher Evaluation Criteria", order: 1, templateId: jhsTemplate.id }
+    data: { title: "Cluster 1: Teacher Performance", order: 1, templateId: jhsTemplate.id }
   });
 
   const jhsQuestions = [
