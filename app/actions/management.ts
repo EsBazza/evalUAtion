@@ -198,6 +198,7 @@ export async function getFacultyProfileData(professorId: string, academicYear?: 
   });
 
   const clusterScores = Array.from(clusterMap.entries()).map(([title, val]) => ({
+    title: title,
     subject: title.replace(/^Cluster \d+:\s*/, ''), // Clean standard prefixes
     score: Number((val.total / val.count).toFixed(1)),
     fullMark: 100,
