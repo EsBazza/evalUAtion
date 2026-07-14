@@ -74,7 +74,7 @@ export async function getFacultyRankings(academicYear?: string, semester?: strin
     termSem = settings.semester;
   }
 
-  // Fetch all professors and all score caches
+  // Fetch all professors and all score caches in one shot
   const [professors, scoreCaches] = await Promise.all([
     prisma.professor.findMany({
       include: {
@@ -93,22 +93,43 @@ export async function getFacultyRankings(academicYear?: string, semester?: strin
   // Build a quick lookup map: professorId -> cache
   const cacheMap = new Map(scoreCaches.map(c => [c.professorId, c]));
 
-  // Resolve any stale/missing caches in parallel
-  await Promise.all(
-    professors.map(async (prof) => {
+  // Only recompute stale/missing caches for professors who actually have evaluations.
+  // Process in batches of 3 to avoid firing dozens of simultaneous Gemini calls.
+  const BATCH_SIZE = 3;
+  const staleProfIds = professors
+    .filter(prof => {
       const cache = cacheMap.get(prof.id);
-      if (!cache || cache.isStale) {
+      return !cache || cache.isStale;
+    })
+    .map(p => p.id);
+
+  for (let i = 0; i < staleProfIds.length; i += BATCH_SIZE) {
+    const batch = staleProfIds.slice(i, i + BATCH_SIZE);
+    await Promise.all(
+      batch.map(async (profId) => {
         try {
-          const newCache = await getOrComputeScoreCache(prof.id, termYear, termSem);
+          // Quick check: skip AI if there are no answers yet (avoids Gemini call)
+          const hasAnswers = await prisma.answer.count({
+            where: {
+              evaluation: {
+                professorId: profId,
+                academicYear: termYear,
+                semester: termSem,
+              },
+            },
+          });
+          if (hasAnswers === 0) return;
+
+          const newCache = await getOrComputeScoreCache(profId, termYear, termSem);
           if (newCache) {
-            cacheMap.set(prof.id, newCache);
+            cacheMap.set(profId, newCache);
           }
         } catch (err) {
-          console.error(`Error computing score cache for ${prof.name}:`, err);
+          console.error(`Error computing score cache for professor ${profId}:`, err);
         }
-      }
-    })
-  );
+      })
+    );
+  }
 
   const rankings = professors.map(prof => ({
     id: prof.id,
@@ -173,36 +194,185 @@ export async function getFacultyFeedback(professorId: string, academicYear?: str
 }
 
 
-export async function getEvaluationReceipts() {
-  const receipts = await prisma.evaluationReceipt.findMany({
-    orderBy: { createdAt: 'desc' }
-  });
-  
-  const professors = await prisma.professor.findMany({ select: { id: true, name: true } });
-  const sections = await prisma.section.findMany({
-    select: {
-      id: true,
-      name: true,
-      department: {
-        select: {
-          name: true,
-          level: true
-        }
-      }
-    }
-  });
-  
-  const profMap = new Map(professors.map(p => [p.id, p.name]));
-  const secMap = new Map(sections.map(s => [s.id, s]));
-  
-  return receipts.map(r => {
-    const sec = secMap.get(r.sectionId);
-    return {
-      ...r,
-      professorName: profMap.get(r.professorId) || 'Unknown Professor',
-      sectionName: sec ? sec.name : 'Unknown Section',
-      departmentName: sec?.department ? sec.department.name : 'Unknown Department',
-      level: sec?.department ? sec.department.level : 'Unknown Level'
-    };
-  });
+import { Prisma } from '@prisma/client';
+
+export interface AttendanceLogFilters {
+  search?: string;
+  departments?: string[];
+  sections?: string[];
+  academicYears?: string[];
+  semesters?: string[];
+  page: number;
+  pageSize: number;
 }
+
+export async function getEvaluationAttendanceLogs(filters: AttendanceLogFilters) {
+  const offset = (filters.page - 1) * filters.pageSize;
+  const conditions: Prisma.Sql[] = [];
+
+  if (filters.search?.trim()) {
+    const searchPattern = `%${filters.search.trim()}%`;
+    conditions.push(Prisma.sql`(r."studentEmail" ILIKE ${searchPattern} OR u."name" ILIKE ${searchPattern})`);
+  }
+  if (filters.departments && filters.departments.length > 0) {
+    conditions.push(Prisma.sql`s."departmentId" IN (${Prisma.join(filters.departments)})`);
+  }
+  if (filters.sections && filters.sections.length > 0) {
+    conditions.push(Prisma.sql`r."sectionId" IN (${Prisma.join(filters.sections)})`);
+  }
+  if (filters.academicYears && filters.academicYears.length > 0) {
+    conditions.push(Prisma.sql`r."academicYear" IN (${Prisma.join(filters.academicYears)})`);
+  }
+  if (filters.semesters && filters.semesters.length > 0) {
+    conditions.push(Prisma.sql`r."semester" IN (${Prisma.join(filters.semesters)})`);
+  }
+
+  const whereClause = conditions.length > 0 
+    ? Prisma.sql`WHERE ${Prisma.join(conditions, ' AND ')}` 
+    : Prisma.empty;
+
+  const logs = await prisma.$queryRaw<any[]>`
+    WITH first_submissions AS (
+      SELECT "studentEmail", MIN("createdAt") AS "firstSubmitted"
+      FROM "EvaluationReceipt"
+      GROUP BY "studentEmail"
+    ),
+    latest_receipts AS (
+      SELECT DISTINCT ON ("studentEmail")
+        id,
+        "studentEmail",
+        "sectionId",
+        "academicYear",
+        "semester",
+        "createdAt" AS "mostRecentSubmitted"
+      FROM "EvaluationReceipt"
+      ORDER BY "studentEmail", "createdAt" DESC, id DESC
+    )
+    SELECT 
+      lr.id,
+      lr."studentEmail",
+      lr."sectionId",
+      lr."academicYear",
+      lr."semester",
+      lr."mostRecentSubmitted",
+      fs."firstSubmitted",
+      u.name AS "studentName",
+      s.name AS "sectionName",
+      d.name AS "departmentName",
+      d.level AS "level"
+    FROM latest_receipts lr
+    JOIN first_submissions fs ON lr."studentEmail" = fs."studentEmail"
+    LEFT JOIN "User" u ON lr."studentEmail" = u.email
+    LEFT JOIN "Section" s ON lr."sectionId" = s.id
+    LEFT JOIN "Department" d ON s."departmentId" = d.id
+    ${whereClause}
+    ORDER BY lr."mostRecentSubmitted" DESC, lr.id DESC
+    LIMIT ${filters.pageSize} OFFSET ${offset};
+  `;
+
+  const countQuery = await prisma.$queryRaw<any[]>`
+    WITH latest_receipts AS (
+      SELECT DISTINCT ON ("studentEmail")
+        "studentEmail",
+        "sectionId",
+        "academicYear",
+        "semester"
+      FROM "EvaluationReceipt"
+    )
+    SELECT COUNT(*)::integer AS count
+    FROM latest_receipts lr
+    LEFT JOIN "User" u ON lr."studentEmail" = u.email
+    LEFT JOIN "Section" s ON lr."sectionId" = s.id
+    LEFT JOIN "Department" d ON s."departmentId" = d.id
+    ${whereClause};
+  `;
+
+  const totalCount = countQuery[0]?.count || 0;
+
+  return {
+    logs,
+    totalCount,
+    totalPages: Math.ceil(totalCount / filters.pageSize)
+  };
+}
+
+export async function getEvaluationAttendanceLogsForExport(filters: Omit<AttendanceLogFilters, 'page' | 'pageSize'>) {
+  const conditions: Prisma.Sql[] = [];
+
+  if (filters.search?.trim()) {
+    const searchPattern = `%${filters.search.trim()}%`;
+    conditions.push(Prisma.sql`(r."studentEmail" ILIKE ${searchPattern} OR u."name" ILIKE ${searchPattern})`);
+  }
+  if (filters.departments && filters.departments.length > 0) {
+    conditions.push(Prisma.sql`s."departmentId" IN (${Prisma.join(filters.departments)})`);
+  }
+  if (filters.sections && filters.sections.length > 0) {
+    conditions.push(Prisma.sql`r."sectionId" IN (${Prisma.join(filters.sections)})`);
+  }
+  if (filters.academicYears && filters.academicYears.length > 0) {
+    conditions.push(Prisma.sql`r."academicYear" IN (${Prisma.join(filters.academicYears)})`);
+  }
+  if (filters.semesters && filters.semesters.length > 0) {
+    conditions.push(Prisma.sql`r."semester" IN (${Prisma.join(filters.semesters)})`);
+  }
+
+  const whereClause = conditions.length > 0 
+    ? Prisma.sql`WHERE ${Prisma.join(conditions, ' AND ')}` 
+    : Prisma.empty;
+
+  return prisma.$queryRaw<any[]>`
+    WITH first_submissions AS (
+      SELECT "studentEmail", MIN("createdAt") AS "firstSubmitted"
+      FROM "EvaluationReceipt"
+      GROUP BY "studentEmail"
+    ),
+    latest_receipts AS (
+      SELECT DISTINCT ON ("studentEmail")
+        id,
+        "studentEmail",
+        "sectionId",
+        "academicYear",
+        "semester",
+        "createdAt" AS "mostRecentSubmitted"
+      FROM "EvaluationReceipt"
+      ORDER BY "studentEmail", "createdAt" DESC, id DESC
+    )
+    SELECT 
+      lr.id,
+      lr."studentEmail",
+      lr."sectionId",
+      lr."academicYear",
+      lr."semester",
+      lr."mostRecentSubmitted",
+      fs."firstSubmitted",
+      u.name AS "studentName",
+      s.name AS "sectionName",
+      d.name AS "departmentName",
+      d.level AS "level"
+    FROM latest_receipts lr
+    JOIN first_submissions fs ON lr."studentEmail" = fs."studentEmail"
+    LEFT JOIN "User" u ON lr."studentEmail" = u.email
+    LEFT JOIN "Section" s ON lr."sectionId" = s.id
+    LEFT JOIN "Department" d ON s."departmentId" = d.id
+    ${whereClause}
+    ORDER BY lr."mostRecentSubmitted" DESC, lr.id DESC;
+  `;
+}
+
+export async function getEvaluationReceiptFilters() {
+  const years = await prisma.evaluationReceipt.findMany({
+    select: { academicYear: true },
+    distinct: ['academicYear']
+  });
+  
+  const semesters = await prisma.evaluationReceipt.findMany({
+    select: { semester: true },
+    distinct: ['semester']
+  });
+
+  return {
+    academicYears: years.map(y => y.academicYear).filter(Boolean),
+    semesters: semesters.map(s => s.semester).filter(Boolean)
+  };
+}
+

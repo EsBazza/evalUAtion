@@ -8,10 +8,14 @@ import {
   getTemplates, 
   createTemplate, 
   getFacultyRankings,
-  getEvaluationReceipts
+  getEvaluationAttendanceLogs,
+  getEvaluationAttendanceLogsForExport,
+  getEvaluationReceiptFilters
 } from '@/app/actions/admin';
+import { Modal } from '@/components/ui-ua/modal';
 import { EducationLevel, Role } from '@prisma/client';
 import Link from 'next/link';
+import { Search, Filter, Download, RefreshCw, SlidersHorizontal } from 'lucide-react';
 import { FacultyRankingChart } from '@/components/charts/FacultyRankingChart';
 import { DepartmentDonutChart } from '@/components/charts/DepartmentDonutChart';
 import { getAuditLogs } from '@/app/actions/audit';
@@ -70,12 +74,31 @@ function AdminDashboardContent() {
   const [receipts, setReceipts] = useState<any[]>([]);
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [nestedLogTab, setNestedLogTab] = useState<'audit' | 'attendance'>('audit');
+  
+  // Rebuilt Attendance search states
   const [receiptSearch, setReceiptSearch] = useState('');
-  const [receiptYearFilter, setReceiptYearFilter] = useState('');
-  const [receiptSemFilter, setReceiptSemFilter] = useState('');
-  const [receiptLevelFilter, setReceiptLevelFilter] = useState('');
-  const [receiptDepFilter, setReceiptDepFilter] = useState('');
-  const [receiptSecFilter, setReceiptSecFilter] = useState('');
+  const [attendancePage, setAttendancePage] = useState(1);
+  const [attendanceItemsPerPage, setAttendanceItemsPerPage] = useState(25);
+  const [attendanceTotalPages, setAttendanceTotalPages] = useState(1);
+  const [attendanceTotalCount, setAttendanceTotalCount] = useState(0);
+
+  // Advanced search multi-select states
+  const [selectedDepts, setSelectedDepts] = useState<string[]>([]);
+  const [selectedSections, setSelectedSections] = useState<string[]>([]);
+  const [selectedYears, setSelectedYears] = useState<string[]>([]);
+  const [selectedSems, setSelectedSems] = useState<string[]>([]);
+  const [isAdvancedSearchOpen, setIsAdvancedSearchOpen] = useState(false);
+
+  // Dynamic values loaded from database receipts
+  const [availableYears, setAvailableYears] = useState<string[]>([]);
+  const [availableSems, setAvailableSems] = useState<string[]>([]);
+
+  // CSV Export Modal states
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [exportScope, setExportScope] = useState<'current' | 'department'>('current');
+  const [exportAllFields, setExportAllFields] = useState(false);
+  const [exportSelectedDeptId, setExportSelectedDeptId] = useState('');
+
   const [rankings, setRankings] = useState<any[]>([]);
   const [selectedLedgerDept, setSelectedLedgerDept] = useState<string>('All');
   const [departments, setDepartments] = useState<any[]>([]);
@@ -89,16 +112,13 @@ function AdminDashboardContent() {
   const [ledgerPage, setLedgerPage] = useState(1);
   const ledgerItemsPerPage = 10;
 
-  const [attendancePage, setAttendancePage] = useState(1);
-  const attendanceItemsPerPage = 10;
-
   useEffect(() => {
     setLedgerPage(1);
   }, [selectedLedgerDept]);
 
   useEffect(() => {
     setAttendancePage(1);
-  }, [receiptSearch, receiptYearFilter, receiptSemFilter, receiptLevelFilter, receiptDepFilter, receiptSecFilter]);
+  }, [receiptSearch, selectedDepts, selectedSections, selectedYears, selectedSems, attendanceItemsPerPage]);
 
   // Sorting states for admins
   const [adminSortField, setAdminSortField] = useState('email');
@@ -140,12 +160,28 @@ function AdminDashboardContent() {
         const data = await getTemplates();
         setTemplates(data);
       } else if (activeView === 'logs') {
-        const data = await getEvaluationReceipts();
-        setReceipts(data);
         const audits = await getAuditLogs();
         setAuditLogs(audits);
+        
         const deps = await getDepartments();
         setDepartments(deps);
+
+        const filterOptions = await getEvaluationReceiptFilters();
+        setAvailableYears(filterOptions.academicYears);
+        setAvailableSems(filterOptions.semesters);
+
+        const attendanceData = await getEvaluationAttendanceLogs({
+          search: receiptSearch,
+          departments: selectedDepts,
+          sections: selectedSections,
+          academicYears: selectedYears,
+          semesters: selectedSems,
+          page: attendancePage,
+          pageSize: attendanceItemsPerPage
+        });
+        setReceipts(attendanceData.logs);
+        setAttendanceTotalPages(attendanceData.totalPages);
+        setAttendanceTotalCount(attendanceData.totalCount);
       } else if (activeView === 'settings') {
         const settings = await getSystemSettings();
         setSysYear(settings.academicYear);
@@ -163,7 +199,7 @@ function AdminDashboardContent() {
 
   useEffect(() => {
     loadData();
-  }, [activeView]);
+  }, [activeView, attendancePage, attendanceItemsPerPage, receiptSearch, selectedDepts, selectedSections, selectedYears, selectedSems]);
 
   const handleCreateDepartment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -226,6 +262,76 @@ function AdminDashboardContent() {
       toast.success("System academic term settings updated successfully!");
     } catch (err: any) {
       toast.error(err.message || "Failed to update system settings");
+    }
+  };
+
+  const handleExportCSV = async () => {
+    try {
+      let dataToExport = [];
+      if (exportScope === 'current') {
+        dataToExport = await getEvaluationAttendanceLogsForExport({
+          search: receiptSearch,
+          departments: selectedDepts,
+          sections: selectedSections,
+          academicYears: selectedYears,
+          semesters: selectedSems
+        });
+      } else {
+        if (!exportSelectedDeptId) {
+          toast.error("Please select a department to export.");
+          return;
+        }
+        dataToExport = await getEvaluationAttendanceLogsForExport({
+          departments: [exportSelectedDeptId]
+        });
+      }
+
+      if (dataToExport.length === 0) {
+        toast.error("No records found to export.");
+        return;
+      }
+
+      let headers = [];
+      let rows = [];
+
+      if (exportAllFields) {
+        headers = ["Name", "Email", "First Submitted", "Most Recent Submitted", "Department", "Section"];
+        rows = dataToExport.map(r => [
+          r.studentName || 'Not Set',
+          r.studentEmail,
+          new Date(r.firstSubmitted).toLocaleString(),
+          new Date(r.mostRecentSubmitted).toLocaleString(),
+          r.departmentName || 'N/A',
+          r.sectionName || 'N/A'
+        ]);
+      } else {
+        headers = ["Name", "Email", "Section"];
+        rows = dataToExport.map(r => [
+          r.studentName || 'Not Set',
+          r.studentEmail,
+          r.sectionName || 'N/A'
+        ]);
+      }
+
+      const csvContent = "data:text/csv;charset=utf-8,\uFEFF"
+        + [headers.join(","), ...rows.map(row => row.map(val => `"${val.replace(/"/g, '""')}"`).join(","))].join("\n");
+      
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      
+      const filename = exportScope === 'current' 
+        ? `evaluation_attendance_current_${new Date().toISOString().slice(0,10)}.csv`
+        : `evaluation_attendance_dept_${exportSelectedDeptId}.csv`;
+        
+      link.setAttribute("download", filename);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setIsExportModalOpen(false);
+      toast.success("CSV exported successfully!");
+    } catch (err: any) {
+      toast.error("Failed to generate CSV file.");
     }
   };
 
@@ -664,269 +770,420 @@ function AdminDashboardContent() {
                 ) : (
                   <div className="space-y-4 pt-2">
                     {/* Filters Toolbar */}
-                    <div className="flex flex-col xl:flex-row gap-3 justify-between items-start xl:items-center bg-muted/20 p-4 rounded-lg border border-border/60">
-                      <div className="flex flex-wrap gap-2 w-full xl:w-auto">
-                        <input
-                          type="text"
-                          value={receiptSearch}
-                          onChange={(e) => setReceiptSearch(e.target.value)}
-                          placeholder="Search email, section, or prof..."
-                          className="p-2 border border-border rounded-lg text-xs bg-card focus:ring-2 focus:ring-ua-gold/30 focus:border-ua-navy dark:focus:border-ua-gold transition-all font-semibold outline-none w-full sm:w-48 text-foreground"
-                        />
+                    <div className="flex flex-col lg:flex-row gap-3 justify-between items-start lg:items-center bg-muted/20 p-4 rounded-lg border border-border/60">
+                      <div className="flex flex-wrap gap-2 w-full lg:w-auto items-center">
+                        <div className="relative flex-grow sm:flex-grow-0">
+                          <input
+                            type="text"
+                            value={receiptSearch}
+                            onChange={(e) => setReceiptSearch(e.target.value)}
+                            placeholder="Search student name or email..."
+                            className="p-2 pl-8 border border-border rounded-lg text-xs bg-card focus:ring-2 focus:ring-ua-gold/30 focus:border-ua-navy dark:focus:border-ua-gold transition-all font-semibold outline-none w-full sm:w-64 text-foreground"
+                          />
+                          <Search className="size-3.5 text-muted-foreground absolute left-2.5 top-3" />
+                        </div>
                         
-                        {/* Cascading Level Dropdown */}
-                        <select
-                          value={receiptLevelFilter}
-                          onChange={(e) => {
-                            setReceiptLevelFilter(e.target.value);
-                            setReceiptDepFilter('');
-                            setReceiptSecFilter('');
-                          }}
-                          className="p-2 border border-border rounded-lg text-xs bg-card font-semibold text-foreground outline-none focus:ring-2 focus:ring-ua-gold/30"
+                        {/* Advanced Search Toggle */}
+                        <Button
+                          type="button"
+                          uaVariant={isAdvancedSearchOpen ? "accent" : "outline"}
+                          onClick={() => setIsAdvancedSearchOpen(!isAdvancedSearchOpen)}
+                          className="h-9 text-xs font-semibold px-3 flex items-center gap-1.5"
                         >
-                          <option value="">All Levels</option>
-                          <option value="JHS">JHS</option>
-                          <option value="SHS">SHS</option>
-                          <option value="COLLEGE">COLLEGE</option>
-                          <option value="GRADUATE">GRADUATE</option>
-                        </select>
+                          <SlidersHorizontal className="size-3.5" />
+                          Advanced Search
+                        </Button>
 
-                        {/* Cascading Dept Dropdown */}
-                        <select
-                          value={receiptDepFilter}
-                          onChange={(e) => {
-                            setReceiptDepFilter(e.target.value);
-                            setReceiptSecFilter('');
-                          }}
-                          className="p-2 border border-border rounded-lg text-xs bg-card font-semibold text-foreground outline-none max-w-[180px] focus:ring-2 focus:ring-ua-gold/30"
-                        >
-                          <option value="">All Departments</option>
-                          {departments
-                            .filter(d => !receiptLevelFilter || d.level === receiptLevelFilter)
-                            .map(d => (
-                              <option key={d.id} value={d.id}>{d.name}</option>
-                            ))
-                          }
-                        </select>
-
-                        {/* Cascading Section Dropdown */}
-                        <select
-                          value={receiptSecFilter}
-                          onChange={(e) => setReceiptSecFilter(e.target.value)}
-                          className="p-2 border border-border rounded-lg text-xs bg-card font-semibold text-foreground outline-none max-w-[150px] focus:ring-2 focus:ring-ua-gold/30"
-                        >
-                          <option value="">All Sections</option>
-                          {departments
-                            .filter(d => (!receiptLevelFilter || d.level === receiptLevelFilter) && (!receiptDepFilter || d.id === receiptDepFilter))
-                            .flatMap(d => d.sections || [])
-                            .map((s: any) => (
-                              <option key={s.id} value={s.id}>{s.name}</option>
-                            ))
-                          }
-                        </select>
-
-                        <select
-                          value={receiptYearFilter}
-                          onChange={(e) => setReceiptYearFilter(e.target.value)}
-                          className="p-2 border border-border rounded-lg text-xs bg-card font-semibold text-foreground outline-none focus:ring-2 focus:ring-ua-gold/30"
-                        >
-                          <option value="">All Years</option>
-                          <option value="2026-2027">2026-2027</option>
-                          <option value="2027-2028">2027-2028</option>
-                        </select>
-                        
-                        <select
-                          value={receiptSemFilter}
-                          onChange={(e) => setReceiptSemFilter(e.target.value)}
-                          className="p-2 border border-border rounded-lg text-xs bg-card font-semibold text-foreground outline-none focus:ring-2 focus:ring-ua-gold/30"
-                        >
-                          <option value="">All Terms</option>
-                          <option value="1st">1st Sem</option>
-                          <option value="2nd">2nd Sem</option>
-                          <option value="Summer">Summer Term</option>
-                        </select>
+                        {/* Clear Filters (Only show if filters active) */}
+                        {(selectedDepts.length > 0 || selectedSections.length > 0 || selectedYears.length > 0 || selectedSems.length > 0 || receiptSearch) && (
+                          <Button
+                            type="button"
+                            uaVariant="ghost"
+                            onClick={() => {
+                              setReceiptSearch('');
+                              setSelectedDepts([]);
+                              setSelectedSections([]);
+                              setSelectedYears([]);
+                              setSelectedSems([]);
+                              setAttendancePage(1);
+                              toast.success("Filters cleared");
+                            }}
+                            className="h-9 text-xs font-semibold text-ua-crimson hover:bg-ua-crimson/5"
+                          >
+                            <RefreshCw className="size-3 mr-1" />
+                            Reset Filters
+                          </Button>
+                        )}
                       </div>
-                      <Button
-                        type="button"
-                        uaVariant="primary"
-                        onClick={() => {
-                          const selectedDeptObj = departments.find(d => d.id === receiptDepFilter);
-                          const selectedSecObj = departments.flatMap(d => d.sections || []).find((s: any) => s.id === receiptSecFilter);
-                          const headers = ["Student Email", "Level", "Department", "Section", "Professor", "Academic Year", "Semester", "Timestamp"];
-                          const rows = receipts
-                            .filter(r => {
-                              const matchesSearch = r.studentEmail.toLowerCase().includes(receiptSearch.toLowerCase()) ||
-                                                    r.professorName.toLowerCase().includes(receiptSearch.toLowerCase()) ||
-                                                    r.sectionName.toLowerCase().includes(receiptSearch.toLowerCase()) ||
-                                                    r.departmentName.toLowerCase().includes(receiptSearch.toLowerCase()) ||
-                                                    r.level.toLowerCase().includes(receiptSearch.toLowerCase());
-                              const matchesYear = receiptYearFilter ? r.academicYear === receiptYearFilter : true;
-                              const matchesSem = receiptSemFilter ? r.semester === receiptSemFilter : true;
-                              const matchesLevel = receiptLevelFilter ? r.level === receiptLevelFilter : true;
-                              const matchesDept = receiptDepFilter ? r.departmentName === selectedDeptObj?.name : true;
-                              const matchesSec = receiptSecFilter ? r.sectionName === selectedSecObj?.name : true;
-                              return matchesSearch && matchesYear && matchesSem && matchesLevel && matchesDept && matchesSec;
-                            })
-                            .map(r => [
-                              r.studentEmail,
-                              r.level,
-                              r.departmentName,
-                              r.sectionName,
-                              r.professorName,
-                              r.academicYear,
-                              r.semester,
-                              new Date(r.createdAt).toLocaleString()
-                            ]);
-                          const csvContent = "data:text/csv;charset=utf-8," 
-                            + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
-                          const encodedUri = encodeURI(csvContent);
-                          const link = document.createElement("a");
-                          link.setAttribute("href", encodedUri);
-                          link.setAttribute("download", `evaluation_attendance_${sysYear}_${sysSem}.csv`);
-                          document.body.appendChild(link);
-                          link.click();
-                          document.body.removeChild(link);
-                        }}
-                        disabled={receipts.length === 0}
-                        className="h-10 text-xs w-full xl:w-auto"
-                      >
-                        📤 Export Attendance (.csv)
-                      </Button>
+
+                      <div className="flex gap-2 items-center w-full lg:w-auto justify-between lg:justify-end">
+                        {/* Page Size Selector */}
+                        <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+                          <span>Show:</span>
+                          <select
+                            value={attendanceItemsPerPage}
+                            onChange={(e) => {
+                              setAttendanceItemsPerPage(Number(e.target.value));
+                              setAttendancePage(1);
+                            }}
+                            className="p-1 border border-border rounded bg-card text-foreground outline-none focus:ring-2 focus:ring-ua-gold/30"
+                          >
+                            <option value={10}>10</option>
+                            <option value={25}>25</option>
+                            <option value={50}>50</option>
+                            <option value={100}>100</option>
+                          </select>
+                        </div>
+
+                        {/* Export Button */}
+                        <Button
+                          type="button"
+                          uaVariant="primary"
+                          onClick={() => setIsExportModalOpen(true)}
+                          disabled={receipts.length === 0}
+                          className="h-9 text-xs flex items-center gap-1.5"
+                        >
+                          <Download className="size-3.5" />
+                          Export CSV
+                        </Button>
+                      </div>
                     </div>
+
+                    {/* Advanced Search Collapsible Panel */}
+                    {isAdvancedSearchOpen && (
+                      <div className="bg-card border border-border/80 rounded-lg p-5 space-y-5 animate-fade-in shadow-sm">
+                        <div className="border-b border-border/40 pb-2">
+                          <h4 className="text-xs font-bold uppercase tracking-wider text-ua-navy dark:text-ua-gold">Filter specification options</h4>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                          
+                          {/* Department Multi-Select */}
+                          <div className="space-y-2">
+                            <span className="block text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Departments</span>
+                            <div className="border border-border rounded-lg p-2 max-h-32 overflow-y-auto space-y-1.5 bg-muted/5">
+                              {departments.map((dept) => {
+                                const checked = selectedDepts.includes(dept.id);
+                                return (
+                                  <label key={dept.id} className="flex items-center gap-2 text-xs font-medium cursor-pointer select-none text-foreground/80 hover:text-foreground">
+                                    <input
+                                      type="checkbox"
+                                      checked={checked}
+                                      onChange={() => {
+                                        if (checked) {
+                                          setSelectedDepts(prev => prev.filter(id => id !== dept.id));
+                                          const deptSections = (dept.sections || []).map((s: any) => s.id);
+                                          setSelectedSections(prev => prev.filter(id => !deptSections.includes(id)));
+                                        } else {
+                                          setSelectedDepts(prev => [...prev, dept.id]);
+                                        }
+                                        setAttendancePage(1);
+                                      }}
+                                      className="rounded border-border text-ua-gold focus:ring-ua-gold/30"
+                                    />
+                                    <span>{dept.name}</span>
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          {/* Section Multi-Select (Cascaded) */}
+                          <div className="space-y-2">
+                            <span className="block text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Sections</span>
+                            <div className="border border-border rounded-lg p-2 max-h-32 overflow-y-auto space-y-1.5 bg-muted/5">
+                              {(() => {
+                                const filteredSecs = departments
+                                  .filter(d => selectedDepts.length === 0 || selectedDepts.includes(d.id))
+                                  .flatMap(d => d.sections || []);
+
+                                if (filteredSecs.length === 0) {
+                                  return <p className="text-[10px] text-muted-foreground italic p-2">No sections available.</p>;
+                                }
+
+                                return filteredSecs.map((sec) => {
+                                  const checked = selectedSections.includes(sec.id);
+                                  return (
+                                    <label key={sec.id} className="flex items-center gap-2 text-xs font-medium cursor-pointer select-none text-foreground/80 hover:text-foreground">
+                                      <input
+                                        type="checkbox"
+                                        checked={checked}
+                                        onChange={() => {
+                                          if (checked) {
+                                            setSelectedSections(prev => prev.filter(id => id !== sec.id));
+                                          } else {
+                                            setSelectedSections(prev => [...prev, sec.id]);
+                                          }
+                                          setAttendancePage(1);
+                                        }}
+                                        className="rounded border-border text-ua-gold focus:ring-ua-gold/30"
+                                      />
+                                      <span>{sec.name}</span>
+                                    </label>
+                                  );
+                                });
+                              })()}
+                            </div>
+                          </div>
+
+                          {/* Academic Year Multi-Select */}
+                          <div className="space-y-2">
+                            <span className="block text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Academic Years</span>
+                            <div className="border border-border rounded-lg p-2 max-h-32 overflow-y-auto space-y-1.5 bg-muted/5">
+                              {availableYears.length === 0 ? (
+                                <p className="text-[10px] text-muted-foreground italic p-2">No data yet.</p>
+                              ) : (
+                                availableYears.map((year) => {
+                                  const checked = selectedYears.includes(year);
+                                  return (
+                                    <label key={year} className="flex items-center gap-2 text-xs font-medium cursor-pointer select-none text-foreground/80 hover:text-foreground">
+                                      <input
+                                        type="checkbox"
+                                        checked={checked}
+                                        onChange={() => {
+                                          if (checked) {
+                                            setSelectedYears(prev => prev.filter(y => y !== year));
+                                          } else {
+                                            setSelectedYears(prev => [...prev, year]);
+                                          }
+                                          setAttendancePage(1);
+                                        }}
+                                        className="rounded border-border text-ua-gold focus:ring-ua-gold/30"
+                                      />
+                                      <span>{year}</span>
+                                    </label>
+                                  );
+                                })
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Semester Multi-Select */}
+                          <div className="space-y-2">
+                            <span className="block text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Semesters</span>
+                            <div className="border border-border rounded-lg p-2 max-h-32 overflow-y-auto space-y-1.5 bg-muted/5">
+                              {availableSems.length === 0 ? (
+                                <p className="text-[10px] text-muted-foreground italic p-2">No data yet.</p>
+                              ) : (
+                                availableSems.map((sem) => {
+                                  const checked = selectedSems.includes(sem);
+                                  return (
+                                    <label key={sem} className="flex items-center gap-2 text-xs font-medium cursor-pointer select-none text-foreground/80 hover:text-foreground">
+                                      <input
+                                        type="checkbox"
+                                        checked={checked}
+                                        onChange={() => {
+                                          if (checked) {
+                                            setSelectedSems(prev => prev.filter(s => s !== sem));
+                                          } else {
+                                            setSelectedSems(prev => [...prev, sem]);
+                                          }
+                                          setAttendancePage(1);
+                                        }}
+                                        className="rounded border-border text-ua-gold focus:ring-ua-gold/30"
+                                      />
+                                      <span>{sem} Semester</span>
+                                    </label>
+                                  );
+                                })
+                              )}
+                            </div>
+                          </div>
+
+                        </div>
+                      </div>
+                    )}
 
                     {/* Table View */}
                     <div className="border border-border rounded-lg overflow-hidden bg-card">
                       <table className="w-full text-left border-collapse text-xs">
                         <thead className="bg-muted/30 border-b border-border/50 text-muted-foreground">
                           <tr>
+                            <th className="p-4 font-bold uppercase tracking-wider">Student Name</th>
                             <th className="p-4 font-bold uppercase tracking-wider">Student Email</th>
-                            <th className="p-4 font-bold uppercase tracking-wider">Level</th>
+                            <th className="p-4 font-bold uppercase tracking-wider">First Submitted</th>
+                            <th className="p-4 font-bold uppercase tracking-wider">Most Recent Submitted</th>
                             <th className="p-4 font-bold uppercase tracking-wider">Department</th>
                             <th className="p-4 font-bold uppercase tracking-wider">Section</th>
-                            <th className="p-4 font-bold uppercase tracking-wider">Professor</th>
-                            <th className="p-4 font-bold uppercase tracking-wider">Academic Term</th>
-                            <th className="p-4 font-bold uppercase tracking-wider">Submitted Date</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-border/40 text-foreground">
-                          {(() => {
-                            const selectedDeptObj = departments.find(d => d.id === receiptDepFilter);
-                            const selectedSecObj = departments.flatMap(d => d.sections || []).find((s: any) => s.id === receiptSecFilter);
-                            const finalFiltered = receipts.filter(r => {
-                              const matchesSearch = r.studentEmail.toLowerCase().includes(receiptSearch.toLowerCase()) ||
-                                                    r.professorName.toLowerCase().includes(receiptSearch.toLowerCase()) ||
-                                                    r.sectionName.toLowerCase().includes(receiptSearch.toLowerCase()) ||
-                                                    r.departmentName.toLowerCase().includes(receiptSearch.toLowerCase()) ||
-                                                    r.level.toLowerCase().includes(receiptSearch.toLowerCase());
-                              const matchesYear = receiptYearFilter ? r.academicYear === receiptYearFilter : true;
-                              const matchesSem = receiptSemFilter ? r.semester === receiptSemFilter : true;
-                              const matchesLevel = receiptLevelFilter ? r.level === receiptLevelFilter : true;
-                              const matchesDept = receiptDepFilter ? r.departmentName === selectedDeptObj?.name : true;
-                              const matchesSec = receiptSecFilter ? r.sectionName === selectedSecObj?.name : true;
-                              return matchesSearch && matchesYear && matchesSem && matchesLevel && matchesDept && matchesSec;
-                            });
-
-                            if (finalFiltered.length === 0) {
-                              return (
-                                <tr>
-                                  <td colSpan={7} className="p-12 text-center text-muted-foreground font-semibold italic">No attendance records found matching criteria.</td>
-                                </tr>
-                              );
-                            }
-
-                            const startIndex = (attendancePage - 1) * attendanceItemsPerPage;
-                            const paginated = finalFiltered.slice(startIndex, startIndex + attendanceItemsPerPage);
-
-                            return paginated.map((rec) => (
+                          {receipts.length === 0 ? (
+                            <tr>
+                              <td colSpan={6} className="p-12 text-center text-muted-foreground font-semibold italic">No unique attendance records found matching current criteria.</td>
+                            </tr>
+                          ) : (
+                            receipts.map((rec) => (
                               <tr key={rec.id} className="hover:bg-muted/10 transition-all">
-                                <td className="p-4 font-bold text-foreground">{rec.studentEmail}</td>
-                                <td className="p-4 font-bold uppercase text-muted-foreground text-[10px]">{rec.level}</td>
-                                <td className="p-4 font-semibold text-muted-foreground">{rec.departmentName}</td>
-                                <td className="p-4 text-muted-foreground font-medium">{rec.sectionName}</td>
-                                <td className="p-4 font-semibold">{rec.professorName}</td>
-                                <td className="p-4 uppercase font-bold text-[10px]">
-                                  <span className="px-2.5 py-0.5 bg-muted border border-border text-muted-foreground rounded-full font-mono">
-                                    {rec.academicYear} | {rec.semester}
+                                <td className="p-4 font-bold text-foreground">{rec.studentName || 'Not Set'}</td>
+                                <td className="p-4 font-semibold text-muted-foreground">{rec.studentEmail}</td>
+                                <td className="p-4 text-muted-foreground font-medium">{new Date(rec.firstSubmitted).toLocaleString()}</td>
+                                <td className="p-4 text-foreground font-semibold">{new Date(rec.mostRecentSubmitted).toLocaleString()}</td>
+                                <td className="p-4 font-semibold text-muted-foreground">{rec.departmentName || 'N/A'}</td>
+                                <td className="p-4 text-muted-foreground font-medium">
+                                  {rec.sectionName || 'N/A'}
+                                  <span className="inline-block ml-2 text-[9px] bg-muted border text-muted-foreground px-1.5 py-0.5 rounded-full font-mono font-bold uppercase">
+                                    {rec.level}
                                   </span>
                                 </td>
-                                <td className="p-4 text-muted-foreground font-medium">{new Date(rec.createdAt).toLocaleString()}</td>
                               </tr>
-                            ));
-                          })()}
+                            ))
+                          )}
                         </tbody>
                       </table>
                     </div>
 
                     {/* Pagination Controls */}
-                    {(() => {
-                      const selectedDeptObj = departments.find(d => d.id === receiptDepFilter);
-                      const selectedSecObj = departments.flatMap(d => d.sections || []).find((s: any) => s.id === receiptSecFilter);
-                      const finalFiltered = receipts.filter(r => {
-                        const matchesSearch = r.studentEmail.toLowerCase().includes(receiptSearch.toLowerCase()) ||
-                                              r.professorName.toLowerCase().includes(receiptSearch.toLowerCase()) ||
-                                              r.sectionName.toLowerCase().includes(receiptSearch.toLowerCase()) ||
-                                              r.departmentName.toLowerCase().includes(receiptSearch.toLowerCase()) ||
-                                              r.level.toLowerCase().includes(receiptSearch.toLowerCase());
-                        const matchesYear = receiptYearFilter ? r.academicYear === receiptYearFilter : true;
-                        const matchesSem = receiptSemFilter ? r.semester === receiptSemFilter : true;
-                        const matchesLevel = receiptLevelFilter ? r.level === receiptLevelFilter : true;
-                        const matchesDept = receiptDepFilter ? r.departmentName === selectedDeptObj?.name : true;
-                        const matchesSec = receiptSecFilter ? r.sectionName === selectedSecObj?.name : true;
-                        return matchesSearch && matchesYear && matchesSem && matchesLevel && matchesDept && matchesSec;
-                      });
+                    {attendanceTotalPages > 1 && (
+                      <div className="border border-border rounded-lg bg-muted/5 p-4 flex items-center justify-between mt-4">
+                        <p className="text-xs text-muted-foreground font-medium">
+                          Showing <span className="font-semibold text-foreground">{((attendancePage - 1) * attendanceItemsPerPage) + 1}</span> to{" "}
+                          <span className="font-semibold text-foreground">
+                            {Math.min(attendancePage * attendanceItemsPerPage, attendanceTotalCount)}
+                          </span>{" "}
+                          of <span className="font-semibold text-foreground">{attendanceTotalCount}</span> records
+                        </p>
+                        <div className="flex gap-1">
+                          <Button
+                            uaVariant="outline"
+                            onClick={() => setAttendancePage(p => Math.max(p - 1, 1))}
+                            disabled={attendancePage === 1}
+                            className="h-8 px-3 text-xs font-semibold"
+                          >
+                            Previous
+                          </Button>
+                          {Array.from({ length: attendanceTotalPages }).map((_, index) => {
+                            const pageNum = index + 1;
+                            if (attendanceTotalPages > 6 && Math.abs(attendancePage - pageNum) > 2 && pageNum !== 1 && pageNum !== attendanceTotalPages) {
+                              if (pageNum === 2 || pageNum === attendanceTotalPages - 1) {
+                                return <span key={pageNum} className="px-1 text-muted-foreground text-xs self-center">...</span>;
+                              }
+                              return null;
+                            }
+                            return (
+                              <Button
+                                key={pageNum}
+                                onClick={() => setAttendancePage(pageNum)}
+                                uaVariant={attendancePage === pageNum ? "primary" : "outline"}
+                                className={cn(
+                                  "h-8 w-8 p-0 text-xs font-semibold",
+                                  attendancePage === pageNum ? "bg-ua-gold text-ua-navy border-ua-gold" : ""
+                                )}
+                              >
+                                {pageNum}
+                              </Button>
+                            );
+                          })}
+                          <Button
+                            uaVariant="outline"
+                            onClick={() => setAttendancePage(p => Math.min(p + 1, attendanceTotalPages))}
+                            disabled={attendancePage === attendanceTotalPages}
+                            className="h-8 px-3 text-xs font-semibold"
+                          >
+                            Next
+                          </Button>
+                        </div>
+                      </div>
+                    )}
 
-                      const totalItems = finalFiltered.length;
-                      const totalPages = Math.ceil(totalItems / attendanceItemsPerPage);
-                      const startIndex = (attendancePage - 1) * attendanceItemsPerPage;
+                    {/* CSV Export Scope Modal */}
+                    <Modal
+                      isOpen={isExportModalOpen}
+                      onClose={() => setIsExportModalOpen(false)}
+                      title="Export Attendance Ledger"
+                      description="Choose the scope and columns to include in the exported CSV."
+                    >
+                      <div className="space-y-6">
+                        {/* Scope Radio Selection */}
+                        <div className="space-y-3">
+                          <span className="block text-xs font-bold text-muted-foreground uppercase tracking-wider">Export Scope</span>
+                          <div className="space-y-2">
+                            <label className="flex items-center gap-3 p-3 border border-border rounded-lg bg-muted/10 cursor-pointer select-none hover:bg-muted/20">
+                              <input
+                                type="radio"
+                                name="exportScope"
+                                value="current"
+                                checked={exportScope === 'current'}
+                                onChange={() => setExportScope('current')}
+                                className="text-ua-gold focus:ring-ua-gold/30"
+                              />
+                              <div>
+                                <span className="block text-xs font-bold text-foreground">Current Filtered View</span>
+                                <span className="block text-[10px] text-muted-foreground mt-0.5">Exports exactly the matching records currently visible under active filters.</span>
+                              </div>
+                            </label>
 
-                      if (totalPages <= 1) return null;
-
-                      return (
-                        <div className="border border-border rounded-lg bg-muted/5 p-4 flex items-center justify-between mt-4">
-                          <p className="text-xs text-muted-foreground font-medium">
-                            Showing <span className="font-semibold text-foreground">{startIndex + 1}</span> to{" "}
-                            <span className="font-semibold text-foreground">
-                              {Math.min(startIndex + attendanceItemsPerPage, totalItems)}
-                            </span>{" "}
-                            of <span className="font-semibold text-foreground">{totalItems}</span> records
-                          </p>
-                          <div className="flex gap-1">
-                            <Button
-                              uaVariant="outline"
-                              onClick={() => setAttendancePage(p => Math.max(p - 1, 1))}
-                              disabled={attendancePage === 1}
-                              className="h-8 px-3 text-xs font-semibold"
-                            >
-                              Previous
-                            </Button>
-                            {Array.from({ length: totalPages }).map((_, index) => {
-                              const pageNum = index + 1;
-                              return (
-                                <Button
-                                  key={pageNum}
-                                  onClick={() => setAttendancePage(pageNum)}
-                                  uaVariant={attendancePage === pageNum ? "primary" : "outline"}
-                                  className={cn(
-                                    "h-8 w-8 p-0 text-xs font-semibold",
-                                    attendancePage === pageNum ? "bg-ua-gold text-ua-navy border-ua-gold" : ""
-                                  )}
-                                >
-                                  {pageNum}
-                                </Button>
-                              );
-                            })}
-                            <Button
-                              uaVariant="outline"
-                              onClick={() => setAttendancePage(p => Math.min(p + 1, totalPages))}
-                              disabled={attendancePage === totalPages}
-                              className="h-8 px-3 text-xs font-semibold"
-                            >
-                              Next
-                            </Button>
+                            <label className="flex items-center gap-3 p-3 border border-border rounded-lg bg-muted/10 cursor-pointer select-none hover:bg-muted/20">
+                              <input
+                                type="radio"
+                                name="exportScope"
+                                value="department"
+                                checked={exportScope === 'department'}
+                                onChange={() => setExportScope('department')}
+                                className="text-ua-gold focus:ring-ua-gold/30"
+                              />
+                              <div className="flex-grow">
+                                <span className="block text-xs font-bold text-foreground">Whole Department</span>
+                                <span className="block text-[10px] text-muted-foreground mt-0.5">Ignores search/term filters to extract all unique students for a single department.</span>
+                              </div>
+                            </label>
                           </div>
                         </div>
-                      );
-                    })()}
+
+                        {/* Cascading Department Dropdown for Scope */}
+                        {exportScope === 'department' && (
+                          <div className="space-y-2 animate-fade-in p-3 bg-muted/20 border border-border rounded-lg">
+                            <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Select Department</label>
+                            <select
+                              value={exportSelectedDeptId}
+                              onChange={(e) => setExportSelectedDeptId(e.target.value)}
+                              className="w-full h-10 p-2 border border-border rounded-lg text-sm bg-card text-foreground font-semibold outline-none focus:ring-2 focus:ring-ua-gold/30"
+                            >
+                              <option value="">-- Choose a Department --</option>
+                              {departments.map(d => (
+                                <option key={d.id} value={d.id}>{d.name}</option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+
+                        {/* Column Field Schema Decoupling Options */}
+                        <div className="space-y-3">
+                          <span className="block text-xs font-bold text-muted-foreground uppercase tracking-wider">Export Details</span>
+                          <label className="flex items-start gap-3 p-3 border border-border rounded-lg bg-muted/10 cursor-pointer select-none hover:bg-muted/20">
+                            <input
+                              type="checkbox"
+                              checked={exportAllFields}
+                              onChange={(e) => setExportAllFields(e.target.checked)}
+                              className="rounded border-border text-ua-gold focus:ring-ua-gold/30 mt-0.5"
+                            />
+                            <div>
+                              <span className="block text-xs font-bold text-foreground">Include all metadata fields</span>
+                              <span className="block text-[10px] text-muted-foreground mt-0.5">Includes full fields (First Submitted, Most Recent, Department, Section) instead of just Name, Email, and Section.</span>
+                            </div>
+                          </label>
+                        </div>
+
+                        <div className="flex gap-2 pt-2 justify-end border-t border-border/50">
+                          <Button
+                            type="button"
+                            uaVariant="outline"
+                            onClick={() => setIsExportModalOpen(false)}
+                            className="h-10 text-xs font-semibold px-4"
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            type="button"
+                            uaVariant="primary"
+                            onClick={handleExportCSV}
+                            className="h-10 text-xs font-bold px-4"
+                          >
+                            Export &amp; Download
+                          </Button>
+                        </div>
+                      </div>
+                    </Modal>
+
                   </div>
                 )}              </CardContent>
             </Card>
