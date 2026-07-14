@@ -21,10 +21,10 @@ export function getDeptAbbreviation(level: EducationLevel, deptName: string): st
   const nameUpper = deptName.toUpperCase();
   
   if (level === 'JHS' || nameUpper.includes('JUNIOR HIGH')) {
-    return 'Junior High School';
+    return 'JHS';
   }
   if (level === 'SHS' || nameUpper.includes('SENIOR HIGH')) {
-    return 'Senior High School';
+    return 'SHS';
   }
   if (level === 'GRADUATE') return 'GRAD';
 
