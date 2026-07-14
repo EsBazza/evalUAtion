@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -143,6 +143,11 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
   const [sectionCode, setSectionCode] = useState('');
   const [isVerifyingCode, setIsVerifyingCode] = useState(false);
 
+  const prevSectionIdRef = useRef<string>('');
+  const prevLevelRef = useRef<string>('');
+  const prevDeptIdRef = useRef<string>('');
+  const hasRestoredRef = useRef(false);
+
   const handleVerifyCode = async () => {
     if (!sectionCode.trim()) {
       toast.error("Please enter your section code.");
@@ -173,6 +178,8 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
     }
   };
 
+  const [isSigningOut, setIsSigningOut] = useState(false);
+
   const { control, watch, setValue, formState: { errors } } = useForm<SelectionFormValues>({
     resolver: zodResolver(selectionSchema),
     defaultValues: {
@@ -194,9 +201,15 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
   const selectedSectionId = watch('sectionId');
   const answers = evaluationForm.watch("answers") || {};
 
-  // Restore progress from sessionStorage on mount
+  const handleSignOut = () => {
+    setIsSigningOut(true);
+    localStorage.removeItem('ua_evaluation_progress');
+    signOut({ callbackUrl: '/' });
+  };
+
+  // Restore progress from localStorage on mount
   useEffect(() => {
-    const saved = sessionStorage.getItem('ua_evaluation_progress');
+    const saved = localStorage.getItem('ua_evaluation_progress');
     if (saved) {
       try {
         const data = JSON.parse(saved);
@@ -226,9 +239,9 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
     setIsRestored(true);
   }, [setValue, evaluationForm]);
 
-  // Save progress to sessionStorage whenever relevant state changes
+  // Save progress to localStorage whenever relevant state changes
   useEffect(() => {
-    if (!isRestored) return;
+    if (!isRestored || isSigningOut) return;
 
     const stateToSave = {
       sectionCode,
@@ -242,7 +255,7 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
       answers
     };
 
-    sessionStorage.setItem('ua_evaluation_progress', JSON.stringify(stateToSave));
+    localStorage.setItem('ua_evaluation_progress', JSON.stringify(stateToSave));
   }, [
     sectionCode,
     selectedLevel,
@@ -253,11 +266,20 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
     wizardStep,
     currentClusterIndex,
     answers,
-    isRestored
+    isRestored,
+    isSigningOut
   ]);
 
+  // Safeguard: If we finished restoring but don't have a template or a selected professor for step 2+, fall back to step 1
+  useEffect(() => {
+    if (isRestored && wizardStep > 1 && (!template || !selectedProf)) {
+      setWizardStep(1);
+      setSelectedProf(null);
+    }
+  }, [isRestored, wizardStep, template, selectedProf]);
+
   const clearFormProgress = () => {
-    const saved = sessionStorage.getItem('ua_evaluation_progress');
+    const saved = localStorage.getItem('ua_evaluation_progress');
     if (saved) {
       try {
         const data = JSON.parse(saved);
@@ -272,9 +294,9 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
           currentClusterIndex: 0,
           answers: {}
         };
-        sessionStorage.setItem('ua_evaluation_progress', JSON.stringify(updated));
+        localStorage.setItem('ua_evaluation_progress', JSON.stringify(updated));
       } catch (e) {
-        sessionStorage.removeItem('ua_evaluation_progress');
+        localStorage.removeItem('ua_evaluation_progress');
       }
     }
   };
@@ -300,11 +322,25 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
   }, [selectedDepartmentId]);
 
   useEffect(() => {
+    if (!isRestored) return;
+
     if (selectedSectionId) {
-      // Clear dependent states to prevent stale values from previous sections/levels triggering bug
-      setProfessors([]);
-      setCompletedProfs([]);
-      setTemplate(null);
+      const isInitialRun = !hasRestoredRef.current;
+      const didChange = 
+        selectedSectionId !== prevSectionIdRef.current || 
+        selectedLevel !== prevLevelRef.current || 
+        selectedDepartmentId !== prevDeptIdRef.current;
+
+      if (!isInitialRun && didChange) {
+        setProfessors([]);
+        setCompletedProfs([]);
+        setTemplate(null);
+      }
+
+      hasRestoredRef.current = true;
+      prevSectionIdRef.current = selectedSectionId;
+      prevLevelRef.current = selectedLevel || '';
+      prevDeptIdRef.current = selectedDepartmentId || '';
 
       getProfessorsBySection(selectedSectionId).then(setProfessors);
       getCompletedEvaluations(studentEmail, selectedSectionId).then(setCompletedProfs);
@@ -322,8 +358,11 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
       setProfessors([]);
       setCompletedProfs([]);
       setTemplate(null);
+      prevSectionIdRef.current = '';
+      prevLevelRef.current = '';
+      prevDeptIdRef.current = '';
     }
-  }, [selectedSectionId, selectedLevel, selectedDepartmentId, studentEmail]);
+  }, [selectedSectionId, selectedLevel, selectedDepartmentId, studentEmail, isRestored]);
 
   const isClusterAnswered = (cluster: any) => {
     if (!cluster) return true;
@@ -415,6 +454,15 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
     }
   };
 
+  console.log("DEBUG StudentEvaluateClient showLoading check:", {
+    wizardStep,
+    hasTemplate: !!template,
+    hasSelectedProf: !!selectedProf,
+    template,
+    selectedProf,
+    localStorageData: typeof window !== 'undefined' ? localStorage.getItem('ua_evaluation_progress') : null
+  });
+
   const showLoading = wizardStep > 1 && (!template || !selectedProf);
 
   if (showLoading) {
@@ -455,7 +503,7 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
           </div>
           <Button
             uaVariant="destructive"
-            onClick={() => signOut({ callbackUrl: '/' })}
+            onClick={handleSignOut}
             className="h-9 px-4 text-xs"
           >
             Sign Out
@@ -503,7 +551,7 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
             <Button
               uaVariant="primary"
               onClick={() => {
-                sessionStorage.removeItem('ua_evaluation_progress');
+                localStorage.removeItem('ua_evaluation_progress');
                 setSectionCode('');
                 setValue('sectionId', '');
                 setValue('departmentId', '');
@@ -517,7 +565,7 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
             </Button>
             <Button
               uaVariant="destructive"
-              onClick={() => signOut({ callbackUrl: '/' })}
+              onClick={handleSignOut}
               className="w-full h-9 text-xs"
             >
               Sign Out
@@ -543,7 +591,7 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
           </div>
           <Button
             uaVariant="destructive"
-            onClick={() => signOut({ callbackUrl: '/' })}
+            onClick={handleSignOut}
             className="h-9 px-4 text-xs"
           >
             Sign Out
