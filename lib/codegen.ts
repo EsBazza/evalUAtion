@@ -18,27 +18,38 @@ export function generateCodeSegment(length: number): string {
  * Maps EducationLevel and Department names to standard short prefixes.
  */
 export function getDeptAbbreviation(level: EducationLevel, deptName: string): string {
-  if (level === 'JHS') return 'JHS';
-  if (level === 'SHS') return 'SHS';
-  if (level === 'GRADUATE') return 'GRAD';
-  
   const nameUpper = deptName.toUpperCase();
+  
+  if (level === 'JHS' || nameUpper.includes('JUNIOR HIGH')) {
+    return 'Junior High School';
+  }
+  if (level === 'SHS' || nameUpper.includes('SENIOR HIGH')) {
+    return 'Senior High School';
+  }
+  if (level === 'GRADUATE') return 'GRAD';
+
+  if (nameUpper.includes('ENGINEERING') || nameUpper.includes('ARCHITECTURE') || nameUpper.includes('CEA')) {
+    return 'CEA';
+  }
   if (nameUpper.includes('COMPUTER') || nameUpper.includes('INFORMATION TECHNOLOGY') || nameUpper.includes('CIT')) {
     return 'CIT';
   }
-  if (nameUpper.includes('BUSINESS') || nameUpper.includes('ACCOUNTANCY') || nameUpper.includes('SBPA') || nameUpper.includes('SBA')) {
+  if (nameUpper.includes('EDUCATION') || nameUpper.includes('TEACHER') || nameUpper.includes('SED')) {
+    return 'SED';
+  }
+  if (nameUpper.includes('BUSINESS') || nameUpper.includes('PUBLIC ADMINISTRATION') || nameUpper.includes('SBPA')) {
     return 'SBPA';
   }
-  if (nameUpper.includes('NURSING') || nameUpper.includes('HEALTH')) {
-    return 'NURS';
+  if (nameUpper.includes('ACCOUNTANCY') || nameUpper.includes('COA')) {
+    return 'COA';
   }
-  if (nameUpper.includes('EDUCATION') || nameUpper.includes('TEACHER')) {
-    return 'EDUC';
+  if (nameUpper.includes('NURSING') || nameUpper.includes('PHARMACY') || nameUpper.includes('CONP')) {
+    return 'CONP';
   }
-  if (nameUpper.includes('ENGINEERING')) {
-    return 'ENG';
+  if (nameUpper.includes('HOSPITALITY') || nameUpper.includes('TOURISM') || nameUpper.includes('CHTM')) {
+    return 'CHTM';
   }
-  if (nameUpper.includes('ARTS') || nameUpper.includes('SCIENCES') || nameUpper.includes('HUMANITIES')) {
+  if (nameUpper.includes('ARTS') || nameUpper.includes('SCIENCES') || nameUpper.includes('SAS')) {
     return 'SAS';
   }
   
