@@ -35,7 +35,7 @@ export async function getAuditLogs(limit = 100) {
       throw new Error('Unauthorized');
     }
 
-    if ((session.user as any).role !== 'ADMIN') {
+    if ((session.user as any).role !== 'ADMIN' && (session.user as any).role !== 'SUB_ADMIN') {
       throw new Error('Forbidden');
     }
 

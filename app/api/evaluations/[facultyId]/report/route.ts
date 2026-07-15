@@ -10,8 +10,8 @@ export async function GET(
   try {
     const session = await auth();
     
-    // Role-based check (only ADMIN can view for now, could be expanded to DEAN/CHAIR)
-    if (!session?.user || (session.user as any).role !== 'ADMIN') {
+    // Role-based check (only ADMIN or SUB_ADMIN can view)
+    if (!session?.user || ((session.user as any).role !== 'ADMIN' && (session.user as any).role !== 'SUB_ADMIN')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 

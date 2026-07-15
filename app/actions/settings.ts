@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { writeAuditLog } from './audit';
 import { generateCodeSegment, buildSectionCode } from '@/lib/codegen';
+import { Role } from '@prisma/client';
 
 
 /**
@@ -109,12 +110,17 @@ export async function updateSystemSettings(academicYear: string, semester: strin
 
 export async function getAdmins() {
   return prisma.user.findMany({
-    where: { role: 'ADMIN' },
+    where: { 
+      role: {
+        in: ['ADMIN', 'SUB_ADMIN']
+      }
+    },
+    include: { department: true },
     orderBy: { email: 'asc' }
   });
 }
 
-export async function elevateUserToAdmin(email: string, username?: string, password?: string) {
+export async function elevateUserToAdmin(email: string, username?: string, password?: string, role: 'ADMIN' | 'SUB_ADMIN' = 'ADMIN', departmentId?: string) {
   const cleanEmail = email.trim().toLowerCase();
   const cleanUsername = username?.trim().toLowerCase() || null;
   if (!cleanEmail) throw new Error("Email is required");
@@ -144,7 +150,8 @@ export async function elevateUserToAdmin(email: string, username?: string, passw
     ? await prisma.user.update({
         where: { id: existing.id },
         data: { 
-          role: 'ADMIN',
+          role: role as any,
+          departmentId: role === 'SUB_ADMIN' ? departmentId || null : null,
           username: cleanUsername || existing.username,
           password: hashedPassword || existing.password
         }
@@ -152,40 +159,45 @@ export async function elevateUserToAdmin(email: string, username?: string, passw
     : await prisma.user.create({
         data: {
           email: cleanEmail,
-          role: 'ADMIN',
+          role: role as any,
+          departmentId: role === 'SUB_ADMIN' ? departmentId || null : null,
           name: email.split('@')[0], // placeholder name
           username: cleanUsername,
           password: hashedPassword
         }
       });
 
-  await writeAuditLog('USER_ELEVATION', { desc: `Elevated user ${email} to admin` });
+  await writeAuditLog('USER_ELEVATION', { desc: `Elevated user ${email} to ${role}` });
 
   return user;
 }
 
 export async function revokeAdminAction(userId: string) {
-  // Prevent deleting all admins (optional safety check)
-  const adminCount = await prisma.user.count({
-    where: { role: 'ADMIN' }
-  });
-
-  if (adminCount <= 1) {
-    throw new Error("Cannot revoke privileges. There must be at least one System Administrator.");
-  }
-
   const targetUser = await prisma.user.findUnique({
     where: { id: userId },
-    select: { email: true }
+    select: { email: true, role: true }
   });
+
+  if (!targetUser) throw new Error("User not found");
+
+  // Prevent deleting all admins (optional safety check)
+  if (targetUser.role === 'ADMIN') {
+    const adminCount = await prisma.user.count({
+      where: { role: 'ADMIN' }
+    });
+
+    if (adminCount <= 1) {
+      throw new Error("Cannot revoke privileges. There must be at least one System Administrator.");
+    }
+  }
 
   // Demote to FACULTY (safest default role)
   const res = await prisma.user.update({
     where: { id: userId },
-    data: { role: 'FACULTY' }
+    data: { role: 'FACULTY', departmentId: null }
   });
 
-  await writeAuditLog('ADMIN_REVOKE', { desc: `Demoted admin ${targetUser?.email} to faculty` });
+  await writeAuditLog('ADMIN_REVOKE', { desc: `Demoted ${targetUser.role} ${targetUser.email} to faculty` });
 
   return res;
 }

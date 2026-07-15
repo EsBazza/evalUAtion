@@ -10,6 +10,7 @@ enum Role {
   STUDENT
   FACULTY
   ADMIN
+  SUB_ADMIN
 }
 
 enum EducationLevel {

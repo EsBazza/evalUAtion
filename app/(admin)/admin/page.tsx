@@ -165,6 +165,8 @@ function AdminDashboardContent() {
   const [newAdminEmail, setNewAdminEmail] = useState('');
   const [newAdminUsername, setNewAdminUsername] = useState('');
   const [newAdminPassword, setNewAdminPassword] = useState('');
+  const [newAdminRole, setNewAdminRole] = useState<'ADMIN' | 'SUB_ADMIN'>('ADMIN');
+  const [newAdminDeptId, setNewAdminDeptId] = useState('');
 
   const [sysYear, setSysYear] = useState('2026-2027');
   const [sysSem, setSysSem] = useState('1st');
@@ -213,6 +215,8 @@ function AdminDashboardContent() {
         setSysFacultyPageEnabled(settings.isFacultyPageEnabled);
         const adminUsers = await getAdmins();
         setAdmins(adminUsers);
+        const deps = await getDepartments();
+        setDepartments(deps);
       }
     } catch (err) {
       console.error(err);
@@ -301,13 +305,19 @@ function AdminDashboardContent() {
   const handleElevateAdmin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newAdminEmail.trim() || !newAdminUsername.trim() || !newAdminPassword.trim()) return;
+    if (newAdminRole === 'SUB_ADMIN' && !newAdminDeptId) {
+      toast.error('Please select a department for the sub admin.');
+      return;
+    }
     try {
-      await elevateUserToAdmin(newAdminEmail, newAdminUsername, newAdminPassword);
+      await elevateUserToAdmin(newAdminEmail, newAdminUsername, newAdminPassword, newAdminRole, newAdminDeptId);
       setNewAdminEmail('');
       setNewAdminUsername('');
       setNewAdminPassword('');
+      setNewAdminRole('ADMIN');
+      setNewAdminDeptId('');
       setShowAddAdminForm(false);
-      toast.success(`Successfully elevated ${newAdminEmail} to Admin!`);
+      toast.success(`Successfully elevated ${newAdminEmail} to ${newAdminRole}!`);
       loadData();
     } catch (err: any) {
       toast.error(err.message || 'Failed to elevate user to admin');
@@ -1385,6 +1395,33 @@ function AdminDashboardContent() {
                               required
                             />
                           </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Role</label>
+                            <select
+                              value={newAdminRole}
+                              onChange={(e) => setNewAdminRole(e.target.value as 'ADMIN' | 'SUB_ADMIN')}
+                              className="w-full h-8 px-2 text-xs border rounded bg-card text-foreground font-semibold"
+                            >
+                              <option value="ADMIN">System Admin</option>
+                              <option value="SUB_ADMIN">Sub Admin</option>
+                            </select>
+                          </div>
+                          {newAdminRole === 'SUB_ADMIN' && (
+                            <div className="sm:col-span-2">
+                              <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Department</label>
+                              <select
+                                value={newAdminDeptId}
+                                onChange={(e) => setNewAdminDeptId(e.target.value)}
+                                className="w-full h-8 px-2 text-xs border rounded bg-card text-foreground font-semibold"
+                                required={newAdminRole === 'SUB_ADMIN'}
+                              >
+                                <option value="">Select Department...</option>
+                                {departments.map((d: any) => (
+                                  <option key={d.id} value={d.id}>{d.name}</option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
                         </div>
                         <div className="flex justify-end gap-2 pt-2">
                           <Button type="submit" uaVariant="primary" className="h-8 px-3 text-xs">
@@ -1445,6 +1482,7 @@ function AdminDashboardContent() {
                             >
                               Name {adminSortField === 'name' ? (adminSortDirection === 'asc' ? '▴' : '▾') : '⇅'}
                             </th>
+                            <th className="p-4 font-bold text-xs uppercase tracking-wider text-muted-foreground">Role</th>
                             <th className="p-4 font-bold text-right text-xs uppercase tracking-wider text-muted-foreground">Actions</th>
                           </tr>
                         </thead>
@@ -1459,6 +1497,13 @@ function AdminDashboardContent() {
                             <tr key={u.id} className="hover:bg-muted/10 transition-all">
                               <td className="p-4 font-bold text-foreground">{u.email}</td>
                               <td className="p-4 text-muted-foreground font-semibold">{u.name || "Pending login"}</td>
+                              <td className="p-4 text-muted-foreground font-semibold">
+                                {u.role === 'SUB_ADMIN' ? (
+                                  <span className="text-ua-gold">Sub Admin {u.department ? `(${u.department.name})` : ''}</span>
+                                ) : (
+                                  <span className="text-ua-navy dark:text-ua-gold">System Admin</span>
+                                )}
+                              </td>
                               <td className="p-4 text-right">
                                 <Button 
                                   onClick={() => handleRevokeAdmin(u.id)}

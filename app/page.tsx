@@ -13,7 +13,7 @@ export default async function HomePage() {
       redirect('/evaluate');
     } else if (role === 'FACULTY') {
       redirect('/faculty');
-    } else if (role === 'ADMIN') {
+    } else if (role === 'ADMIN' || role === 'SUB_ADMIN') {
       redirect('/admin');
     }
   }
@@ -124,7 +124,7 @@ export default async function HomePage() {
                   </Link>
                 )}
 
-                {(session.user as any)?.role === 'ADMIN' && (
+                {((session.user as any)?.role === 'ADMIN' || (session.user as any)?.role === 'SUB_ADMIN') && (
                   <Link
                     href="/admin"
                     className="inline-block w-full text-center py-3 px-4 bg-gradient-to-r from-[#D2143A] to-[#A00E2B] hover:from-[#e51c44] hover:to-[#D2143A] text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all shadow-lg hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"

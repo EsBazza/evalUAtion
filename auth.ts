@@ -48,7 +48,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           });
           console.log("DB User found:", user ? user.email : "Not found");
 
-          if (user && user.password && user.role === 'ADMIN') {
+          if (user && user.password && (user.role === 'ADMIN' || user.role === 'SUB_ADMIN')) {
             const isValid = await bcrypt.compare(password, user.password);
             console.log("Bcrypt validation result:", isValid);
             if (isValid) {
@@ -73,8 +73,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
     async jwt({ token, user, trigger, session }) {
       if (user && user.email) {
-        if ((user as any).role === "ADMIN") {
-          token.role = "ADMIN";
+        if ((user as any).role === "ADMIN" || (user as any).role === "SUB_ADMIN") {
+          token.role = (user as any).role;
           return token;
         }
         
@@ -82,7 +82,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (user.email.endsWith(".student@ua.edu.ph")) {
           token.role = "STUDENT";
         } else {
-          // Defaults to FACULTY unless overridden via DB record as ADMIN
+          // Defaults to FACULTY unless overridden via DB record as ADMIN/SUB_ADMIN
           const dbUser = await prisma.user.findUnique({ where: { email: user.email } });
           token.role = dbUser?.role || "FACULTY";
           token.departmentId = dbUser?.departmentId || null;
