@@ -8,7 +8,8 @@ import {
   createSection, 
   createProfessor, 
   updateProfessor,
-  deleteSection
+  deleteSection,
+  deleteFaculty
 } from '@/app/actions/management';
 import Link from 'next/link';
 import { FolderKanban, Plus, UserPlus, FileText, CheckSquare, Settings, ArrowUp, ArrowDown, Edit3, Trash2 } from 'lucide-react';
@@ -192,6 +193,19 @@ export default function FacultyDepartmentManagement() {
       }
     } catch (err: any) {
       toast.error(err.message || "Failed to delete section");
+    }
+  };
+
+  const handleDeleteFaculty = async (profId: string, profName: string) => {
+    if (!confirm(`Are you sure you want to permanently delete "${profName}"? This will delete the faculty profile and ALL associated evaluation records.`)) return;
+    try {
+      await deleteFaculty(profId);
+      toast.success("Faculty member and all associated evaluations deleted successfully!");
+      if (selectedDeptId) {
+        loadDeptDetails(selectedDeptId);
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to delete faculty member");
     }
   };
 
@@ -509,14 +523,24 @@ export default function FacultyDepartmentManagement() {
                                   )}
                                 </td>
                                 <td className="p-4 text-right relative kebab-container">
-                                  <Button 
-                                    onClick={() => handleStartEditFaculty(prof)}
-                                    uaVariant="outline"
-                                    className="h-8 text-xs px-2.5"
-                                  >
-                                    <Edit3 className="size-3 mr-1" />
-                                    Edit
-                                  </Button>
+                                  <div className="flex gap-2 justify-end">
+                                    <Button 
+                                      onClick={() => handleStartEditFaculty(prof)}
+                                      uaVariant="outline"
+                                      className="h-8 text-xs px-2.5 font-bold"
+                                    >
+                                      <Edit3 className="size-3 mr-1" />
+                                      Edit
+                                    </Button>
+                                    <Button 
+                                      onClick={() => handleDeleteFaculty(prof.id, prof.name)}
+                                      uaVariant="destructive"
+                                      className="h-8 text-xs px-2.5 font-bold"
+                                    >
+                                      <Trash2 className="size-3 mr-1" />
+                                      Delete
+                                    </Button>
+                                  </div>
                                 </td>
                               </tr>
                             ))}

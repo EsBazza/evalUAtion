@@ -334,3 +334,40 @@ export async function deleteSection(sectionId: string) {
   
   return { success: true };
 }
+
+export async function deleteFaculty(professorId: string) {
+  const prof = await prisma.professor.findUnique({
+    where: { id: professorId },
+    include: { department: true }
+  });
+  if (!prof) throw new Error("Faculty not found");
+
+  await prisma.$transaction([
+    prisma.evaluationReceipt.deleteMany({
+      where: { professorId }
+    }),
+    prisma.evaluation.deleteMany({
+      where: { professorId }
+    }),
+    prisma.secureEvaluation.deleteMany({
+      where: { facultyId: professorId }
+    }),
+    prisma.professor.delete({
+      where: { id: professorId }
+    })
+  ]);
+
+  // Clean up associated User record if their role was FACULTY
+  try {
+    const assocUser = await prisma.user.findUnique({ where: { email: prof.email } });
+    if (assocUser && assocUser.role === 'FACULTY') {
+      await prisma.user.delete({ where: { email: prof.email } });
+    }
+  } catch (err) {
+    console.error("Non-blocking error deleting associated faculty user record:", err);
+  }
+
+  await writeAuditLog('FACULTY_DELETED', { desc: `Deleted faculty ${prof.name} under department ${prof.department.name}` });
+
+  return { success: true };
+}
