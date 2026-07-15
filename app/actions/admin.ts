@@ -6,7 +6,13 @@ import { auth } from '@/auth';
 
 export async function getAdminSessionUser() {
   const session = await auth();
-  return session?.user || null;
+  if (!session?.user?.email) return null;
+  const dbUser = await prisma.user.findUnique({
+    where: { email: session.user.email },
+    include: { department: true }
+  });
+  if (dbUser) return dbUser;
+  return session.user || null;
 }
 
 export async function getDepartments() {

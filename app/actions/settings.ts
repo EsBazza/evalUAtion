@@ -172,7 +172,7 @@ export async function elevateUserToAdmin(email: string, username?: string, passw
   return user;
 }
 
-export async function revokeAdminAction(userId: string) {
+export async function deleteAdminAction(userId: string) {
   const targetUser = await prisma.user.findUnique({
     where: { id: userId },
     select: { email: true, role: true }
@@ -180,24 +180,22 @@ export async function revokeAdminAction(userId: string) {
 
   if (!targetUser) throw new Error("User not found");
 
-  // Prevent deleting all admins (optional safety check)
+  // Prevent deleting all admins
   if (targetUser.role === 'ADMIN') {
     const adminCount = await prisma.user.count({
       where: { role: 'ADMIN' }
     });
 
     if (adminCount <= 1) {
-      throw new Error("Cannot revoke privileges. There must be at least one System Administrator.");
+      throw new Error("Cannot delete administrator. There must be at least one System Administrator.");
     }
   }
 
-  // Demote to FACULTY (safest default role)
-  const res = await prisma.user.update({
-    where: { id: userId },
-    data: { role: 'FACULTY', departmentId: null }
+  const res = await prisma.user.delete({
+    where: { id: userId }
   });
 
-  await writeAuditLog('ADMIN_REVOKE', { desc: `Demoted ${targetUser.role} ${targetUser.email} to faculty` });
+  await writeAuditLog('ADMIN_REVOKE', { desc: `Deleted ${targetUser.role} ${targetUser.email}` });
 
   return res;
 }

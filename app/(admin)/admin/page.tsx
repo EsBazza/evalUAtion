@@ -22,13 +22,14 @@ const DepartmentDonutChart = dynamic(() => import('@/components/charts/Departmen
 import { EducationLevel, Role } from '@prisma/client';
 import Link from 'next/link';
 import { Search, Filter, Download, RefreshCw, SlidersHorizontal } from 'lucide-react';
+import { getDepartmentAiSummary } from '@/app/actions/ai';
 import { getAuditLogs } from '@/app/actions/audit';
 import { 
   getSystemSettings, 
   updateSystemSettings,
   getAdmins,
   elevateUserToAdmin,
-  revokeAdminAction
+  deleteAdminAction
 } from '@/app/actions/settings';
 
 // UA UI Primitives
@@ -97,7 +98,7 @@ function AdminDashboardContent() {
   const activeView = (currentUser?.role === 'SUB_ADMIN') ? 'rankings' : requestedView;
   
   useEffect(() => {
-    getAdminSessionUser().then(user => {
+    getAdminSessionUser().then((user: any) => {
       setCurrentUser(user);
       if (user?.role === 'SUB_ADMIN' && user.departmentId) {
         setSelectedLedgerDept(user.departmentId);
@@ -140,6 +141,8 @@ function AdminDashboardContent() {
   const [admins, setAdmins] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [logsLoading, setLogsLoading] = useState(false);
+  const [deptAiSummary, setDeptAiSummary] = useState<string>('');
+  const [isSummaryLoading, setIsSummaryLoading] = useState<boolean>(false);
 
   // Sorting states for rankings
   const [sortField, setSortField] = useState('score');
@@ -191,6 +194,19 @@ function AdminDashboardContent() {
         const subAdminDeptId = currentUser?.role === 'SUB_ADMIN' ? currentUser.departmentId : undefined;
         const data = await getFacultyRankings(undefined, undefined, subAdminDeptId);
         setRankings(data);
+        if (subAdminDeptId) {
+          setIsSummaryLoading(true);
+          try {
+            const res = await getDepartmentAiSummary(subAdminDeptId);
+            if (res.success) {
+              setDeptAiSummary(res.summary);
+            }
+          } catch (err) {
+            console.error("Failed to load department AI summary:", err);
+          } finally {
+            setIsSummaryLoading(false);
+          }
+        }
       } else if (activeView === 'departments') {
         const data = await getDepartments();
         setDepartments(data);
@@ -263,7 +279,7 @@ function AdminDashboardContent() {
   // Run full data fetch only on view change
   useEffect(() => {
     loadData();
-  }, [activeView]);
+  }, [activeView, currentUser]);
 
   // Live sync: silently refresh rankings every 15 seconds
   useEffect(() => {
@@ -271,7 +287,8 @@ function AdminDashboardContent() {
 
     const interval = setInterval(async () => {
       try {
-        const data = await getFacultyRankings();
+        const subAdminDeptId = currentUser?.role === 'SUB_ADMIN' ? currentUser.departmentId : undefined;
+        const data = await getFacultyRankings(undefined, undefined, subAdminDeptId);
         setRankings(data);
       } catch (err) {
         // Silently ignore refresh errors
@@ -279,7 +296,7 @@ function AdminDashboardContent() {
     }, 15000);
 
     return () => clearInterval(interval);
-  }, [activeView]);
+  }, [activeView, currentUser]);
 
   // Run silent updates for filters and pages
   useEffect(() => {
@@ -337,14 +354,14 @@ function AdminDashboardContent() {
     }
   };
 
-  const handleRevokeAdmin = async (userId: string) => {
-    if (!confirm("Are you sure you want to revoke administrative privileges?")) return;
+  const handleDeleteAdmin = async (userId: string) => {
+    if (!confirm("Are you sure you want to permanently delete this administrator/sub-admin?")) return;
     try {
-      await revokeAdminAction(userId);
-      toast.success("Administrative privileges revoked successfully.");
+      await deleteAdminAction(userId);
+      toast.success("Administrator deleted successfully.");
       loadData();
     } catch (err: any) {
-      toast.error(err.message || 'Failed to revoke admin privileges');
+      toast.error(err.message || 'Failed to delete administrator');
     }
   };
 
@@ -513,8 +530,11 @@ function AdminDashboardContent() {
         <>
           {activeView === 'rankings' && (() => {
             const isSubAdmin = currentUser?.role === 'SUB_ADMIN';
-            // Rankings are already filtered server-side for SUB_ADMIN — sortedRankings is the source of truth
-            const effectiveRankings = sortedRankings;
+            const subAdminDeptName = currentUser?.department?.name;
+            // Rankings are already filtered server-side for SUB_ADMIN, but filter on the client side as well for safety
+            const effectiveRankings = isSubAdmin && subAdminDeptName
+              ? sortedRankings.filter(r => r.department === subAdminDeptName)
+              : sortedRankings;
 
             const uniqueDepts = Array.from(
               new Set(effectiveRankings.map(r => r.level === 'COLLEGE' ? 'College' : r.department))
@@ -594,7 +614,7 @@ function AdminDashboardContent() {
 
                 {/* Visual Analytics Grid */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  <Card className="lg:col-span-2">
+                  <Card className={isSubAdmin ? "lg:col-span-3" : "lg:col-span-2"}>
                     <CardHeader className="border-b border-border/40 pb-4">
                       <CardTitle className="text-sm font-bold uppercase tracking-wider text-ua-navy dark:text-ua-gold">
                         Top 10 Faculty Rankings
@@ -604,16 +624,45 @@ function AdminDashboardContent() {
                       <FacultyRankingChart data={rankingChartData} />
                     </CardContent>
                   </Card>
-                  <Card>
-                    <CardHeader className="border-b border-border/40 pb-4">
-                      <CardTitle className="text-sm font-bold uppercase tracking-wider text-ua-navy dark:text-ua-gold">
-                        Department Averages
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-6">
-                      <DepartmentDonutChart data={departmentData} />
-                    </CardContent>
-                  </Card>
+                  {isSubAdmin ? (
+                    <Card className="lg:col-span-3 flex flex-col h-full border border-border/80">
+                      <CardHeader className="border-b border-border/40 pb-4 flex flex-row items-center justify-between">
+                        <CardTitle className="text-sm font-bold uppercase tracking-wider text-ua-navy dark:text-ua-gold">
+                          Gemini AI Summary
+                        </CardTitle>
+                        <span className="text-[10px] bg-ua-gold/20 text-ua-navy dark:text-ua-gold font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                          Overall Performance
+                        </span>
+                      </CardHeader>
+                      <CardContent className="p-6 flex-1 flex flex-col justify-between">
+                        {isSummaryLoading ? (
+                          <div className="flex flex-col items-center justify-center py-12 space-y-3">
+                            <RefreshCw className="size-8 text-ua-gold animate-spin" />
+                            <span className="text-xs text-muted-foreground font-semibold">Generating AI Summary...</span>
+                          </div>
+                        ) : deptAiSummary ? (
+                          <div className="text-sm text-foreground/90 italic leading-relaxed font-medium bg-muted/30 p-4 rounded-lg border border-border/50">
+                            "{deptAiSummary}"
+                          </div>
+                        ) : (
+                          <div className="text-xs text-muted-foreground py-12 text-center italic">
+                            AI summary could not be generated. Please make sure evaluation scores exist.
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <Card>
+                      <CardHeader className="border-b border-border/40 pb-4">
+                        <CardTitle className="text-sm font-bold uppercase tracking-wider text-ua-navy dark:text-ua-gold">
+                          Department Averages
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-6">
+                        <DepartmentDonutChart data={departmentData} />
+                      </CardContent>
+                    </Card>
+                  )}
                 </div>
 
                 {/* Performance ledger table */}
@@ -1375,7 +1424,7 @@ function AdminDashboardContent() {
                 <CardHeader className="border-b border-border/45 pb-4 flex flex-col sm:flex-row justify-between sm:items-center gap-4">
                   <div>
                     <CardTitle className="text-base font-bold text-slate-800 dark:text-ua-gold">System Administrators</CardTitle>
-                    <CardDescription>Elevate users or revoke system administration roles</CardDescription>
+                    <CardDescription>Elevate users or delete administrative accounts</CardDescription>
                   </div>
                   <div className="w-full sm:w-auto">
                     {showAddAdminForm ? (
@@ -1526,11 +1575,11 @@ function AdminDashboardContent() {
                               </td>
                               <td className="p-4 text-right">
                                 <Button 
-                                  onClick={() => handleRevokeAdmin(u.id)}
+                                  onClick={() => handleDeleteAdmin(u.id)}
                                   uaVariant="destructive"
                                   className="h-8 px-2.5 text-xs font-semibold"
                                 >
-                                  Revoke Admin
+                                  Delete Admin
                                 </Button>
                               </td>
                             </tr>
