@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { getFacultyProfileData } from '@/app/actions/management';
 import { processFacultyEvaluationSummary } from '@/app/actions/ai';
 import { getSystemSettings } from '@/app/actions/settings';
@@ -54,6 +55,7 @@ function CountUp({ end, duration = 0.8, suffix = "" }: { end: number; duration?:
 }
 
 export default function FacultyPreviewClient({ professorId }: FacultyPreviewClientProps) {
+  const router = useRouter();
   const [academicYear, setAcademicYear] = useState('2026-2027');
   const [semester, setSemester] = useState('1st');
   const [data, setData] = useState<any>(null);
@@ -134,12 +136,14 @@ export default function FacultyPreviewClient({ professorId }: FacultyPreviewClie
           <ShieldAlert className="size-4 text-ua-gold shrink-0" />
           <span>ADMIN PREVIEW: You are viewing this faculty performance report as a system administrator. Student identities are hidden.</span>
         </div>
-        <Link href="/admin/management">
-          <Button uaVariant="outline" className="h-8 text-xs flex items-center justify-center">
-            <ChevronLeft className="size-3.5 mr-1" />
-            Back to Management
-          </Button>
-        </Link>
+        <Button 
+          onClick={() => router.back()} 
+          uaVariant="outline" 
+          className="h-8 text-xs flex items-center justify-center font-bold"
+        >
+          <ChevronLeft className="size-3.5 mr-1" />
+          Go Back
+        </Button>
       </div>
 
       {!isFacultyPageEnabled && (

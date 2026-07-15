@@ -1761,6 +1761,9 @@ function AdminDashboardContent() {
                             >
                               Email {adminSortField === 'email' ? (adminSortDirection === 'asc' ? '▴' : '▾') : '⇅'}
                             </th>
+                            <th className="p-4 font-bold text-xs uppercase tracking-wider text-muted-foreground">
+                              Username
+                            </th>
                             <th 
                               onClick={() => {
                                 if (adminSortField === 'name') {
@@ -1788,6 +1791,7 @@ function AdminDashboardContent() {
                           }).map((u) => (
                             <tr key={u.id} className="hover:bg-muted/10 transition-all">
                               <td className="p-4 font-bold text-foreground">{u.email}</td>
+                              <td className="p-4 text-muted-foreground font-semibold">{u.username || "N/A"}</td>
                               <td className="p-4 text-muted-foreground font-semibold">{u.name || "Pending login"}</td>
                               <td className="p-4 text-muted-foreground font-semibold">
                                 {u.role === 'SUB_ADMIN' ? (

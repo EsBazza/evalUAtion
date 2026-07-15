@@ -94,6 +94,54 @@ export async function processFacultyEvaluationSummary(professorId: string, acade
     return { success: false, message: `Insufficient feedback volume for term ${termYear} (${termSem} Sem).` };
   }
 
+  // Fetch evaluations for cluster scores calculation
+  const evaluations = await prisma.evaluation.findMany({
+    where: {
+      professorId,
+      academicYear: termYear,
+      semester: termSem,
+    },
+    include: {
+      answers: {
+        include: {
+          criterion: {
+            include: {
+              cluster: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  const clusterMap = new Map<string, { total: number; count: number }>();
+  evaluations.forEach((evaluation) => {
+    evaluation.answers.forEach((ans) => {
+      if (ans.score === null || ans.score === undefined) return;
+      const clusterTitle = ans.criterion.cluster.title;
+      const type = ans.criterion.type;
+
+      let normalized = 0;
+      if (type === 'SCALE_0_TO_4') {
+        normalized = ans.score * 25;
+      } else if (type === 'SCALE_1_TO_5') {
+        normalized = (ans.score - 1) * 25;
+      } else {
+        return;
+      }
+
+      const clusterVal = clusterMap.get(clusterTitle) || { total: 0, count: 0 };
+      clusterVal.total += normalized;
+      clusterVal.count += 1;
+      clusterMap.set(clusterTitle, clusterVal);
+    });
+  });
+
+  const clusterAveragesText = Array.from(clusterMap.entries()).map(([title, val]) => {
+    const avg = val.count > 0 ? (val.total / val.count).toFixed(1) : 'N/A';
+    return `- ${title}: ${avg}%`;
+  }).join("\n");
+
   let ratingScore = 70; // fallback default
   let summaryText = "No qualitative text feedback submitted yet.";
 
@@ -101,21 +149,26 @@ export async function processFacultyEvaluationSummary(professorId: string, acade
     const aiPromise = ai.models.generateContent({
       model: GEMINI_MODEL,
       contents: `You are a warm, professional academic performance coach at the University of the Assumption. 
-      Your role is to read through anonymous student evaluation feedback for a faculty member and write a personal, 
+      Your role is to read through anonymous student evaluation feedback and the numerical cluster averages for a faculty member and write a personal, 
       encouraging, and honest summary addressed directly TO the faculty member (use "you" and "your").
       
+      Numerical Evaluation Averages per Cluster:
+      ${clusterAveragesText}
+      
       The summary should:
+      - Explicitly include the average score per cluster (so they know how they performed in each specific area)
       - Open with a genuine acknowledgment of their overall performance this term
-      - Highlight 1-2 specific strengths students noticed (be specific, not generic)
-      - Honestly but kindly address 1-2 areas where students feel improvement would help
+      - Explicitly outline where the faculty excels and where they are lacking based on the cluster averages and student feedback
+      - Highlight 1-2 specific strengths students noticed
+      - Honestly but kindly address 1-2 areas where improvement is needed
       - Close with 1-2 concrete, actionable tips they can apply next semester
       - Sound human, warm, and supportive — not robotic or corporate
-      - Be 4-5 sentences total
+      - Be 5-7 sentences total
       
       Also output an integer score from 1-100 reflecting the overall sentiment quality of the feedback.
       
       Format your output STRICTLY as JSON with no extra text outside it:
-      {"summary": "Your students this term...", "score": 85}
+      {"summary": "Your average scores per cluster are: [include them]. Your students this term...", "score": 85}
 
       Student feedback comments:
       - ${feedbackData}`,
