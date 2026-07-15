@@ -12,9 +12,18 @@ export async function getDepartmentDetails(departmentId: string) {
       sections: {
         orderBy: { name: 'asc' },
       },
+      subjects: {
+        orderBy: { name: 'asc' },
+      },
       professors: {
         include: {
           sections: true,
+          teachingAssignments: {
+            include: {
+              section: true,
+              subject: true,
+            }
+          }
         },
         orderBy: { name: 'asc' },
       },
@@ -49,7 +58,12 @@ export async function createSection(name: string, departmentId: string) {
   });
 }
 
-export async function createProfessor(name: string, email: string, departmentId: string, sectionIds?: string[]) {
+export async function createProfessor(
+  name: string,
+  email: string,
+  departmentId: string,
+  teachingAssignments?: { sectionId: string; subjectId: string }[]
+) {
   if (!name.trim() || !email.trim()) throw new Error("Name and Email are required");
   
   // Verify email domain constraint
@@ -66,8 +80,16 @@ export async function createProfessor(name: string, email: string, departmentId:
       name,
       email,
       departmentId,
-      sections: sectionIds && sectionIds.length > 0 ? {
-        connect: sectionIds.map(id => ({ id })),
+      sections: teachingAssignments && teachingAssignments.length > 0 ? {
+        connect: Array.from(new Set(teachingAssignments.map(a => a.sectionId))).map(id => ({ id })),
+      } : undefined,
+      teachingAssignments: teachingAssignments && teachingAssignments.length > 0 ? {
+        createMany: {
+          data: teachingAssignments.map(a => ({
+            sectionId: a.sectionId,
+            subjectId: a.subjectId,
+          }))
+        }
       } : undefined,
     },
   });
@@ -81,7 +103,7 @@ export async function updateProfessor(
   id: string,
   name: string,
   email: string,
-  sectionIds: string[]
+  teachingAssignments: { sectionId: string; subjectId: string }[]
 ) {
   if (!name.trim() || !email.trim()) throw new Error("Name and Email are required");
 
@@ -95,18 +117,33 @@ export async function updateProfessor(
     throw new Error("Email is already in use by another professor");
   }
 
-  const prof = await prisma.professor.update({
-    where: { id },
-    data: {
-      name,
-      email,
-      sections: {
-        set: sectionIds.map(secId => ({ id: secId })),
+  const prof = await prisma.$transaction(async (tx) => {
+    // Delete existing teaching assignments
+    await tx.teachingAssignment.deleteMany({
+      where: { professorId: id }
+    });
+
+    return tx.professor.update({
+      where: { id },
+      data: {
+        name,
+        email,
+        sections: {
+          set: Array.from(new Set(teachingAssignments.map(a => a.sectionId))).map(secId => ({ id: secId })),
+        },
+        teachingAssignments: {
+          createMany: {
+            data: teachingAssignments.map(a => ({
+              sectionId: a.sectionId,
+              subjectId: a.subjectId,
+            }))
+          }
+        }
       },
-    },
+    });
   });
 
-  await writeAuditLog('FACULTY_UPDATED', { desc: `Updated teaching mapping/info for professor ${name} (${email})` });
+  await writeAuditLog('FACULTY_UPDATED', { desc: `Updated professor ${name} (${email})` });
 
   return prof;
 }
@@ -114,7 +151,12 @@ export async function updateProfessor(
 import { getSystemSettings } from './settings';
 import { getOrComputeScoreCache } from './ai';
 
-export async function getFacultyProfileData(professorId: string, academicYear?: string, semester?: string) {
+export async function getFacultyProfileData(
+  professorId: string,
+  academicYear?: string,
+  semester?: string,
+  subjectId?: string
+) {
   let termYear = academicYear;
   let termSem = semester;
 
@@ -130,6 +172,12 @@ export async function getFacultyProfileData(professorId: string, academicYear?: 
     include: {
       department: true,
       sections: true,
+      teachingAssignments: {
+        include: {
+          section: true,
+          subject: true,
+        }
+      }
     },
   });
 
@@ -137,16 +185,37 @@ export async function getFacultyProfileData(professorId: string, academicYear?: 
     throw new Error("Professor not found");
   }
 
+  // Extract unique subjects taught by this professor
+  const subjects = professor.teachingAssignments ? Array.from(
+    new Map(professor.teachingAssignments.map((a: any) => [a.subject.id, a.subject])).values()
+  ) : [];
+
   // 2. Fetch or compute the score cache
   const scoreCache = await getOrComputeScoreCache(professorId, termYear, termSem);
 
-  // 3. Fetch evaluations for cluster and section scores
+  // 3. Fetch evaluations for cluster and section scores (optionally filtered by subjectId)
+  let evaluationsWhere: any = {
+    professorId,
+    academicYear: termYear,
+    semester: termSem,
+  };
+
+  if (subjectId && subjectId !== 'all') {
+    const assignments = await prisma.teachingAssignment.findMany({
+      where: {
+        professorId,
+        subjectId,
+      },
+      select: {
+        sectionId: true,
+      },
+    });
+    const sectionIds = assignments.map(a => a.sectionId);
+    evaluationsWhere.sectionId = { in: sectionIds };
+  }
+
   const evaluations = await prisma.evaluation.findMany({
-    where: {
-      professorId,
-      academicYear: termYear,
-      semester: termSem,
-    },
+    where: evaluationsWhere,
     include: {
       section: true,
       answers: {
@@ -166,6 +235,9 @@ export async function getFacultyProfileData(professorId: string, academicYear?: 
   // Calculate section-wise averages (Bar Chart)
   const sectionMap = new Map<string, { total: number; count: number }>();
 
+  let totalScaleScore = 0;
+  let scaleCount = 0;
+
   evaluations.forEach((evaluation) => {
     const sectionName = evaluation.section.name;
     
@@ -183,6 +255,9 @@ export async function getFacultyProfileData(professorId: string, academicYear?: 
         return; // Skip non-scale answers for mathematical scoring
       }
 
+      totalScaleScore += normalized;
+      scaleCount++;
+
       // Populate cluster map
       const clusterVal = clusterMap.get(clusterTitle) || { total: 0, count: 0 };
       clusterVal.total += normalized;
@@ -196,6 +271,19 @@ export async function getFacultyProfileData(professorId: string, academicYear?: 
       sectionMap.set(sectionName, sectionVal);
     });
   });
+
+  // Dynamically calculate scores
+  let dynamicScaleScore = scaleCount > 0 ? Number((totalScaleScore / scaleCount).toFixed(1)) : null;
+  let dynamicAiScore = scoreCache?.aiQualityScore || null;
+  let dynamicCompositeScore = null;
+
+  if (dynamicScaleScore !== null) {
+    if (dynamicAiScore !== null) {
+      dynamicCompositeScore = Number((dynamicScaleScore * 0.7 + dynamicAiScore * 0.3).toFixed(1));
+    } else {
+      dynamicCompositeScore = dynamicScaleScore;
+    }
+  }
 
   // Find the active template for this professor's department/level to get all clusters
   let activeTemplate = await prisma.template.findFirst({
@@ -226,15 +314,20 @@ export async function getFacultyProfileData(professorId: string, academicYear?: 
     });
   }
 
-  const clusterScores = (activeTemplate?.clusters || []).map((cluster) => {
-    const val = clusterMap.get(cluster.title);
-    return {
-      title: cluster.title,
-      subject: cluster.title.replace(/^Cluster \d+:\s*/, ''), // Clean standard prefixes
-      score: val && val.count > 0 ? Number((val.total / val.count).toFixed(1)) : null,
-      fullMark: 100,
-    };
-  });
+  const clusterScores = (activeTemplate?.clusters || [])
+    .filter(cluster => {
+      const lower = cluster.title.toLowerCase();
+      return !lower.includes("comments") && !lower.includes("suggestions");
+    })
+    .map((cluster) => {
+      const val = clusterMap.get(cluster.title);
+      return {
+        title: cluster.title,
+        subject: cluster.title.replace(/^Cluster \d+:\s*/, ''), // Clean standard prefixes
+        score: val && val.count > 0 ? Number((val.total / val.count).toFixed(1)) : null,
+        fullMark: 100,
+      };
+    });
 
   const sectionScores = Array.from(sectionMap.entries()).map(([name, val]) => ({
     name,
@@ -291,14 +384,15 @@ export async function getFacultyProfileData(professorId: string, academicYear?: 
       department: professor.department.name,
       level: professor.department.level,
       sections: professor.sections.map(s => s.name).join(', '),
+      subjects, // Return professor's subject options
     },
-    scoreCache: scoreCache ? {
-      scaleScore: scoreCache.scaleScore,
-      aiQualityScore: scoreCache.aiQualityScore,
-      compositeScore: scoreCache.compositeScore,
-      isStale: scoreCache.isStale,
-      lastComputedAt: scoreCache.lastComputedAt,
-    } : null,
+    scoreCache: {
+      scaleScore: dynamicScaleScore,
+      aiQualityScore: dynamicAiScore,
+      compositeScore: dynamicCompositeScore,
+      isStale: scoreCache?.isStale || false,
+      lastComputedAt: scoreCache?.lastComputedAt || null,
+    },
     clusterScores,
     sectionScores,
     historicalScores,
@@ -371,3 +465,72 @@ export async function deleteFaculty(professorId: string) {
 
   return { success: true };
 }
+
+export async function createSubject(name: string, code: string, departmentId: string) {
+  if (!name.trim()) throw new Error("Subject name cannot be empty");
+  if (!code.trim()) throw new Error("Subject code cannot be empty");
+
+  const dept = await prisma.department.findUnique({
+    where: { id: departmentId }
+  });
+  if (!dept) throw new Error("Department not found");
+
+  const subject = await prisma.subject.create({
+    data: {
+      name,
+      code,
+      departmentId,
+    },
+  });
+
+  await writeAuditLog('SUBJECT_CREATED', { desc: `Created subject ${name} (${code}) under department ${dept.name}` });
+
+  return subject;
+}
+
+export async function deleteSubject(subjectId: string) {
+  const subject = await prisma.subject.findUnique({
+    where: { id: subjectId },
+    include: { department: true }
+  });
+  if (!subject) throw new Error("Subject not found");
+
+  await prisma.subject.delete({
+    where: { id: subjectId },
+  });
+
+  await writeAuditLog('SUBJECT_DELETED', { desc: `Deleted subject ${subject.name} under department ${subject.department.name}` });
+
+  return { success: true };
+}
+
+export async function updateSection(sectionId: string, name: string) {
+  if (!name.trim()) throw new Error("Section name cannot be empty");
+
+  const section = await prisma.section.update({
+    where: { id: sectionId },
+    data: { name: name.trim() },
+    include: { department: true },
+  });
+
+  await writeAuditLog('SECTION_UPDATED', { desc: `Updated section ${section.name} under department ${section.department.name}` });
+
+  return section;
+}
+
+export async function updateSubject(subjectId: string, name: string, code: string) {
+  if (!name.trim()) throw new Error("Subject name cannot be empty");
+  if (!code.trim()) throw new Error("Subject code cannot be empty");
+
+  const subject = await prisma.subject.update({
+    where: { id: subjectId },
+    data: { name: name.trim(), code: code.trim() },
+    include: { department: true },
+  });
+
+  await writeAuditLog('SUBJECT_UPDATED', { desc: `Updated subject ${subject.name} (${subject.code}) under department ${subject.department.name}` });
+
+  return subject;
+}
+
+

@@ -54,6 +54,7 @@ function FacultyDashboardContent() {
   const [professorId, setProfessorId] = useState<string | null>(null);
   const [academicYear, setAcademicYear] = useState('2026-2027');
   const [semester, setSemester] = useState('1st');
+  const [selectedSubjectId, setSelectedSubjectId] = useState('all');
   const [profileData, setProfileData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -79,10 +80,10 @@ function FacultyDashboardContent() {
     init();
   }, []);
 
-  const fetchProfileData = async (id: string, year: string, sem: string) => {
+  const fetchProfileData = async (id: string, year: string, sem: string, subjectId: string) => {
     setIsLoading(true);
     try {
-      const data = await getFacultyProfileData(id, year, sem);
+      const data = await getFacultyProfileData(id, year, sem, subjectId);
       setProfileData(data);
     } catch (err: any) {
       toast.error("Failed to sync evaluation profile parameters.");
@@ -93,9 +94,9 @@ function FacultyDashboardContent() {
 
   useEffect(() => {
     if (professorId) {
-      fetchProfileData(professorId, academicYear, semester);
+      fetchProfileData(professorId, academicYear, semester, selectedSubjectId);
     }
-  }, [professorId, academicYear, semester]);
+  }, [professorId, academicYear, semester, selectedSubjectId]);
 
   const handleGenerateSummary = async () => {
     if (!professorId) return;
@@ -104,7 +105,7 @@ function FacultyDashboardContent() {
       const res = await processFacultyEvaluationSummary(professorId, academicYear, semester);
       if (res.success) {
         toast.success("AI analysis narrative generated successfully!");
-        await fetchProfileData(professorId, academicYear, semester);
+        await fetchProfileData(professorId, academicYear, semester, selectedSubjectId);
       } else {
         toast.error(res.message || "Failed to process qualitative summary.");
       }
@@ -299,6 +300,19 @@ function FacultyDashboardContent() {
                   <option value="Summer">Summer</option>
                 </select>
               </div>
+              <div>
+                <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Subject Course</label>
+                <select 
+                  value={selectedSubjectId} 
+                  onChange={(e) => setSelectedSubjectId(e.target.value)} 
+                  className="h-10 px-3 border border-border rounded-lg text-xs bg-card font-semibold w-44 text-foreground focus:ring-2 focus:ring-ua-gold/30 outline-none font-bold"
+                >
+                  <option value="all">All Subjects</option>
+                  {profileData?.professor?.subjects?.map((sub: any) => (
+                    <option key={sub.id} value={sub.id}>{sub.name} ({sub.code})</option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             <div className="flex gap-2 self-end">
@@ -330,16 +344,6 @@ function FacultyDashboardContent() {
                 Export PDF
               </Button>
             </div>
-
-            <Button 
-              onClick={handleGenerateSummary} 
-              disabled={isProcessing || !professorId}
-              uaVariant="primary"
-              className="h-10 text-xs self-end"
-            >
-              <RefreshCw className={cn("size-3.5 mr-1.5", isProcessing && "animate-spin")} />
-              {isProcessing ? "Analyzing..." : "Regenerate AI Analysis"}
-            </Button>
           </div>
         </div>
 
@@ -394,22 +398,13 @@ function FacultyDashboardContent() {
 
         {/* 2. Graphs Section */}
         <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 gap-6">
             <Card>
               <CardHeader className="border-b border-border/40 pb-4">
                 <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Cluster Breakdown (Radar)</CardTitle>
               </CardHeader>
               <CardContent className="p-6">
                 <RadarClusterChart data={clusterScores} />
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardHeader className="border-b border-border/40 pb-4">
-                <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Section Performance (Bar)</CardTitle>
-              </CardHeader>
-              <CardContent className="p-6">
-                <SectionBarChart data={sectionScores} />
               </CardContent>
             </Card>
           </div>
@@ -498,16 +493,27 @@ function FacultyDashboardContent() {
         {/* 5. Gemini AI Evaluation Sentiment Analysis */}
         <Card className="relative overflow-hidden border-border/60">
           <div className="absolute top-0 left-0 w-1.5 h-full bg-ua-navy dark:bg-ua-gold" />
-          <CardHeader className="border-b border-border/40 bg-muted/10 pb-4 flex flex-row justify-between items-center">
+          <CardHeader className="border-b border-border/40 bg-muted/10 pb-4 flex flex-row justify-between items-center flex-wrap gap-2">
             <CardTitle className="text-xs font-bold uppercase tracking-widest flex items-center gap-2">
               <BrainCircuit className="size-4 text-ua-navy dark:text-ua-gold" />
               Gemini AI Evaluation Sentiment Analysis
             </CardTitle>
-            {aiSummary && (
-              <span className="text-xs bg-ua-navy/5 border border-ua-navy/10 text-ua-navy dark:bg-ua-gold/15 dark:text-ua-gold dark:border-ua-gold/20 px-3 py-1 rounded-full font-bold uppercase">
-                Rating Sentiment: {aiSummary.ratingScore} / 100
-              </span>
-            )}
+            <div className="flex items-center gap-3">
+              {aiSummary && (
+                <span className="text-xs bg-ua-navy/5 border border-ua-navy/10 text-ua-navy dark:bg-ua-gold/15 dark:text-ua-gold dark:border-ua-gold/20 px-3 py-1 rounded-full font-bold uppercase">
+                  Rating Sentiment: {aiSummary.ratingScore} / 100
+                </span>
+              )}
+              <Button 
+                onClick={handleGenerateSummary} 
+                disabled={isProcessing || !professorId}
+                uaVariant="primary"
+                className="h-8 text-xs font-semibold px-3 uppercase tracking-wider"
+              >
+                <RefreshCw className={cn("size-3 mr-1.5", isProcessing && "animate-spin")} />
+                {isProcessing ? "Analyzing..." : "Regenerate AI Analysis"}
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="p-6">
             {isLoading ? (
