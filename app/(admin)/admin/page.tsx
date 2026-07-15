@@ -698,7 +698,11 @@ function AdminDashboardContent() {
                         ) : (
                           paginatedRankings.map((rank) => (
                             <tr key={rank.id} className="hover:bg-muted/10 transition-all">
-                              <td className="p-4 text-sm font-bold text-foreground">{rank.name}</td>
+                              <td className="p-4 text-sm font-bold text-foreground">
+                                <Link href={`/admin/faculty/${rank.id}`} className="hover:text-ua-gold hover:underline transition-all">
+                                  {rank.name}
+                                </Link>
+                              </td>
                               <td className="p-4 text-sm text-muted-foreground font-medium">{rank.email}</td>
                               <td className="p-4 text-sm text-muted-foreground font-medium">{rank.department}</td>
                               <td className="p-4 text-sm text-muted-foreground/80 max-w-xs truncate">{rank.sections || "None"}</td>

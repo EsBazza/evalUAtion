@@ -54,7 +54,7 @@ function FacultyDashboardContent() {
   const [academicYear, setAcademicYear] = useState('2026-2027');
   const [semester, setSemester] = useState('1st');
   const [profileData, setProfileData] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isPageEnabled, setIsPageEnabled] = useState<boolean | null>(null);
   

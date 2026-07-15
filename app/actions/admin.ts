@@ -6,7 +6,7 @@ import { auth } from '@/auth';
 
 export async function getAdminSessionUser() {
   const session = await auth();
-  return session?.user || null;
+  return (session?.user as any) || null;
 }
 
 export async function getDepartments() {
