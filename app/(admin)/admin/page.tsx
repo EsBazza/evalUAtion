@@ -11,7 +11,8 @@ import {
   getEvaluationAttendanceLogs,
   getEvaluationAttendanceLogsForExport,
   getEvaluationReceiptFilters,
-  recalculateStaleScoreCaches
+  recalculateStaleScoreCaches,
+  getAdminSessionUser
 } from '@/app/actions/admin';
 import dynamic from 'next/dynamic';
 
@@ -91,8 +92,19 @@ function UAPremiumLoader({ message = "Syncing database parameters...", submessag
 
 function AdminDashboardContent() {
   const searchParams = useSearchParams();
-  const activeView = (searchParams.get('tab') || 'rankings') as ActiveView;
+  const requestedView = (searchParams.get('tab') || 'rankings') as ActiveView;
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const activeView = (currentUser?.role === 'SUB_ADMIN') ? 'rankings' : requestedView;
   
+  useEffect(() => {
+    getAdminSessionUser().then(user => {
+      setCurrentUser(user);
+      if (user?.role === 'SUB_ADMIN' && user.departmentId) {
+        setSelectedLedgerDept(user.departmentId);
+      }
+    });
+  }, []);
+
   const [receipts, setReceipts] = useState<any[]>([]);
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [nestedLogTab, setNestedLogTab] = useState<'audit' | 'attendance'>('audit');
@@ -176,7 +188,8 @@ function AdminDashboardContent() {
     setLoading(true);
     try {
       if (activeView === 'rankings') {
-        const data = await getFacultyRankings();
+        const subAdminDeptId = currentUser?.role === 'SUB_ADMIN' ? currentUser.departmentId : undefined;
+        const data = await getFacultyRankings(undefined, undefined, subAdminDeptId);
         setRankings(data);
       } else if (activeView === 'departments') {
         const data = await getDepartments();
@@ -499,26 +512,31 @@ function AdminDashboardContent() {
       ) : (
         <>
           {activeView === 'rankings' && (() => {
+            const isSubAdmin = currentUser?.role === 'SUB_ADMIN';
+            // Rankings are already filtered server-side for SUB_ADMIN — sortedRankings is the source of truth
+            const effectiveRankings = sortedRankings;
+
             const uniqueDepts = Array.from(
-              new Set(rankings.map(r => r.level === 'COLLEGE' ? 'College' : r.department))
+              new Set(effectiveRankings.map(r => r.level === 'COLLEGE' ? 'College' : r.department))
             ).filter(Boolean).sort();
-            const filteredRankings = selectedLedgerDept === 'All' 
-              ? sortedRankings 
-              : sortedRankings.filter(r => (r.level === 'COLLEGE' ? 'College' : r.department) === selectedLedgerDept);
+            
+            const filteredRankings = (isSubAdmin || selectedLedgerDept === 'All')
+              ? effectiveRankings 
+              : effectiveRankings.filter(r => (r.level === 'COLLEGE' ? 'College' : r.department) === selectedLedgerDept);
 
             const totalItems = filteredRankings.length;
             const totalPages = Math.ceil(totalItems / ledgerItemsPerPage);
             const startIndex = (ledgerPage - 1) * ledgerItemsPerPage;
             const paginatedRankings = filteredRankings.slice(startIndex, startIndex + ledgerItemsPerPage);
 
-            const rankingChartData = sortedRankings.map((r) => ({
+            const rankingChartData = effectiveRankings.map((r) => ({
               name: r.name,
               score: r.averageScore || 0,
               department: r.department,
             }));
 
             const deptAverageMap = new Map<string, { total: number; count: number }>();
-            rankings.forEach((r) => {
+            effectiveRankings.forEach((r) => {
               if (r.averageScore === null || r.averageScore === undefined) return;
               const val = deptAverageMap.get(r.department) || { total: 0, count: 0 };
               val.total += r.averageScore;
@@ -531,8 +549,8 @@ function AdminDashboardContent() {
               score: Number((val.total / val.count).toFixed(1)),
             }));
 
-            // Calc avgScore across entire institute
-            const validScores = rankings.filter(r => typeof r.averageScore === 'number' && r.averageScore >= 0);
+            // Calc avgScore across the filtered dataset
+            const validScores = effectiveRankings.filter(r => typeof r.averageScore === 'number' && r.averageScore >= 0);
             const avgScore = validScores.length > 0 
               ? Number((validScores.reduce((acc, curr) => acc + curr.averageScore, 0) / validScores.length).toFixed(1))
               : 0;
@@ -545,7 +563,7 @@ function AdminDashboardContent() {
                     <CardContent className="p-6 flex flex-col space-y-1">
                       <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Total Faculty</span>
                       <h2 className="text-3xl font-bold font-sans text-ua-navy dark:text-ua-gold">
-                        <CountUp end={rankings.length} />
+                        <CountUp end={effectiveRankings.length} />
                       </h2>
                       <span className="text-xs text-muted-foreground">Registered instructors</span>
                     </CardContent>
@@ -553,7 +571,9 @@ function AdminDashboardContent() {
                   
                   <Card>
                     <CardContent className="p-6 flex flex-col space-y-1">
-                      <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Institutional Average</span>
+                      <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                        {isSubAdmin ? 'Department Average' : 'Institutional Average'}
+                      </span>
                       <h2 className="text-3xl font-bold font-sans text-ua-navy dark:text-ua-gold">
                         <CountUp end={avgScore} suffix="%" />
                       </h2>
@@ -605,7 +625,7 @@ function AdminDashboardContent() {
                     </div>
 
                     {/* Department Tabs */}
-                    {uniqueDepts.length > 0 && (
+                    {!isSubAdmin && uniqueDepts.length > 0 && (
                       <div className="flex flex-wrap bg-muted p-1 rounded-lg gap-1 self-start md:self-center">
                         <button
                           onClick={() => setSelectedLedgerDept('All')}

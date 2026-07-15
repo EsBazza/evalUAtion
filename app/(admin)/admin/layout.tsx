@@ -1,8 +1,9 @@
 'use client';
 
-import { Suspense } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { Award, ShieldAlert, Settings, FolderKanban, FileSpreadsheet } from 'lucide-react';
 import { AppShell } from '@/components/ui-ua/app-shell';
+import { getAdminSessionUser } from '@/app/actions/admin';
 
 const navItems = [
   { id: 'rankings', label: 'Rankings Ledger', href: '/admin', icon: Award },
@@ -13,12 +14,22 @@ const navItems = [
 ];
 
 function AdminLayoutContent({ children }: { children: React.ReactNode }) {
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
+  useEffect(() => {
+    getAdminSessionUser().then(user => setCurrentUser(user));
+  }, []);
+
+  const filteredNavItems = currentUser?.role === 'SUB_ADMIN'
+    ? navItems.filter(item => item.id === 'rankings')
+    : navItems;
+
   return (
     <AppShell
-      navItems={navItems}
-      role="SYSTEM ADMINISTRATOR"
+      navItems={filteredNavItems}
+      role={currentUser?.role === 'SUB_ADMIN' ? 'SUB ADMINISTRATOR' : 'SYSTEM ADMINISTRATOR'}
       title="Assumption"
-      subtitle="Admin Console"
+      subtitle={currentUser?.role === 'SUB_ADMIN' ? 'Sub Admin Console' : 'Admin Console'}
     >
       <div className="max-w-7xl w-full mx-auto space-y-8 pb-12">
         {children}

@@ -21,7 +21,7 @@ export default async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL('/faculty', request.url));
   }
 
-  if (pathname.startsWith('/admin') && role !== 'ADMIN') {
+  if (pathname.startsWith('/admin') && role !== 'ADMIN' && role !== 'SUB_ADMIN') {
     if (role === 'STUDENT') {
       return NextResponse.redirect(new URL('/evaluate', request.url));
     } else if (role === 'FACULTY') {

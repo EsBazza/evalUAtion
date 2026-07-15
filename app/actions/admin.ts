@@ -2,6 +2,12 @@
 
 import { EducationLevel, Role } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
+import { auth } from '@/auth';
+
+export async function getAdminSessionUser() {
+  const session = await auth();
+  return session?.user || null;
+}
 
 export async function getDepartments() {
   return prisma.department.findMany({
@@ -64,7 +70,7 @@ import { getOrComputeScoreCache } from './ai';
 import { getSystemSettings } from './settings';
 
 
-export async function getFacultyRankings(academicYear?: string, semester?: string) {
+export async function getFacultyRankings(academicYear?: string, semester?: string, departmentId?: string) {
   let termYear = academicYear;
   let termSem = semester;
 
@@ -74,9 +80,10 @@ export async function getFacultyRankings(academicYear?: string, semester?: strin
     termSem = settings.semester;
   }
 
-  // Fetch all professors and all score caches in one shot
+  // Fetch professors (optionally filtered by department) and score caches in one shot
   const [professors, scoreCaches] = await Promise.all([
     prisma.professor.findMany({
+      where: departmentId ? { departmentId } : undefined,
       include: {
         department: true,
         sections: true,
