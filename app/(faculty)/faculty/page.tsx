@@ -6,6 +6,7 @@ import { getFacultyProfileData } from '@/app/actions/management';
 import { getSystemSettings } from '@/app/actions/settings';
 import { RadarClusterChart } from '@/components/charts/RadarClusterChart';
 import { SectionBarChart } from '@/components/charts/SectionBarChart';
+import { HistoricalTrendChart } from '@/components/charts/HistoricalTrendChart';
 import { Award, BrainCircuit, RefreshCw, BarChart3, AlertCircle } from 'lucide-react';
 
 // UA Primitives
@@ -100,14 +101,13 @@ function FacultyDashboardContent() {
     try {
       const res = await processFacultyEvaluationSummary(professorId, academicYear, semester);
       if (res.success) {
-        toast.success("AI analysis generated successfully!");
+        toast.success("AI analysis narrative generated successfully!");
         await fetchProfileData(professorId, academicYear, semester);
       } else {
-        toast.error(res.message || "Failed to process summary");
-        setProfileData(null);
+        toast.error(res.message || "Failed to process qualitative summary.");
       }
-    } catch (e) {
-      toast.error("Failed to connect with Gemini AI endpoint.");
+    } catch (e: any) {
+      toast.error(e.message || "Gemini processing error occurred.");
     } finally {
       setIsProcessing(false);
     }
@@ -165,12 +165,32 @@ function FacultyDashboardContent() {
     );
   }
 
-  const aiSummary = profileData?.aiSummary;
-  const scoreCache = profileData?.scoreCache;
-
   const navItems = [
     { id: 'dashboard', label: 'Faculty Analytics', href: '/faculty', icon: Award }
   ];
+
+  if (isLoading && !profileData) {
+    return (
+      <AppShell
+        navItems={navItems}
+        role="FACULTY MEMBER"
+        title="Assumption"
+        subtitle="Faculty Console"
+      >
+        <div className="min-h-[60vh] flex items-center justify-center p-8 bg-background">
+          <div className="text-center space-y-3">
+            <div className="w-10 h-10 border-4 border-ua-navy border-t-transparent dark:border-ua-gold dark:border-t-transparent rounded-full animate-spin mx-auto" />
+            <p className="text-muted-foreground font-semibold text-xs uppercase tracking-wider">Syncing Faculty Workspace...</p>
+          </div>
+        </div>
+      </AppShell>
+    );
+  }
+
+  if (!profileData) return null;
+
+  const { professor, scoreCache, clusterScores, sectionScores, historicalScores, aiSummary, comments, evaluationLog } = profileData;
+  const commentsList = comments || [];
 
   return (
     <AppShell
@@ -181,17 +201,21 @@ function FacultyDashboardContent() {
     >
       <div className="space-y-6">
         
-        {/* Header */}
+        {/* Header Block */}
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 pb-4 border-b border-border/80">
           <div>
-            <h1 className="font-serif text-2xl font-bold text-foreground tracking-wide uppercase">
-              Faculty Analytics
-            </h1>
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <h1 className="font-serif text-2xl font-bold text-foreground">{professor.name}</h1>
+              <span className="px-2.5 py-0.5 bg-ua-navy/5 border border-ua-navy/10 text-ua-navy dark:bg-ua-gold/15 dark:text-ua-gold dark:border-ua-gold/20 rounded-full font-bold text-[10px] uppercase">
+                {professor.level} - {professor.department}
+              </span>
+            </div>
             <p className="text-xs text-muted-foreground mt-1 font-semibold">
-              View your evaluation performance metrics and AI-generated narrative insights
+              {professor.email} · Classes: {professor.sections || 'None'}
             </p>
           </div>
           
+          {/* Controls */}
           <div className="flex flex-wrap items-center gap-4 w-full lg:w-auto">
             <div className="flex gap-2">
               <div>
@@ -224,50 +248,168 @@ function FacultyDashboardContent() {
               className="h-10 text-xs self-end"
             >
               <RefreshCw className={cn("size-3.5 mr-1.5", isProcessing && "animate-spin")} />
-              {isProcessing ? "Processing..." : "Regenerate AI"}
+              {isProcessing ? "Analyzing..." : "Regenerate AI Analysis"}
             </Button>
           </div>
         </div>
 
-        {/* Metric Overview Cards */}
-        {scoreCache && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card>
-              <CardContent className="p-6 flex flex-col justify-center space-y-1">
-                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Composite Performance</span>
+        {/* 1. Analytics (Metric Cards Row) */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Card>
+            <CardContent className="p-6 flex items-center justify-between">
+              <div className="space-y-1">
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Composite Score</span>
                 <h2 className="text-3xl font-bold font-sans text-ua-navy dark:text-ua-gold">
-                  <CountUp end={scoreCache.compositeScore} suffix="%" />
+                  {scoreCache?.compositeScore !== null && scoreCache?.compositeScore !== undefined ? (
+                    <CountUp end={scoreCache.compositeScore} suffix="%" />
+                  ) : 'N/A'}
                 </h2>
+              </div>
+              {scoreCache && scoreCache.compositeScore !== null && scoreCache.compositeScore !== undefined && (
+                <span className={cn(
+                  "px-2.5 py-1 rounded-full text-[10px] font-bold uppercase",
+                  scoreCache.compositeScore >= 80 ? 'bg-emerald-50 border border-emerald-150 text-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-400' :
+                  scoreCache.compositeScore >= 60 ? 'bg-ua-gold/10 border border-ua-gold/25 text-ua-gold' : 'bg-ua-crimson/5 border border-ua-crimson/15 text-ua-crimson'
+                )}>
+                  {scoreCache.compositeScore >= 80 ? 'Excellent' : scoreCache.compositeScore >= 60 ? 'Satisfactory' : 'Needs Work'}
+                </span>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-6 flex flex-col justify-center space-y-1">
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Mathematical Score (70%)</span>
+              <h2 className="text-3xl font-bold font-sans text-muted-foreground">
+                {scoreCache?.scaleScore !== null && scoreCache?.scaleScore !== undefined ? (
+                  <CountUp end={scoreCache.scaleScore} suffix="%" />
+                ) : 'N/A'}
+              </h2>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-6 flex flex-col justify-center space-y-1">
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">AI Sentiment Score (30%)</span>
+              <h2 className="text-3xl font-bold font-sans text-muted-foreground">
+                {scoreCache?.aiQualityScore !== null && scoreCache?.aiQualityScore !== undefined ? (
+                  <CountUp end={scoreCache.aiQualityScore} suffix="%" />
+                ) : 'N/A'}
+              </h2>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* 2. Graphs Section */}
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader className="border-b border-border/40 pb-4">
+                <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Cluster Breakdown (Radar)</CardTitle>
+              </CardHeader>
+              <CardContent className="p-6">
+                <RadarClusterChart data={clusterScores} />
               </CardContent>
             </Card>
             
             <Card>
-              <CardContent className="p-6 flex flex-col justify-center space-y-1">
-                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Scale Questions Score (70%)</span>
-                <h2 className="text-3xl font-bold font-sans text-muted-foreground">
-                  <CountUp end={scoreCache.scaleScore} suffix="%" />
-                </h2>
+              <CardHeader className="border-b border-border/40 pb-4">
+                <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Section Performance (Bar)</CardTitle>
+              </CardHeader>
+              <CardContent className="p-6">
+                <SectionBarChart data={sectionScores} />
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <Card className="lg:col-span-2">
+              <CardHeader className="border-b border-border/40 pb-4">
+                <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Historical Composite Trends</CardTitle>
+              </CardHeader>
+              <CardContent className="p-6">
+                <HistoricalTrendChart data={historicalScores} />
               </CardContent>
             </Card>
 
             <Card>
-              <CardContent className="p-6 flex flex-col justify-center space-y-1">
-                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">AI Sentiment Score (30%)</span>
-                <h2 className="text-3xl font-bold font-sans text-muted-foreground">
-                  <CountUp end={scoreCache.aiQualityScore} suffix="%" />
-                </h2>
+              <CardHeader className="border-b border-border/40 pb-4">
+                <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+                  <BarChart3 className="size-4" />
+                  Recent Evaluations ({evaluationLog.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-6">
+                <div className="max-h-64 overflow-y-auto divide-y divide-border/40 pr-1">
+                  {evaluationLog.length === 0 ? (
+                    <p className="text-xs text-muted-foreground font-semibold italic text-center py-8">No responses logged for this term.</p>
+                  ) : (
+                    evaluationLog.map((log: any) => (
+                      <div key={log.id} className="py-2.5 flex justify-between items-center text-xs">
+                        <div>
+                          <p className="font-bold text-foreground">Section {log.sectionName}</p>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">{new Date(log.createdAt).toLocaleDateString()}</p>
+                        </div>
+                        <span className="text-[9px] bg-muted border border-border text-muted-foreground px-2 py-0.5 rounded font-bold">SUBMITTED</span>
+                      </div>
+                    ))
+                  )}
+                </div>
               </CardContent>
             </Card>
           </div>
-        )}
-        
-        {/* AI Summary Card */}
+        </div>
+
+        {/* 3. Average Score Per Cluster */}
+        <Card>
+          <CardHeader className="border-b border-border/40 pb-4">
+            <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Average Score Per Cluster</CardTitle>
+          </CardHeader>
+          <CardContent className="p-6">
+            <div className="divide-y divide-border/40">
+              {clusterScores && clusterScores.length > 0 ? (
+                clusterScores.map((item: any, i: number) => (
+                  <div key={i} className="py-3.5 flex justify-between items-center text-xs">
+                    <span className="font-semibold text-foreground pr-4 leading-normal">{item.title || item.subject} - Average Score</span>
+                    <span className="font-bold text-ua-navy dark:text-ua-gold bg-muted px-2.5 py-1 rounded border border-border shrink-0">
+                      {item.score !== null ? `${item.score}%` : 'N/A'}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <p className="text-xs text-muted-foreground italic py-4 text-center font-semibold">No cluster scores available.</p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 4. Anonymous Student Comments */}
+        <Card>
+          <CardHeader className="border-b border-border/40 pb-4">
+            <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Anonymous Student Comments</CardTitle>
+          </CardHeader>
+          <CardContent className="p-6">
+            <div className="max-h-80 overflow-y-auto space-y-3 pr-1">
+              {commentsList.length === 0 ? (
+                <p className="text-xs text-muted-foreground font-semibold italic text-center py-8">No comments submitted for this term.</p>
+              ) : (
+                commentsList.map((comment: string, i: number) => (
+                  <div key={i} className="p-4 bg-muted/40 border border-border/60 rounded-lg text-xs leading-relaxed text-foreground font-medium shadow-inner">
+                    "{comment}"
+                  </div>
+                ))
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 5. Gemini AI Evaluation Sentiment Analysis */}
         <Card className="relative overflow-hidden border-border/60">
           <div className="absolute top-0 left-0 w-1.5 h-full bg-ua-navy dark:bg-ua-gold" />
           <CardHeader className="border-b border-border/40 bg-muted/10 pb-4 flex flex-row justify-between items-center">
             <CardTitle className="text-xs font-bold uppercase tracking-widest flex items-center gap-2">
               <BrainCircuit className="size-4 text-ua-navy dark:text-ua-gold" />
-              Gemini AI-Generated Narrative Breakdown
+              Gemini AI Evaluation Sentiment Analysis
             </CardTitle>
             {aiSummary && (
               <span className="text-xs bg-ua-navy/5 border border-ua-navy/10 text-ua-navy dark:bg-ua-gold/15 dark:text-ua-gold dark:border-ua-gold/20 px-3 py-1 rounded-full font-bold uppercase">
@@ -275,7 +417,6 @@ function FacultyDashboardContent() {
               </span>
             )}
           </CardHeader>
-
           <CardContent className="p-6">
             {isLoading ? (
               <p className="text-muted-foreground font-medium animate-pulse py-4">Syncing insights with Gemini...</p>
@@ -287,39 +428,12 @@ function FacultyDashboardContent() {
               <div className="py-6 text-center text-muted-foreground">
                 <p className="font-semibold mb-2">No summary generated yet.</p>
                 <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-                  Click the "Regenerate AI" button at the top to process qualitative student text feedback.
+                  Click the "Regenerate AI Analysis" button above to evaluate student comments.
                 </p>
               </div>
             )}
           </CardContent>
         </Card>
-
-        {/* Analytics Breakdown Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <Card>
-            <CardHeader className="border-b border-border/40 pb-4">
-              <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
-                <BarChart3 className="size-4 text-ua-navy dark:text-ua-gold" />
-                Section Performance (Bar)
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-6">
-              <SectionBarChart data={profileData?.sectionScores || []} />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="border-b border-border/40 pb-4">
-              <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
-                <Award className="size-4 text-ua-navy dark:text-ua-gold" />
-                Cluster Metrics (Radar)
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-6">
-              <RadarClusterChart data={profileData?.clusterScores || []} />
-            </CardContent>
-          </Card>
-        </div>
 
       </div>
     </AppShell>
@@ -340,3 +454,4 @@ export default function FacultyDashboard() {
     </Suspense>
   );
 }
+
