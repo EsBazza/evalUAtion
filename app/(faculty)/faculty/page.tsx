@@ -7,13 +7,14 @@ import { getSystemSettings } from '@/app/actions/settings';
 import { RadarClusterChart } from '@/components/charts/RadarClusterChart';
 import { SectionBarChart } from '@/components/charts/SectionBarChart';
 import { HistoricalTrendChart } from '@/components/charts/HistoricalTrendChart';
-import { Award, BrainCircuit, RefreshCw, BarChart3, AlertCircle } from 'lucide-react';
+import { Award, BrainCircuit, RefreshCw, BarChart3, AlertCircle, LogOut } from 'lucide-react';
+import { signOut } from 'next-auth/react';
 
 // UA Primitives
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui-ua/card';
 import { Button } from '@/components/ui-ua/button';
 import { toast } from '@/components/ui-ua/toast';
-import { AppShell } from '@/components/ui-ua/app-shell';
+import { Footer } from '@/components/layout/Footer';
 import { cn } from '@/lib/utils';
 
 // Frame-synchronized count-up animation component
@@ -130,8 +131,8 @@ function FacultyDashboardContent() {
               Please check back later or contact the administration for details.
             </p>
             <div className="pt-4">
-              <Button onClick={() => window.location.href = "/"} uaVariant="outline" className="w-full font-bold text-xs uppercase tracking-wider">
-                Return to Login
+              <Button onClick={() => signOut({ callbackUrl: "/" })} uaVariant="destructive" className="w-full font-bold text-xs uppercase tracking-wider">
+                Logout
               </Button>
             </div>
           </CardContent>
@@ -155,8 +156,8 @@ function FacultyDashboardContent() {
             </p>
             <p>Please contact the School Administrator to link your email address.</p>
             <div className="pt-2">
-              <Button onClick={() => window.location.href = "/"} uaVariant="outline" className="w-full">
-                Return to Login
+              <Button onClick={() => signOut({ callbackUrl: "/" })} uaVariant="destructive" className="w-full font-bold text-xs uppercase tracking-wider">
+                Logout
               </Button>
             </div>
           </CardContent>
@@ -165,25 +166,54 @@ function FacultyDashboardContent() {
     );
   }
 
-  const navItems = [
-    { id: 'dashboard', label: 'Faculty Analytics', href: '/faculty', icon: Award }
-  ];
 
   if (isLoading && !profileData) {
     return (
-      <AppShell
-        navItems={navItems}
-        role="FACULTY MEMBER"
-        title="Assumption"
-        subtitle="Faculty Console"
-      >
-        <div className="min-h-[60vh] flex items-center justify-center p-8 bg-background">
-          <div className="text-center space-y-3">
-            <div className="w-10 h-10 border-4 border-ua-navy border-t-transparent dark:border-ua-gold dark:border-t-transparent rounded-full animate-spin mx-auto" />
-            <p className="text-muted-foreground font-semibold text-xs uppercase tracking-wider">Syncing Faculty Workspace...</p>
+      <div className="min-h-screen flex flex-col bg-background text-foreground font-sans">
+        {/* Responsive Header without Sidebar */}
+        <header className="sticky top-0 z-40 w-full flex items-center justify-between bg-ua-navy text-ua-warm-white px-5 py-3 shadow-md md:px-8">
+          <div className="flex items-center gap-3">
+            <img
+              src="/ua-logo.png"
+              alt="UA Logo"
+              className="w-10 h-10 object-contain rounded-full border border-white/20 bg-white"
+            />
+            <div>
+              <h1 className="text-[10px] font-semibold tracking-wider text-ua-warm-white/80 leading-none">UNIVERSITY OF THE</h1>
+              <h2 className="text-sm font-bold tracking-wide text-ua-gold uppercase leading-tight">Assumption</h2>
+              <span className="inline-block text-[8px] font-semibold text-white/40 tracking-wider uppercase leading-none">
+                Faculty Console
+              </span>
+            </div>
           </div>
+          <div className="flex items-center gap-4">
+            <div className="hidden sm:block px-3 py-1 bg-ua-navy-black/30 rounded-md border border-white/5">
+              <p className="text-[8px] text-white/40 font-bold uppercase tracking-wider leading-none">Role</p>
+              <p className="text-[10px] font-bold text-ua-gold tracking-wide uppercase">FACULTY MEMBER</p>
+            </div>
+            <Button
+              uaVariant="destructive"
+              onClick={() => signOut({ callbackUrl: "/" })}
+              className="h-9 px-3 font-bold text-[10px] uppercase tracking-wider flex items-center gap-1.5"
+            >
+              <LogOut className="size-3.5" />
+              Sign Out
+            </Button>
+          </div>
+        </header>
+
+        <div className="flex-1 flex flex-col min-w-0 bg-background">
+          <main className="flex-grow p-4 sm:p-6 md:p-8 max-w-7xl mx-auto w-full">
+            <div className="min-h-[60vh] flex items-center justify-center p-8 bg-background">
+              <div className="text-center space-y-3">
+                <div className="w-10 h-10 border-4 border-ua-navy border-t-transparent dark:border-ua-gold dark:border-t-transparent rounded-full animate-spin mx-auto" />
+                <p className="text-muted-foreground font-semibold text-xs uppercase tracking-wider">Syncing Faculty Workspace...</p>
+              </div>
+            </div>
+          </main>
+          <Footer />
         </div>
-      </AppShell>
+      </div>
     );
   }
 
@@ -193,12 +223,41 @@ function FacultyDashboardContent() {
   const commentsList = comments || [];
 
   return (
-    <AppShell
-      navItems={navItems}
-      role="FACULTY MEMBER"
-      title="Assumption"
-      subtitle="Faculty Console"
-    >
+    <div className="min-h-screen flex flex-col bg-background text-foreground font-sans">
+      {/* Responsive Header without Sidebar */}
+      <header className="sticky top-0 z-40 w-full flex items-center justify-between bg-ua-navy text-ua-warm-white px-5 py-3 shadow-md md:px-8">
+        <div className="flex items-center gap-3">
+          <img
+            src="/ua-logo.png"
+            alt="UA Logo"
+            className="w-10 h-10 object-contain rounded-full border border-white/20 bg-white"
+          />
+          <div>
+            <h1 className="text-[10px] font-semibold tracking-wider text-ua-warm-white/80 leading-none">UNIVERSITY OF THE</h1>
+            <h2 className="text-sm font-bold tracking-wide text-ua-gold uppercase leading-tight">Assumption</h2>
+            <span className="inline-block text-[8px] font-semibold text-white/40 tracking-wider uppercase leading-none">
+              Faculty Console
+            </span>
+          </div>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="hidden sm:block px-3 py-1 bg-ua-navy-black/30 rounded-md border border-white/5">
+            <p className="text-[8px] text-white/40 font-bold uppercase tracking-wider leading-none">Role</p>
+            <p className="text-[10px] font-bold text-ua-gold tracking-wide uppercase">FACULTY MEMBER</p>
+          </div>
+          <Button
+            uaVariant="destructive"
+            onClick={() => signOut({ callbackUrl: "/" })}
+            className="h-9 px-3 font-bold text-[10px] uppercase tracking-wider flex items-center gap-1.5"
+          >
+            <LogOut className="size-3.5" />
+            Sign Out
+          </Button>
+        </div>
+      </header>
+
+      <div className="flex-1 flex flex-col min-w-0 bg-background">
+        <main className="flex-grow p-4 sm:p-6 md:p-8 max-w-7xl mx-auto w-full">
       <div className="space-y-6">
         
         {/* Header Block */}
@@ -436,7 +495,10 @@ function FacultyDashboardContent() {
         </Card>
 
       </div>
-    </AppShell>
+    </main>
+    <Footer />
+  </div>
+</div>
   );
 }
 
