@@ -9,6 +9,7 @@ import { SectionBarChart } from '@/components/charts/SectionBarChart';
 import { HistoricalTrendChart } from '@/components/charts/HistoricalTrendChart';
 import { Award, BrainCircuit, RefreshCw, BarChart3, AlertCircle, LogOut } from 'lucide-react';
 import { signOut } from 'next-auth/react';
+import { exportFacultyCSV, exportFacultyPDF } from '@/lib/exports';
 
 // UA Primitives
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui-ua/card';
@@ -54,7 +55,7 @@ function FacultyDashboardContent() {
   const [academicYear, setAcademicYear] = useState('2026-2027');
   const [semester, setSemester] = useState('1st');
   const [profileData, setProfileData] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isPageEnabled, setIsPageEnabled] = useState<boolean | null>(null);
   
@@ -300,6 +301,36 @@ function FacultyDashboardContent() {
               </div>
             </div>
 
+            <div className="flex gap-2 self-end">
+              <Button
+                onClick={() => exportFacultyCSV({
+                  professor,
+                  academicYear,
+                  semester,
+                  scoreCache,
+                  clusterScores,
+                  sectionScores,
+                  commentsList
+                })}
+                uaVariant="outline"
+                className="h-10 text-xs flex items-center"
+              >
+                Export CSV
+              </Button>
+              <Button
+                onClick={() => exportFacultyPDF({
+                  professor,
+                  academicYear,
+                  semester,
+                  elementId: "faculty-report-content"
+                })}
+                uaVariant="outline"
+                className="h-10 text-xs flex items-center"
+              >
+                Export PDF
+              </Button>
+            </div>
+
             <Button 
               onClick={handleGenerateSummary} 
               disabled={isProcessing || !professorId}
@@ -311,6 +342,8 @@ function FacultyDashboardContent() {
             </Button>
           </div>
         </div>
+
+        <div id="faculty-report-content" className="space-y-6 bg-background p-4 rounded-xl">
 
         {/* 1. Analytics (Metric Cards Row) */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -494,6 +527,7 @@ function FacultyDashboardContent() {
           </CardContent>
         </Card>
 
+        </div>
       </div>
     </main>
     <Footer />

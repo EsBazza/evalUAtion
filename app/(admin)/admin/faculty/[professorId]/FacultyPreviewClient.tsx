@@ -9,6 +9,7 @@ import { RadarClusterChart } from '@/components/charts/RadarClusterChart';
 import { SectionBarChart } from '@/components/charts/SectionBarChart';
 import { HistoricalTrendChart } from '@/components/charts/HistoricalTrendChart';
 import { ChevronLeft, BrainCircuit, RefreshCw, BarChart3, ShieldAlert } from 'lucide-react';
+import { exportFacultyCSV, exportFacultyPDF } from '@/lib/exports';
 
 // UA Primitives
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui-ua/card';
@@ -188,6 +189,36 @@ export default function FacultyPreviewClient({ professorId }: FacultyPreviewClie
             </div>
           </div>
 
+          <div className="flex gap-2 self-end">
+            <Button
+              onClick={() => exportFacultyCSV({
+                professor,
+                academicYear,
+                semester,
+                scoreCache,
+                clusterScores,
+                sectionScores,
+                commentsList
+              })}
+              uaVariant="outline"
+              className="h-10 text-xs flex items-center"
+            >
+              Export CSV
+            </Button>
+            <Button
+              onClick={() => exportFacultyPDF({
+                professor,
+                academicYear,
+                semester,
+                elementId: "faculty-report-content"
+              })}
+              uaVariant="outline"
+              className="h-10 text-xs flex items-center"
+            >
+              Export PDF
+            </Button>
+          </div>
+
           <Button 
             onClick={handleGenerateSummary} 
             disabled={isProcessing}
@@ -199,6 +230,8 @@ export default function FacultyPreviewClient({ professorId }: FacultyPreviewClie
           </Button>
         </div>
       </div>
+
+      <div id="faculty-report-content" className="space-y-6 bg-background p-4 rounded-xl">
 
       {/* 1. Analytics (Metric Cards Row) */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -382,6 +415,7 @@ export default function FacultyPreviewClient({ professorId }: FacultyPreviewClie
         </CardContent>
       </Card>
 
+      </div>
     </div>
   );
 }

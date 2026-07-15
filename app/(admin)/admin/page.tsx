@@ -23,6 +23,7 @@ import { EducationLevel, Role } from '@prisma/client';
 import Link from 'next/link';
 import { Search, Filter, Download, RefreshCw, SlidersHorizontal } from 'lucide-react';
 import { getDepartmentAiSummary } from '@/app/actions/ai';
+import { jsPDF } from 'jspdf';
 import { getAuditLogs } from '@/app/actions/audit';
 import { 
   getSystemSettings, 
@@ -133,6 +134,7 @@ function AdminDashboardContent() {
   const [exportScope, setExportScope] = useState<'current' | 'department'>('current');
   const [exportAllFields, setExportAllFields] = useState(false);
   const [exportSelectedDeptId, setExportSelectedDeptId] = useState('');
+  const [exportFormat, setExportFormat] = useState<'csv' | 'pdf'>('csv');
 
   const [rankings, setRankings] = useState<any[]>([]);
   const [selectedLedgerDept, setSelectedLedgerDept] = useState<string>('All');
@@ -166,6 +168,32 @@ function AdminDashboardContent() {
   const [logSortField, setLogSortField] = useState<'date' | 'type' | 'actor'>('date');
   const [logSortDirection, setLogSortDirection] = useState<'asc' | 'desc'>('desc');
   const [logSearch, setLogSearch] = useState('');
+
+  const filteredAndSortedLogs = [...auditLogs]
+    .filter(log => {
+      const search = logSearch.toLowerCase();
+      const eventType = (log.eventType || '').toLowerCase();
+      const actor = (log.actorEmail || '').toLowerCase();
+      const desc = (log.details?.desc || log.details?.message || JSON.stringify(log.details) || '').toLowerCase();
+      return eventType.includes(search) || actor.includes(search) || desc.includes(search);
+    })
+    .sort((a, b) => {
+      let comparison = 0;
+      if (logSortField === 'date') {
+        const timeA = new Date(a.createdAt).getTime();
+        const timeB = new Date(b.createdAt).getTime();
+        comparison = timeA - timeB;
+      } else if (logSortField === 'type') {
+        const valA = (a.eventType || '').toLowerCase();
+        const valB = (b.eventType || '').toLowerCase();
+        comparison = valA.localeCompare(valB);
+      } else if (logSortField === 'actor') {
+        const valA = (a.actorEmail || '').toLowerCase();
+        const valB = (b.actorEmail || '').toLowerCase();
+        comparison = valA.localeCompare(valB);
+      }
+      return logSortDirection === 'asc' ? comparison : -comparison;
+    });
 
   // Form states
   const [depName, setDepName] = useState('');
@@ -375,7 +403,104 @@ function AdminDashboardContent() {
     }
   };
 
-  const handleExportCSV = async () => {
+  const exportToCSV = (headers: string[], rows: string[][], filename: string) => {
+    const csvContent = "\uFEFF" + [headers.join(","), ...rows.map(row => row.map(val => `"${(val || '').replace(/"/g, '""')}"`).join(","))].join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const exportToPDF = (title: string, headers: string[], rows: string[][], filename: string) => {
+    const doc = new jsPDF();
+    
+    // Set title
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(16);
+    doc.text(title, 14, 20);
+    
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 28);
+    
+    let y = 38;
+    const pageHeight = doc.internal.pageSize.height;
+    
+    // Estimate column widths
+    const colWidths = headers.map((_, i) => {
+      if (headers.length === 5) {
+        // Ratings ledger: Name, Email, Department, Sections, Score
+        const widths = [40, 45, 35, 45, 17];
+        return widths[i];
+      } else if (headers.length === 6) {
+        // Attendance logs: Name, Email, First Sub, Most Recent Sub, Department, Section
+        const widths = [30, 40, 30, 30, 30, 22];
+        return widths[i];
+      } else if (headers.length === 3) {
+        // Attendance logs (simple): Name, Email, Section
+        const widths = [50, 70, 62];
+        return widths[i];
+      } else if (headers.length === 4) {
+        // Audit logs: Timestamp, Event Type, Description, Actor
+        const widths = [35, 30, 75, 42];
+        return widths[i];
+      }
+      return 182 / headers.length;
+    });
+
+    // Draw headers
+    doc.setFont("helvetica", "bold");
+    doc.setFillColor(240, 240, 240);
+    doc.rect(14, y - 5, 182, 7, "F");
+    
+    let currentX = 14;
+    headers.forEach((header, i) => {
+      doc.text(header, currentX, y);
+      currentX += colWidths[i];
+    });
+    
+    y += 7;
+    doc.setFont("helvetica", "normal");
+    
+    rows.forEach((row) => {
+      if (y > pageHeight - 20) {
+        doc.addPage();
+        y = 20;
+        // Repeat headers on new page
+        doc.setFont("helvetica", "bold");
+        doc.setFillColor(240, 240, 240);
+        doc.rect(14, y - 5, 182, 7, "F");
+        let headerX = 14;
+        headers.forEach((header, i) => {
+          doc.text(header, headerX, y);
+          headerX += colWidths[i];
+        });
+        y += 7;
+        doc.setFont("helvetica", "normal");
+      }
+      
+      let rowX = 14;
+      row.forEach((val, i) => {
+        let text = String(val);
+        const maxChars = Math.floor(colWidths[i] * 0.45);
+        if (text.length > maxChars) {
+          text = text.substring(0, Math.max(3, maxChars - 3)) + "...";
+        }
+        doc.text(text, rowX, y);
+        rowX += colWidths[i];
+      });
+      y += 7;
+    });
+    
+    doc.save(filename);
+  };
+
+  const handleExportAttendance = async () => {
     try {
       let dataToExport = [];
       if (exportScope === 'current') {
@@ -423,25 +548,81 @@ function AdminDashboardContent() {
         ]);
       }
 
-      const csvContent = "data:text/csv;charset=utf-8,\uFEFF"
-        + [headers.join(","), ...rows.map(row => row.map(val => `"${val.replace(/"/g, '""')}"`).join(","))].join("\n");
-      
-      const encodedUri = encodeURI(csvContent);
-      const link = document.createElement("a");
-      link.setAttribute("href", encodedUri);
-      
-      const filename = exportScope === 'current' 
-        ? `evaluation_attendance_current_${new Date().toISOString().slice(0,10)}.csv`
-        : `evaluation_attendance_dept_${exportSelectedDeptId}.csv`;
+      const baseFilename = exportScope === 'current' 
+        ? `evaluation_attendance_current_${new Date().toISOString().slice(0,10)}`
+        : `evaluation_attendance_dept_${exportSelectedDeptId}`;
         
-      link.setAttribute("download", filename);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      if (exportFormat === 'csv') {
+        exportToCSV(headers, rows, `${baseFilename}.csv`);
+        toast.success("CSV exported successfully!");
+      } else {
+        exportToPDF("Evaluation Attendance Logs", headers, rows, `${baseFilename}.pdf`);
+        toast.success("PDF exported successfully!");
+      }
       setIsExportModalOpen(false);
-      toast.success("CSV exported successfully!");
     } catch (err: any) {
-      toast.error("Failed to generate CSV file.");
+      toast.error(`Failed to generate ${exportFormat.toUpperCase()} file.`);
+    }
+  };
+
+  const handleExportRatings = (format: 'csv' | 'pdf') => {
+    try {
+      const dataToExport = filteredRankings;
+      if (dataToExport.length === 0) {
+        toast.error("No records found to export.");
+        return;
+      }
+
+      const headers = ["Faculty Name", "Email Address", "Department", "Assigned Sections", "Score"];
+      const rows = dataToExport.map(r => [
+        r.name || 'Not Set',
+        r.email || '',
+        r.department || 'N/A',
+        r.sections || 'None',
+        r.averageScore !== null ? `${r.averageScore}%` : 'N/A'
+      ]);
+
+      const baseFilename = `faculty_ratings_ledger_${selectedLedgerDept.toLowerCase().replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}`;
+
+      if (format === 'csv') {
+        exportToCSV(headers, rows, `${baseFilename}.csv`);
+        toast.success("CSV exported successfully!");
+      } else {
+        exportToPDF("Faculty Ratings Ledger", headers, rows, `${baseFilename}.pdf`);
+        toast.success("PDF exported successfully!");
+      }
+    } catch (err) {
+      toast.error(`Failed to export ratings as ${format.toUpperCase()}`);
+    }
+  };
+
+  const handleExportAudit = (format: 'csv' | 'pdf') => {
+    try {
+      const dataToExport = filteredAndSortedLogs;
+      if (dataToExport.length === 0) {
+        toast.error("No audit logs found to export.");
+        return;
+      }
+
+      const headers = ["Timestamp", "Event Type", "Description", "Actor"];
+      const rows = dataToExport.map(log => [
+        new Date(log.createdAt).toLocaleString(),
+        log.eventType || '',
+        log.details?.desc || log.details?.message || JSON.stringify(log.details) || '',
+        log.actorEmail || ''
+      ]);
+
+      const baseFilename = `system_audit_logs_${new Date().toISOString().slice(0, 10)}`;
+
+      if (format === 'csv') {
+        exportToCSV(headers, rows, `${baseFilename}.csv`);
+        toast.success("CSV exported successfully!");
+      } else {
+        exportToPDF("System Audit Logs", headers, rows, `${baseFilename}.pdf`);
+        toast.success("PDF exported successfully!");
+      }
+    } catch (err) {
+      toast.error(`Failed to export audit logs as ${format.toUpperCase()}`);
     }
   };
 
@@ -480,6 +661,11 @@ function AdminDashboardContent() {
     if (cleanA > cleanB) return sortDirection === 'asc' ? 1 : -1;
     return 0;
   });
+
+  const isSubAdmin = currentUser?.role === 'SUB_ADMIN';
+  const filteredRankings = (isSubAdmin || selectedLedgerDept === 'All')
+    ? sortedRankings 
+    : sortedRankings.filter(r => (r.level === 'COLLEGE' ? 'College' : r.department) === selectedLedgerDept);
 
   return (
     <div className="space-y-6">
@@ -539,10 +725,6 @@ function AdminDashboardContent() {
             const uniqueDepts = Array.from(
               new Set(effectiveRankings.map(r => r.level === 'COLLEGE' ? 'College' : r.department))
             ).filter(Boolean).sort();
-            
-            const filteredRankings = (isSubAdmin || selectedLedgerDept === 'All')
-              ? effectiveRankings 
-              : effectiveRankings.filter(r => (r.level === 'COLLEGE' ? 'College' : r.department) === selectedLedgerDept);
 
             const totalItems = filteredRankings.length;
             const totalPages = Math.ceil(totalItems / ledgerItemsPerPage);
@@ -673,36 +855,61 @@ function AdminDashboardContent() {
                       <CardDescription>Aggregated rating scores computed directly from submitted evaluations</CardDescription>
                     </div>
 
-                    {/* Department Tabs */}
-                    {!isSubAdmin && uniqueDepts.length > 0 && (
-                      <div className="flex flex-wrap bg-muted p-1 rounded-lg gap-1 self-start md:self-center">
-                        <button
-                          onClick={() => setSelectedLedgerDept('All')}
-                          className={cn(
-                            "px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer",
-                            selectedLedgerDept === 'All'
-                              ? 'bg-card text-foreground shadow-sm border-l-2 border-ua-gold font-bold'
-                              : 'text-muted-foreground hover:text-foreground'
-                          )}
+                    {/* Export Controls & Department Tabs */}
+                    <div className="flex flex-wrap items-center gap-3 self-start md:self-center">
+                      <div className="flex items-center gap-1.5 bg-muted/50 p-1 rounded-lg border border-border/40">
+                        <Button
+                          type="button"
+                          uaVariant="ghost"
+                          onClick={() => handleExportRatings('csv')}
+                          disabled={filteredRankings.length === 0}
+                          className="h-7 text-[10px] font-bold px-2 flex items-center gap-1 hover:bg-card"
                         >
-                          All
-                        </button>
-                        {uniqueDepts.map((dept) => (
+                          <Download className="size-3" />
+                          CSV
+                        </Button>
+                        <Button
+                          type="button"
+                          uaVariant="ghost"
+                          onClick={() => handleExportRatings('pdf')}
+                          disabled={filteredRankings.length === 0}
+                          className="h-7 text-[10px] font-bold px-2 flex items-center gap-1 hover:bg-card"
+                        >
+                          <Download className="size-3" />
+                          PDF
+                        </Button>
+                      </div>
+
+                      {!isSubAdmin && uniqueDepts.length > 0 && (
+                        <div className="flex flex-wrap bg-muted p-1 rounded-lg gap-1">
                           <button
-                            key={dept}
-                            onClick={() => setSelectedLedgerDept(dept)}
+                            onClick={() => setSelectedLedgerDept('All')}
                             className={cn(
                               "px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer",
-                              selectedLedgerDept === dept
+                              selectedLedgerDept === 'All'
                                 ? 'bg-card text-foreground shadow-sm border-l-2 border-ua-gold font-bold'
                                 : 'text-muted-foreground hover:text-foreground'
                             )}
                           >
-                            {dept}
+                            All
                           </button>
-                        ))}
-                      </div>
-                    )}
+                          {uniqueDepts.map((dept) => (
+                            <button
+                              key={dept}
+                              onClick={() => setSelectedLedgerDept(dept)}
+                              className={cn(
+                                "px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer",
+                                selectedLedgerDept === dept
+                                  ? 'bg-card text-foreground shadow-sm border-l-2 border-ua-gold font-bold'
+                                  : 'text-muted-foreground hover:text-foreground'
+                              )}
+                            >
+                              {dept}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </CardHeader>
                   <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
@@ -747,7 +954,11 @@ function AdminDashboardContent() {
                         ) : (
                           paginatedRankings.map((rank) => (
                             <tr key={rank.id} className="hover:bg-muted/10 transition-all">
-                              <td className="p-4 text-sm font-bold text-foreground">{rank.name}</td>
+                              <td className="p-4 text-sm font-bold text-foreground">
+                                <Link href={`/admin/faculty/${rank.id}`} className="hover:text-ua-gold hover:underline transition-all">
+                                  {rank.name}
+                                </Link>
+                              </td>
                               <td className="p-4 text-sm text-muted-foreground font-medium">{rank.email}</td>
                               <td className="p-4 text-sm text-muted-foreground font-medium">{rank.department}</td>
                               <td className="p-4 text-sm text-muted-foreground/80 max-w-xs truncate">{rank.sections || "None"}</td>
@@ -856,7 +1067,7 @@ function AdminDashboardContent() {
                   <div className="space-y-4 pt-2">
                     {/* Audit Logs Filter Toolbar */}
                     <div className="flex flex-col sm:flex-row gap-3 justify-between items-start sm:items-center bg-muted/20 p-4 rounded-lg border border-border/60">
-                      <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+                      <div className="flex flex-wrap gap-2 w-full sm:w-auto items-center">
                         <input
                           type="text"
                           value={logSearch}
@@ -881,38 +1092,32 @@ function AdminDashboardContent() {
                         >
                           {logSortDirection === 'asc' ? 'Ascending ▴' : 'Descending ▾'}
                         </Button>
+                        <Button
+                          type="button"
+                          uaVariant="primary"
+                          onClick={() => handleExportAudit('csv')}
+                          disabled={filteredAndSortedLogs.length === 0}
+                          className="h-8 text-xs flex items-center gap-1 font-semibold px-2.5"
+                        >
+                          <Download className="size-3.5" />
+                          CSV
+                        </Button>
+                        <Button
+                          type="button"
+                          uaVariant="accent"
+                          onClick={() => handleExportAudit('pdf')}
+                          disabled={filteredAndSortedLogs.length === 0}
+                          className="h-8 text-xs flex items-center gap-1 font-semibold px-2.5"
+                        >
+                          <Download className="size-3.5" />
+                          PDF
+                        </Button>
                       </div>
                       <span className="text-[10px] bg-muted text-muted-foreground px-2.5 py-0.5 rounded-full font-bold">Encrypted Audit Logs</span>
                     </div>
 
                     <div className="border border-border/60 rounded-lg divide-y divide-border/45 bg-muted/10 overflow-hidden font-mono text-xs text-muted-foreground">
                       {(() => {
-                        const filteredAndSortedLogs = [...auditLogs]
-                          .filter(log => {
-                            const search = logSearch.toLowerCase();
-                            const eventType = (log.eventType || '').toLowerCase();
-                            const actor = (log.actorEmail || '').toLowerCase();
-                            const desc = (log.details?.desc || log.details?.message || JSON.stringify(log.details) || '').toLowerCase();
-                            return eventType.includes(search) || actor.includes(search) || desc.includes(search);
-                          })
-                          .sort((a, b) => {
-                            let comparison = 0;
-                            if (logSortField === 'date') {
-                              const timeA = new Date(a.createdAt).getTime();
-                              const timeB = new Date(b.createdAt).getTime();
-                              comparison = timeA - timeB;
-                            } else if (logSortField === 'type') {
-                              const valA = (a.eventType || '').toLowerCase();
-                              const valB = (b.eventType || '').toLowerCase();
-                              comparison = valA.localeCompare(valB);
-                            } else if (logSortField === 'actor') {
-                              const valA = (a.actorEmail || '').toLowerCase();
-                              const valB = (b.actorEmail || '').toLowerCase();
-                              comparison = valA.localeCompare(valB);
-                            }
-                            return logSortDirection === 'asc' ? comparison : -comparison;
-                          });
-
                         if (filteredAndSortedLogs.length === 0) {
                           return (
                             <div className="p-8 text-center text-muted-foreground font-semibold text-xs bg-card">
@@ -1002,17 +1207,35 @@ function AdminDashboardContent() {
                           </select>
                         </div>
 
-                        {/* Export Button */}
-                        <Button
-                          type="button"
-                          uaVariant="primary"
-                          onClick={() => setIsExportModalOpen(true)}
-                          disabled={receipts.length === 0}
-                          className="h-9 text-xs flex items-center gap-1.5"
-                        >
-                          <Download className="size-3.5" />
-                          Export CSV
-                        </Button>
+                        {/* Export Buttons */}
+                        <div className="flex gap-2">
+                          <Button
+                            type="button"
+                            uaVariant="primary"
+                            onClick={() => {
+                              setExportFormat('csv');
+                              setIsExportModalOpen(true);
+                            }}
+                            disabled={receipts.length === 0}
+                            className="h-9 text-xs flex items-center gap-1.5"
+                          >
+                            <Download className="size-3.5" />
+                            Export CSV
+                          </Button>
+                          <Button
+                            type="button"
+                            uaVariant="accent"
+                            onClick={() => {
+                              setExportFormat('pdf');
+                              setIsExportModalOpen(true);
+                            }}
+                            disabled={receipts.length === 0}
+                            className="h-9 text-xs flex items-center gap-1.5"
+                          >
+                            <Download className="size-3.5" />
+                            Export PDF
+                          </Button>
+                        </div>
                       </div>
                     </div>
 
@@ -1261,8 +1484,8 @@ function AdminDashboardContent() {
                     <Modal
                       isOpen={isExportModalOpen}
                       onClose={() => setIsExportModalOpen(false)}
-                      title="Export Attendance Ledger"
-                      description="Choose the scope and columns to include in the exported CSV."
+                      title={`Export Attendance Ledger (${exportFormat.toUpperCase()})`}
+                      description={`Choose the scope and columns to include in the exported ${exportFormat.toUpperCase()} file.`}
                     >
                       <div className="space-y-6">
                         {/* Scope Radio Selection */}
@@ -1347,10 +1570,10 @@ function AdminDashboardContent() {
                           <Button
                             type="button"
                             uaVariant="primary"
-                            onClick={handleExportCSV}
+                            onClick={handleExportAttendance}
                             className="h-10 text-xs font-bold px-4"
                           >
-                            Export &amp; Download
+                            {exportFormat === 'csv' ? 'Export CSV' : 'Export PDF'}
                           </Button>
                         </div>
                       </div>
