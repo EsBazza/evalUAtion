@@ -317,6 +317,20 @@ function FacultyDashboardContent() {
 
             <div className="flex gap-2 self-end">
               <Button
+                onClick={() => {
+                  if (professorId) {
+                    fetchProfileData(professorId, academicYear, semester, selectedSubjectId);
+                    toast.success("Dashboard data refreshed!");
+                  }
+                }}
+                uaVariant="outline"
+                className="h-10 text-xs flex items-center"
+                disabled={isLoading}
+              >
+                <RefreshCw className={cn("size-3.5 mr-1.5", isLoading && "animate-spin")} />
+                Refresh Data
+              </Button>
+              <Button
                 onClick={() => exportFacultyCSV({
                   professor,
                   academicYear,
