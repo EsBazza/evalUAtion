@@ -4,9 +4,10 @@ import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Responsi
 
 interface RadarClusterChartProps {
   data: { subject: string; score: number }[];
+  disableAnimation?: boolean;
 }
 
-export function RadarClusterChart({ data }: RadarClusterChartProps) {
+export function RadarClusterChart({ data, disableAnimation = false }: RadarClusterChartProps) {
   if (data.length === 0) {
     return (
       <div className="h-64 flex items-center justify-center text-slate-400 text-xs font-semibold">
@@ -31,6 +32,7 @@ export function RadarClusterChart({ data }: RadarClusterChartProps) {
             stroke="#002366"
             fill="#002366"
             fillOpacity={0.15}
+            isAnimationActive={!disableAnimation}
           />
         </RadarChart>
       </ResponsiveContainer>

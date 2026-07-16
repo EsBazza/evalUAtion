@@ -4,13 +4,14 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 
 interface HistoricalTrendChartProps {
   data: { term: string; score: number }[];
+  disableAnimation?: boolean;
 }
 
-export function HistoricalTrendChart({ data }: HistoricalTrendChartProps) {
+export function HistoricalTrendChart({ data, disableAnimation = false }: HistoricalTrendChartProps) {
   if (data.length <= 1) {
     return (
-      <div className="h-64 flex flex-col items-center justify-center text-center p-6 border border-dashed border-slate-200 bg-slate-50/50 rounded-2xl">
-        <div className="text-xl mb-1.5">📈</div>
+      <div className="h-64 flex flex-col items-center justify-center text-slate-400 text-xs font-semibold border border-dashed border-slate-200 bg-slate-50/50 rounded-2xl">
+        <div className="text-xl mb-1.5 font-bold">📈</div>
         <p className="text-slate-400 text-xs font-bold uppercase tracking-wider">Insufficient Historical Data</p>
         <p className="text-[10px] text-slate-400 mt-1 max-w-[200px] leading-relaxed">
           Trend analysis requires statistics across multiple terms. Complete future semesters to unlock.
@@ -50,6 +51,7 @@ export function HistoricalTrendChart({ data }: HistoricalTrendChartProps) {
             strokeWidth={3}
             activeDot={{ r: 6 }}
             dot={{ stroke: '#002366', strokeWidth: 2, r: 4, fill: '#ffffff' }}
+            isAnimationActive={!disableAnimation}
           />
         </LineChart>
       </ResponsiveContainer>

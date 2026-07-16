@@ -349,8 +349,7 @@ function FacultyDashboardContent() {
                 onClick={() => exportFacultyPDF({
                   professor,
                   academicYear,
-                  semester,
-                  elementId: "faculty-report-content"
+                  semester
                 })}
                 uaVariant="outline"
                 className="h-10 text-xs flex items-center"
