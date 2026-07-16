@@ -92,44 +92,113 @@ export async function exportFacultyPDF({
 }: ExportPDFProps) {
   const toastId = toast.loading("Generating PDF report...");
   try {
-    const element = document.getElementById(elementId);
-    if (!element) {
+    const container = document.getElementById(elementId);
+    if (!container) {
       toast.error("Target container not found.", undefined, { id: toastId });
       return;
     }
-    
+
     const html2canvas = (await import('html2canvas')).default;
     const { jsPDF } = await import('jspdf');
+    const { getFadedImageDataUrl, drawBrandedLayout } = await import('./pdfUtils');
 
-    const canvas = await html2canvas(element, {
-      scale: 2,
-      useCORS: true,
-      logging: false,
-      backgroundColor: '#ffffff'
+    // 1. Pre-process branding images
+    const [watermarkUrl, logoUrl] = await Promise.all([
+      getFadedImageDataUrl('/bg.jpg', 0.08),
+      getFadedImageDataUrl('/ua-logo.png', 1.0)
+    ]);
+
+    // 2. Flatten page elements card by card to prevent cutoffs
+    const elementsToCapture: HTMLElement[] = [];
+    for (const child of Array.from(container.children)) {
+      const htmlChild = child as HTMLElement;
+      // If it contains the graphs layout rows, flatten them to individual charts/sections
+      if (htmlChild.classList.contains('space-y-6') && htmlChild.querySelector('.grid')) {
+        for (const subChild of Array.from(htmlChild.children)) {
+          elementsToCapture.push(subChild as HTMLElement);
+        }
+      } else {
+        elementsToCapture.push(htmlChild);
+      }
+    }
+
+    // 3. Render elements to canvas screenshots
+    const canvases = await Promise.all(
+      elementsToCapture.map(el =>
+        html2canvas(el, {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          backgroundColor: '#ffffff'
+        })
+      )
+    );
+
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const margin = 14;
+    const contentWidth = pageWidth - margin * 2;
+    const generatedDate = new Date().toLocaleString();
+    const title = `Faculty Evaluation Report - ${professor.name}`;
+
+    // 4. Calculate layout packing (dry run)
+    interface LayoutItem {
+      canvas: HTMLCanvasElement;
+      width: number;
+      height: number;
+    }
+
+    const items: LayoutItem[] = canvases.map(canvas => {
+      const imgWidth = contentWidth;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      return { canvas, width: imgWidth, height: imgHeight };
     });
 
-    const imgData = canvas.toDataURL('image/png');
-    const pdf = new jsPDF('p', 'mm', 'a4');
-    const imgWidth = 210; // A4 size width in mm
-    const pageHeight = 297; // A4 size height in mm
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
-    let heightLeft = imgHeight;
-    let position = 0;
+    const pages: LayoutItem[][] = [[]];
+    let currentY = 32; // position below header band
+    const maxPageHeight = pageHeight - 20; // page margin buffer
 
-    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-    heightLeft -= pageHeight;
+    items.forEach(item => {
+      if (currentY + item.height > maxPageHeight && pages[pages.length - 1].length > 0) {
+        pages.push([item]);
+        currentY = 32 + item.height;
+      } else {
+        pages[pages.length - 1].push(item);
+        currentY += item.height + 4; // 4mm spacing
+      }
+    });
 
-    // Use strictly greater than (>) instead of greater or equal (>=) to prevent a trailing blank page
-    while (heightLeft > 0) {
-      position = heightLeft - imgHeight;
-      pdf.addPage();
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
-    }
+    const totalPages = pages.length;
+
+    // 5. Draw PDF pages
+    pages.forEach((pageItems, pageIdx) => {
+      if (pageIdx > 0) {
+        pdf.addPage();
+      }
+
+      drawBrandedLayout({
+        doc: pdf,
+        watermarkDataUrl: watermarkUrl || undefined,
+        logoDataUrl: logoUrl || undefined,
+        title,
+        currentPage: pageIdx + 1,
+        totalPages,
+        generatedDate,
+      });
+
+      let itemY = 32;
+      pageItems.forEach(item => {
+        const imgData = item.canvas.toDataURL('image/png');
+        pdf.addImage(imgData, 'PNG', margin, itemY, item.width, item.height);
+        itemY += item.height + 4; // 4mm spacing
+      });
+    });
 
     pdf.save(`faculty_report_${professor.name.toLowerCase().replace(/\s+/g, '_')}_${academicYear}_${semester}.pdf`);
     toast.success("PDF exported successfully!", undefined, { id: toastId });
   } catch (err) {
+    console.error(err);
     toast.error("Failed to generate PDF.", undefined, { id: toastId });
   }
 }

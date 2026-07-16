@@ -23,7 +23,6 @@ import { EducationLevel, Role } from '@prisma/client';
 import Link from 'next/link';
 import { Search, Filter, Download, RefreshCw, SlidersHorizontal } from 'lucide-react';
 import { getDepartmentAiSummary } from '@/app/actions/ai';
-import { jsPDF } from 'jspdf';
 import { getAuditLogs } from '@/app/actions/audit';
 import { 
   getSystemSettings, 
@@ -138,6 +137,11 @@ function AdminDashboardContent() {
 
   const [rankings, setRankings] = useState<any[]>([]);
   const [selectedLedgerDept, setSelectedLedgerDept] = useState<string>('All');
+  // Ratings Ledger advanced search states
+  const [ratingsSearch, setRatingsSearch] = useState('');
+  const [selectedRatingsDepts, setSelectedRatingsDepts] = useState<string[]>([]);
+  const [selectedRatingsLevels, setSelectedRatingsLevels] = useState<string[]>([]);
+  const [isRatingsAdvancedSearchOpen, setIsRatingsAdvancedSearchOpen] = useState(false);
   const [departments, setDepartments] = useState<any[]>([]);
   const [templates, setTemplates] = useState<any[]>([]);
   const [admins, setAdmins] = useState<any[]>([]);
@@ -154,7 +158,7 @@ function AdminDashboardContent() {
 
   useEffect(() => {
     setLedgerPage(1);
-  }, [selectedLedgerDept]);
+  }, [selectedLedgerDept, ratingsSearch, selectedRatingsDepts, selectedRatingsLevels]);
 
   useEffect(() => {
     setAttendancePage(1);
@@ -416,87 +420,143 @@ function AdminDashboardContent() {
     URL.revokeObjectURL(url);
   };
 
-  const exportToPDF = (title: string, headers: string[], rows: string[][], filename: string) => {
-    const doc = new jsPDF();
-    
-    // Set title
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(16);
-    doc.text(title, 14, 20);
-    
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 28);
-    
-    let y = 38;
-    const pageHeight = doc.internal.pageSize.height;
-    
-    // Estimate column widths
+  const exportToPDF = async (title: string, headers: string[], rows: string[][], filename: string) => {
+    const { jsPDF } = await import('jspdf');
+    const { getFadedImageDataUrl, drawBrandedLayout } = await import('@/lib/pdfUtils');
+
+    // Pre-process branding images
+    const [watermarkUrl, logoUrl] = await Promise.all([
+      getFadedImageDataUrl('/bg.jpg', 0.08),
+      getFadedImageDataUrl('/ua-logo.png', 1.0)
+    ]);
+
+    const doc = new jsPDF('p', 'mm', 'a4');
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 14;
+    const contentWidth = pageWidth - margin * 2;
+    const generatedDate = new Date().toLocaleString();
+
+    // Map column widths dynamically based on headers count and total content width (182mm)
     const colWidths = headers.map((_, i) => {
       if (headers.length === 5) {
         // Ratings ledger: Name, Email, Department, Sections, Score
-        const widths = [40, 45, 35, 45, 17];
+        const widths = [42, 48, 38, 39, 15];
         return widths[i];
       } else if (headers.length === 6) {
         // Attendance logs: Name, Email, First Sub, Most Recent Sub, Department, Section
-        const widths = [30, 40, 30, 30, 30, 22];
+        const widths = [28, 42, 28, 28, 31, 25];
         return widths[i];
       } else if (headers.length === 3) {
         // Attendance logs (simple): Name, Email, Section
-        const widths = [50, 70, 62];
+        const widths = [52, 70, 60];
         return widths[i];
       } else if (headers.length === 4) {
         // Audit logs: Timestamp, Event Type, Description, Actor
         const widths = [35, 30, 75, 42];
         return widths[i];
       }
-      return 182 / headers.length;
+      return contentWidth / headers.length;
     });
 
-    // Draw headers
-    doc.setFont("helvetica", "bold");
-    doc.setFillColor(240, 240, 240);
-    doc.rect(14, y - 5, 182, 7, "F");
-    
-    let currentX = 14;
-    headers.forEach((header, i) => {
-      doc.text(header, currentX, y);
-      currentX += colWidths[i];
-    });
-    
-    y += 7;
-    doc.setFont("helvetica", "normal");
-    
+    // Layout configuration
+    const cellLineHeight = 4.0; // mm
+    const cellPadding = 2.5; // mm
+    const headerHeight = 8; // mm
+
+    // Pre-calculate line splitting and row heights
+    const rowLines: Array<{ cellLines: string[][]; rowHeight: number }> = [];
     rows.forEach((row) => {
-      if (y > pageHeight - 20) {
-        doc.addPage();
-        y = 20;
-        // Repeat headers on new page
-        doc.setFont("helvetica", "bold");
-        doc.setFillColor(240, 240, 240);
-        doc.rect(14, y - 5, 182, 7, "F");
-        let headerX = 14;
-        headers.forEach((header, i) => {
-          doc.text(header, headerX, y);
-          headerX += colWidths[i];
-        });
-        y += 7;
-        doc.setFont("helvetica", "normal");
-      }
-      
-      let rowX = 14;
-      row.forEach((val, i) => {
-        let text = String(val);
-        const maxChars = Math.floor(colWidths[i] * 0.45);
-        if (text.length > maxChars) {
-          text = text.substring(0, Math.max(3, maxChars - 3)) + "...";
-        }
-        doc.text(text, rowX, y);
-        rowX += colWidths[i];
+      const cellLines = row.map((val, colIdx) => {
+        return doc.splitTextToSize(String(val || ''), colWidths[colIdx] - cellPadding * 2);
       });
-      y += 7;
+      const maxLines = Math.max(...cellLines.map(lines => lines.length));
+      const rowHeight = maxLines * cellLineHeight + cellPadding * 2;
+      rowLines.push({ cellLines, rowHeight });
     });
-    
+
+    // Determine pagination layout (Dry run)
+    const pages: Array<typeof rowLines> = [[]];
+    let currentPageY = 38; // Starts below header band
+    const maxPageY = pageHeight - 20; // Margin buffer at bottom
+
+    rowLines.forEach((item) => {
+      if (currentPageY + item.rowHeight > maxPageY) {
+        pages.push([item]);
+        currentPageY = 38 + item.rowHeight;
+      } else {
+        pages[pages.length - 1].push(item);
+        currentPageY += item.rowHeight;
+      }
+    });
+
+    const totalPages = pages.length;
+
+    // Render pages sequentially
+    pages.forEach((pageRows, pageIdx) => {
+      if (pageIdx > 0) {
+        doc.addPage();
+      }
+
+      // Draw UA frame, watermarks, headers, and footers
+      drawBrandedLayout({
+        doc,
+        watermarkDataUrl: watermarkUrl || undefined,
+        logoDataUrl: logoUrl || undefined,
+        title,
+        currentPage: pageIdx + 1,
+        totalPages,
+        generatedDate,
+      });
+
+      // Draw table header container
+      let currentY = 35;
+      doc.setFillColor(240, 243, 248);
+      doc.rect(margin, currentY, contentWidth, headerHeight, 'F');
+      
+      // Draw table header columns
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.setTextColor(11, 47, 100); // UA Navy for headers
+
+      let currentX = margin;
+      headers.forEach((header, colIdx) => {
+        doc.text(header, currentX + cellPadding, currentY + 5.5);
+        currentX += colWidths[colIdx];
+      });
+
+      currentY += headerHeight;
+
+      // Draw row content and backgrounds
+      pageRows.forEach((rowInfo, rowIdx) => {
+        if (rowIdx % 2 === 1) {
+          doc.setFillColor(248, 250, 253); // Subtle zebra tint
+        } else {
+          doc.setFillColor(255, 255, 255);
+        }
+        doc.rect(margin, currentY, contentWidth, rowInfo.rowHeight, 'F');
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7.5);
+        doc.setTextColor(50, 50, 50);
+
+        let cellX = margin;
+        rowInfo.cellLines.forEach((lines, colIdx) => {
+          lines.forEach((lineText, lineIdx) => {
+            doc.text(lineText, cellX + cellPadding, currentY + cellPadding + 3 + (lineIdx * cellLineHeight));
+          });
+          cellX += colWidths[colIdx];
+        });
+
+        // Row dividing lines
+        doc.setDrawColor(226, 232, 240);
+        doc.setLineWidth(0.1);
+        doc.line(margin, currentY + rowInfo.rowHeight, margin + contentWidth, currentY + rowInfo.rowHeight);
+
+        currentY += rowInfo.rowHeight;
+      });
+    });
+
     doc.save(filename);
   };
 
@@ -556,7 +616,7 @@ function AdminDashboardContent() {
         exportToCSV(headers, rows, `${baseFilename}.csv`);
         toast.success("CSV exported successfully!");
       } else {
-        exportToPDF("Evaluation Attendance Logs", headers, rows, `${baseFilename}.pdf`);
+        await exportToPDF("Evaluation Attendance Logs", headers, rows, `${baseFilename}.pdf`);
         toast.success("PDF exported successfully!");
       }
       setIsExportModalOpen(false);
@@ -565,7 +625,7 @@ function AdminDashboardContent() {
     }
   };
 
-  const handleExportRatings = (format: 'csv' | 'pdf') => {
+  const handleExportRatings = async (format: 'csv' | 'pdf') => {
     try {
       const dataToExport = filteredRankings;
       if (dataToExport.length === 0) {
@@ -588,7 +648,7 @@ function AdminDashboardContent() {
         exportToCSV(headers, rows, `${baseFilename}.csv`);
         toast.success("CSV exported successfully!");
       } else {
-        exportToPDF("Faculty Ratings Ledger", headers, rows, `${baseFilename}.pdf`);
+        await exportToPDF("Faculty Ratings Ledger", headers, rows, `${baseFilename}.pdf`);
         toast.success("PDF exported successfully!");
       }
     } catch (err) {
@@ -596,7 +656,7 @@ function AdminDashboardContent() {
     }
   };
 
-  const handleExportAudit = (format: 'csv' | 'pdf') => {
+  const handleExportAudit = async (format: 'csv' | 'pdf') => {
     try {
       const dataToExport = filteredAndSortedLogs;
       if (dataToExport.length === 0) {
@@ -618,7 +678,7 @@ function AdminDashboardContent() {
         exportToCSV(headers, rows, `${baseFilename}.csv`);
         toast.success("CSV exported successfully!");
       } else {
-        exportToPDF("System Audit Logs", headers, rows, `${baseFilename}.pdf`);
+        await exportToPDF("System Audit Logs", headers, rows, `${baseFilename}.pdf`);
         toast.success("PDF exported successfully!");
       }
     } catch (err) {
@@ -663,9 +723,21 @@ function AdminDashboardContent() {
   });
 
   const isSubAdmin = currentUser?.role === 'SUB_ADMIN';
-  const filteredRankings = (isSubAdmin || selectedLedgerDept === 'All')
-    ? sortedRankings 
-    : sortedRankings.filter(r => (r.level === 'COLLEGE' ? 'College' : r.department) === selectedLedgerDept);
+  const filteredRankings = sortedRankings.filter(r => {
+    // 1. Search Query filter (by name or email)
+    const searchVal = ratingsSearch.toLowerCase().trim();
+    const searchMatch = !searchVal || 
+      (r.name || '').toLowerCase().includes(searchVal) ||
+      (r.email || '').toLowerCase().includes(searchVal);
+
+    // 2. Level filter (COLLEGE / BASIC_ED)
+    const levelMatch = selectedRatingsLevels.length === 0 || selectedRatingsLevels.includes(r.level);
+
+    // 3. Department filter (by specific department name)
+    const deptMatch = selectedRatingsDepts.length === 0 || selectedRatingsDepts.includes(r.department);
+
+    return searchMatch && levelMatch && deptMatch;
+  });
 
   return (
     <div className="space-y-6">
@@ -849,15 +921,53 @@ function AdminDashboardContent() {
 
                 {/* Performance ledger table */}
                 <Card className="border border-border/80">
-                  <CardHeader className="border-b border-border/45 bg-muted/10 pb-4 flex flex-col md:flex-row justify-between md:items-center gap-4">
-                    <div>
+                  <CardHeader className="border-b border-border/45 bg-muted/10 pb-4 flex flex-col xl:flex-row justify-between xl:items-center gap-4">
+                    <div className="space-y-1">
                       <CardTitle className="text-base font-bold text-slate-800 dark:text-ua-gold">Faculty Ratings Ledger</CardTitle>
                       <CardDescription>Aggregated rating scores computed directly from submitted evaluations</CardDescription>
                     </div>
 
-                    {/* Export Controls & Department Tabs */}
-                    <div className="flex flex-wrap items-center gap-3 self-start md:self-center">
-                      <div className="flex items-center gap-1.5 bg-muted/50 p-1 rounded-lg border border-border/40">
+                    {/* Filters Toolbar */}
+                    <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
+                      <div className="relative flex-grow sm:flex-grow-0">
+                        <input
+                          type="text"
+                          value={ratingsSearch}
+                          onChange={(e) => setRatingsSearch(e.target.value)}
+                          placeholder="Search faculty name or email..."
+                          className="p-2 pl-8 border border-border rounded-lg text-xs bg-card focus:ring-2 focus:ring-ua-gold/30 focus:border-ua-navy dark:focus:border-ua-gold transition-all font-semibold outline-none w-full sm:w-60 text-foreground"
+                        />
+                        <Search className="size-3.5 text-muted-foreground absolute left-2.5 top-3" />
+                      </div>
+
+                      <Button
+                        type="button"
+                        uaVariant={isRatingsAdvancedSearchOpen ? "accent" : "outline"}
+                        onClick={() => setIsRatingsAdvancedSearchOpen(!isRatingsAdvancedSearchOpen)}
+                        className="h-9 text-xs font-semibold px-3 flex items-center gap-1.5"
+                      >
+                        <SlidersHorizontal className="size-3.5" />
+                        Advanced Search
+                      </Button>
+
+                      {(ratingsSearch || selectedRatingsDepts.length > 0 || selectedRatingsLevels.length > 0) && (
+                        <Button
+                          type="button"
+                          uaVariant="ghost"
+                          onClick={() => {
+                            setRatingsSearch('');
+                            setSelectedRatingsDepts([]);
+                            setSelectedRatingsLevels([]);
+                            toast.success("Filters cleared");
+                          }}
+                          className="h-9 text-xs font-semibold text-ua-crimson hover:bg-ua-crimson/5"
+                        >
+                          <RefreshCw className="size-3 mr-1" />
+                          Reset Filters
+                        </Button>
+                      )}
+
+                      <div className="flex items-center gap-1.5 bg-muted/50 p-1 rounded-lg border border-border/40 ml-auto xl:ml-0">
                         <Button
                           type="button"
                           uaVariant="ghost"
@@ -879,38 +989,79 @@ function AdminDashboardContent() {
                           PDF
                         </Button>
                       </div>
-
-                      {!isSubAdmin && uniqueDepts.length > 0 && (
-                        <div className="flex flex-wrap bg-muted p-1 rounded-lg gap-1">
-                          <button
-                            onClick={() => setSelectedLedgerDept('All')}
-                            className={cn(
-                              "px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer",
-                              selectedLedgerDept === 'All'
-                                ? 'bg-card text-foreground shadow-sm border-l-2 border-ua-gold font-bold'
-                                : 'text-muted-foreground hover:text-foreground'
-                            )}
-                          >
-                            All
-                          </button>
-                          {uniqueDepts.map((dept) => (
-                            <button
-                              key={dept}
-                              onClick={() => setSelectedLedgerDept(dept)}
-                              className={cn(
-                                "px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer",
-                                selectedLedgerDept === dept
-                                  ? 'bg-card text-foreground shadow-sm border-l-2 border-ua-gold font-bold'
-                                  : 'text-muted-foreground hover:text-foreground'
-                              )}
-                            >
-                              {dept}
-                            </button>
-                          ))}
-                        </div>
-                      )}
                     </div>
                   </CardHeader>
+
+                  {/* Collapsible Advanced Search Panel */}
+                  {isRatingsAdvancedSearchOpen && (
+                    <div className="bg-card border-b border-border/80 p-5 space-y-5 animate-fade-in shadow-inner">
+                      <div className="border-b border-border/40 pb-2">
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-ua-navy dark:text-ua-gold">Filter Ratings Ledger</h4>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* 1. Education Level Checklist */}
+                        <div className="space-y-2">
+                          <span className="block text-[10px] font-bold text-muted-foreground uppercase tracking-widest font-sans">Educational Level</span>
+                          <div className="border border-border rounded-lg p-3 space-y-2 bg-muted/5">
+                            {[
+                              { label: 'College Level', value: 'COLLEGE' },
+                              { label: 'Basic Education', value: 'BASIC_ED' }
+                            ].map((levelOption) => {
+                              const checked = selectedRatingsLevels.includes(levelOption.value);
+                              return (
+                                <label key={levelOption.value} className="flex items-center gap-2.5 text-xs font-semibold cursor-pointer select-none text-foreground/80 hover:text-foreground">
+                                  <input
+                                    type="checkbox"
+                                    checked={checked}
+                                    onChange={() => {
+                                      if (checked) {
+                                        setSelectedRatingsLevels(prev => prev.filter(v => v !== levelOption.value));
+                                      } else {
+                                        setSelectedRatingsLevels(prev => [...prev, levelOption.value]);
+                                      }
+                                    }}
+                                    className="rounded border-gray-300 text-ua-navy focus:ring-ua-navy/35"
+                                  />
+                                  {levelOption.label}
+                                </label>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* 2. Department Checklist */}
+                        <div className="space-y-2">
+                          <span className="block text-[10px] font-bold text-muted-foreground uppercase tracking-widest font-sans">Departments</span>
+                          <div className="border border-border rounded-lg p-3 max-h-32 overflow-y-auto space-y-2 bg-muted/5">
+                            {departments.length === 0 ? (
+                              <p className="text-xs text-muted-foreground italic font-semibold">No departments found.</p>
+                            ) : (
+                              departments.map((dept) => {
+                                const checked = selectedRatingsDepts.includes(dept.name);
+                                return (
+                                  <label key={dept.id} className="flex items-center gap-2.5 text-xs font-semibold cursor-pointer select-none text-foreground/80 hover:text-foreground">
+                                    <input
+                                      type="checkbox"
+                                      checked={checked}
+                                      onChange={() => {
+                                        if (checked) {
+                                          setSelectedRatingsDepts(prev => prev.filter(name => name !== dept.name));
+                                        } else {
+                                          setSelectedRatingsDepts(prev => [...prev, dept.name]);
+                                        }
+                                      }}
+                                      className="rounded border-gray-300 text-ua-navy focus:ring-ua-navy/35"
+                                    />
+                                    {dept.name} <span className="text-[9px] text-muted-foreground font-bold">({dept.level})</span>
+                                  </label>
+                                );
+                              })
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                       <thead className="bg-muted/30 border-b border-border/60 text-muted-foreground">
