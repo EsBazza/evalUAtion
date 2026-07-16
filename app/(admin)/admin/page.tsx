@@ -1009,34 +1009,48 @@ function AdminDashboardContent() {
                         <h4 className="text-xs font-bold uppercase tracking-wider text-ua-navy dark:text-ua-gold">Filter Ratings Ledger</h4>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        {/* 1. Department Selection */}
+                        {/* 1. Department Selection (Scrollable Checklist like Attendance) */}
                         <div className="space-y-2">
-                          <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-widest font-sans">Department</label>
-                          <select
-                            value={selectedRatingsDept}
-                            onChange={(e) => setSelectedRatingsDept(e.target.value)}
-                            className="w-full p-2 border border-border rounded-lg text-xs bg-card focus:ring-2 focus:ring-ua-gold/30 outline-none text-foreground font-semibold"
-                          >
-                            <option value="">All Departments</option>
-                            {departments.map((dept) => (
-                              <option key={dept.id} value={dept.name}>
-                                {dept.name} ({dept.level})
-                              </option>
-                            ))}
-                          </select>
+                          <span className="block text-[10px] font-bold text-muted-foreground uppercase tracking-widest font-sans">Department</span>
+                          <div className="border border-border rounded-lg p-3 max-h-36 overflow-y-auto space-y-2 bg-muted/5">
+                            {departments.length === 0 ? (
+                              <p className="text-xs text-muted-foreground italic font-semibold">No departments found.</p>
+                            ) : (
+                              departments.map((dept) => {
+                                const checked = selectedRatingsDept === dept.name;
+                                return (
+                                  <label key={dept.id} className="flex items-center gap-2.5 text-xs font-semibold cursor-pointer select-none text-foreground/80 hover:text-foreground">
+                                    <input
+                                      type="checkbox"
+                                      checked={checked}
+                                      onChange={() => {
+                                        if (checked) {
+                                          setSelectedRatingsDept('');
+                                        } else {
+                                          setSelectedRatingsDept(dept.name);
+                                        }
+                                      }}
+                                      className="rounded border-gray-300 text-ua-navy focus:ring-ua-navy/35 cursor-pointer"
+                                    />
+                                    {dept.name} <span className="text-[9px] text-muted-foreground font-bold">({dept.level})</span>
+                                  </label>
+                                );
+                              })
+                            )}
+                          </div>
                         </div>
 
                         {/* 2. Subject/Course Dropdown (Only show if department chosen) */}
-                        {selectedRatingsDept && (() => {
+                        {selectedRatingsDept ? (() => {
                           const activeDept = departments.find(d => d.name === selectedRatingsDept);
                           const activeSubjects = activeDept?.subjects || [];
                           return (
-                            <div className="space-y-2">
+                            <div className="space-y-2 animate-fade-in">
                               <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-widest font-sans">Subject / Course</label>
                               <select
                                 value={selectedRatingsSubject}
                                 onChange={(e) => setSelectedRatingsSubject(e.target.value)}
-                                className="w-full p-2 border border-border rounded-lg text-xs bg-card focus:ring-2 focus:ring-ua-gold/30 outline-none text-foreground font-semibold animate-fade-in"
+                                className="w-full p-2 border border-border rounded-lg text-xs bg-card focus:ring-2 focus:ring-ua-gold/30 outline-none text-foreground font-semibold"
                               >
                                 <option value="">All Subjects</option>
                                 {activeSubjects.map((sub: any) => (
@@ -1047,19 +1061,21 @@ function AdminDashboardContent() {
                               </select>
                             </div>
                           );
-                        })()}
+                        })() : (
+                          <div className="hidden md:block"></div>
+                        )}
 
                         {/* 3. Section Dropdown (Only show if department chosen) */}
-                        {selectedRatingsDept && (() => {
+                        {selectedRatingsDept ? (() => {
                           const activeDept = departments.find(d => d.name === selectedRatingsDept);
                           const activeSections = activeDept?.sections || [];
                           return (
-                            <div className="space-y-2">
+                            <div className="space-y-2 animate-fade-in">
                               <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-widest font-sans">Section</label>
                               <select
                                 value={selectedRatingsSection}
                                 onChange={(e) => setSelectedRatingsSection(e.target.value)}
-                                className="w-full p-2 border border-border rounded-lg text-xs bg-card focus:ring-2 focus:ring-ua-gold/30 outline-none text-foreground font-semibold animate-fade-in"
+                                className="w-full p-2 border border-border rounded-lg text-xs bg-card focus:ring-2 focus:ring-ua-gold/30 outline-none text-foreground font-semibold"
                               >
                                 <option value="">All Sections</option>
                                 {activeSections.map((sec: any) => (
@@ -1070,7 +1086,9 @@ function AdminDashboardContent() {
                               </select>
                             </div>
                           );
-                        })()}
+                        })() : (
+                          <div className="hidden md:block"></div>
+                        )}
                       </div>
                     </div>
                   )}
