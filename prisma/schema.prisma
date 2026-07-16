@@ -59,6 +59,8 @@ model Subject {
   department          Department           @relation(fields: [departmentId], references: [id], onDelete: Cascade)
   createdAt           DateTime             @default(now())
   teachingAssignments TeachingAssignment[]
+  evaluations         Evaluation[]
+  receipts            EvaluationReceipt[]
 }
 
 model User {
@@ -137,11 +139,13 @@ model EvaluationReceipt {
   studentEmail String
   professorId  String
   sectionId    String
+  subjectId    String
+  subject      Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
   academicYear String
   semester     String
   createdAt    DateTime @default(now())
 
-  @@unique([studentEmail, professorId, sectionId, academicYear, semester])
+  @@unique([studentEmail, professorId, sectionId, subjectId, academicYear, semester])
   @@index([studentEmail, createdAt])
 }
 
@@ -151,6 +155,8 @@ model Evaluation {
   professorId  String
   departmentId String
   templateId   String
+  subjectId    String
+  subject      Subject     @relation(fields: [subjectId], references: [id], onDelete: Cascade)
   academicYear String
   semester     String
   section      Section     @relation(fields: [sectionId], references: [id])

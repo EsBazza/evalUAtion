@@ -136,6 +136,7 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
   const [wizardStep, setWizardStep] = useState<1 | 2 | 3>(1); // 1: Selection, 2: Questionnaire, 3: Summary
   const [currentClusterIndex, setCurrentClusterIndex] = useState(0); // Tracks current cluster screen
   const [selectedProf, setSelectedProf] = useState<any | null>(null);
+  const [selectedSubject, setSelectedSubject] = useState<any | null>(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRestored, setIsRestored] = useState(false);
@@ -226,6 +227,7 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
         if (data.departmentId) setValue('departmentId', data.departmentId);
         if (data.sectionId) setValue('sectionId', data.sectionId);
         if (data.selectedProf) setSelectedProf(data.selectedProf);
+        if (data.selectedSubject) setSelectedSubject(data.selectedSubject);
         if (data.template) setTemplate(data.template);
         if (data.wizardStep) setWizardStep(data.wizardStep);
         if (data.currentClusterIndex !== undefined) setCurrentClusterIndex(data.currentClusterIndex);
@@ -249,6 +251,7 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
       departmentId: selectedDepartmentId,
       sectionId: selectedSectionId,
       selectedProf,
+      selectedSubject,
       template,
       wizardStep,
       currentClusterIndex,
@@ -262,6 +265,7 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
     selectedDepartmentId,
     selectedSectionId,
     selectedProf,
+    selectedSubject,
     template,
     wizardStep,
     currentClusterIndex,
@@ -272,11 +276,12 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
 
   // Safeguard: If we finished restoring but don't have a template or a selected professor for step 2+, fall back to step 1
   useEffect(() => {
-    if (isRestored && wizardStep > 1 && (!template || !selectedProf)) {
+    if (isRestored && wizardStep > 1 && (!template || !selectedProf || !selectedSubject)) {
       setWizardStep(1);
       setSelectedProf(null);
+      setSelectedSubject(null);
     }
-  }, [isRestored, wizardStep, template, selectedProf]);
+  }, [isRestored, wizardStep, template, selectedProf, selectedSubject]);
 
   const clearFormProgress = () => {
     const saved = localStorage.getItem('ua_evaluation_progress');
@@ -289,6 +294,7 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
           departmentId: data.departmentId,
           sectionId: data.sectionId,
           selectedProf: null,
+          selectedSubject: null,
           template: null,
           wizardStep: 1,
           currentClusterIndex: 0,
@@ -410,6 +416,7 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
         sessionKey
       );
 
+      const targetSubjectId = selectedSubject ? selectedSubject.id : "";
       const res = await submitProfessorEvaluation({
         studentEmail,
         studentName,
@@ -417,6 +424,7 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
         professorId: selectedProf.id,
         departmentId: sections.find(s => s.id === selectedSectionId)?.departmentId || selectedDepartmentId || departments[0]?.id || "", 
         templateId: template.id,
+        subjectId: targetSubjectId,
         answers: formattedAnswers,
         encryptedPayload: encrypted.ciphertext,
         iv: encrypted.iv,
@@ -431,19 +439,38 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
         return;
       }
 
-      const updatedCompleted = [...completedProfs, selectedProf.id];
+      const completedKey = selectedSubject ? `${selectedProf.id}-${selectedSubject.id}` : selectedProf.id;
+      const updatedCompleted = [...completedProfs, completedKey];
       setCompletedProfs(updatedCompleted);
       toast.success(`Evaluation for ${selectedProf.name} submitted successfully!`);
       
       clearFormProgress();
       evaluationForm.reset();
       
-      const nextPendingProf = professors.find(p => !updatedCompleted.includes(p.id));
-      if (nextPendingProf) {
-        setSelectedProf(nextPendingProf);
+      // Calculate pending tasks representing professor-subject combinations
+      const tasks = professors.flatMap(p => {
+        if (!p.teachingAssignments || p.teachingAssignments.length === 0) {
+          return [{ prof: p, subject: null }];
+        }
+        return p.teachingAssignments.map((ta: any) => ({
+          prof: p,
+          subject: ta.subject
+        }));
+      });
+
+      const nextPendingTask = tasks.find(t => 
+        t.subject 
+          ? !updatedCompleted.includes(`${t.prof.id}-${t.subject.id}`)
+          : !updatedCompleted.includes(t.prof.id)
+      );
+
+      if (nextPendingTask) {
+        setSelectedProf(nextPendingTask.prof);
+        setSelectedSubject(nextPendingTask.subject);
         setWizardStep(2);
       } else {
         setSelectedProf(null);
+        setSelectedSubject(null);
         setWizardStep(1);
       }
       setCurrentClusterIndex(0);
@@ -746,36 +773,68 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
                         </div>
                       ) : (
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          {professors.map((prof) => {
-                            const isCompleted = completedProfs.includes(prof.id);
-                            return (
-                              <div
-                                key={prof.id}
-                                className={cn(
-                                  "p-5 border rounded-lg text-left transition-all duration-200",
-                                  isCompleted 
-                                    ? 'border-emerald-100 bg-emerald-50/10 dark:border-emerald-950 dark:bg-emerald-950/10 opacity-80' 
-                                    : 'border-border bg-card'
-                                )}
-                              >
-                                <div className="flex justify-between items-start gap-4">
-                                  <div>
-                                    <span className="font-bold text-sm text-foreground block">{prof.name}</span>
-                                    <span className="text-[10px] text-muted-foreground mt-1 block font-medium">{prof.email}</span>
-                                  </div>
-                                  {isCompleted ? (
-                                    <span className="text-[9px] px-2.5 py-1 bg-emerald-50 border border-emerald-100 text-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-400 rounded-full font-bold uppercase tracking-wider flex items-center gap-1 shrink-0">
-                                      ✓ Done
-                                    </span>
-                                  ) : (
-                                    <span className="text-[9px] px-2.5 py-1 bg-ua-navy/5 border border-ua-navy/10 text-ua-navy dark:bg-ua-gold/10 dark:border-ua-gold/20 dark:text-ua-gold rounded-full font-bold uppercase tracking-wider shrink-0">
-                                      Pending
-                                    </span>
+                          {(() => {
+                            const tasks = professors.flatMap(p => {
+                              if (!p.teachingAssignments || p.teachingAssignments.length === 0) {
+                                return [{ prof: p, subject: null }];
+                              }
+                              return p.teachingAssignments.map((ta: any) => ({
+                                prof: p,
+                                subject: ta.subject
+                              }));
+                            });
+
+                            return tasks.map((task, idx) => {
+                              const taskKey = task.subject ? `${task.prof.id}-${task.subject.id}` : task.prof.id;
+                              const isCompleted = completedProfs.includes(taskKey);
+
+                              return (
+                                <div
+                                  key={`${taskKey}-${idx}`}
+                                  onClick={() => {
+                                    if (isCompleted) {
+                                      toast.info(`You have already completed the evaluation for ${task.prof.name} ${task.subject ? `(${task.subject.code})` : ''}.`);
+                                      return;
+                                    }
+                                    setSelectedProf(task.prof);
+                                    setSelectedSubject(task.subject);
+                                    evaluationForm.reset();
+                                    setWizardStep(2);
+                                    setCurrentClusterIndex(0);
+                                  }}
+                                  className={cn(
+                                    "p-5 border rounded-lg text-left transition-all duration-200",
+                                    isCompleted 
+                                      ? 'border-emerald-100 bg-emerald-50/10 dark:border-emerald-950 dark:bg-emerald-950/10 opacity-80 cursor-not-allowed' 
+                                      : 'border-border bg-card cursor-pointer hover:border-ua-navy dark:hover:border-ua-gold shadow-sm hover:shadow'
                                   )}
+                                >
+                                  <div className="flex justify-between items-start gap-4">
+                                    <div>
+                                      <span className="font-bold text-sm text-foreground block">{task.prof.name}</span>
+                                      <span className="text-[10px] text-muted-foreground mt-1 block font-medium">{task.prof.email}</span>
+                                      {task.subject && (
+                                        <div className="mt-2">
+                                          <span className="text-[9px] bg-ua-navy/5 dark:bg-ua-gold/10 border border-ua-navy/15 dark:border-ua-gold/20 text-ua-navy dark:text-ua-gold px-2 py-0.5 rounded font-mono font-semibold">
+                                            📚 {task.subject.name} ({task.subject.code})
+                                          </span>
+                                        </div>
+                                      )}
+                                    </div>
+                                    {isCompleted ? (
+                                      <span className="text-[9px] px-2.5 py-1 bg-emerald-50 border border-emerald-100 text-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-400 rounded-full font-bold uppercase tracking-wider flex items-center gap-1 shrink-0">
+                                        ✓ Done
+                                      </span>
+                                    ) : (
+                                      <span className="text-[9px] px-2.5 py-1 bg-ua-navy/5 border border-ua-navy/10 text-ua-navy dark:bg-ua-gold/10 dark:border-ua-gold/20 dark:text-ua-gold rounded-full font-bold uppercase tracking-wider shrink-0">
+                                        Pending
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
-                              </div>
-                            );
-                          })}
+                              );
+                            });
+                          })()}
                         </div>
                       )}
                     </CardContent>
@@ -787,9 +846,24 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
                         type="button"
                         uaVariant="primary"
                         onClick={() => {
-                          const nextPendingProf = professors.find(p => !completedProfs.includes(p.id));
-                          if (nextPendingProf) {
-                            setSelectedProf(nextPendingProf);
+                          const tasks = professors.flatMap(p => {
+                            if (!p.teachingAssignments || p.teachingAssignments.length === 0) {
+                              return [{ prof: p, subject: null }];
+                            }
+                            return p.teachingAssignments.map((ta: any) => ({
+                              prof: p,
+                              subject: ta.subject
+                            }));
+                          });
+
+                          const nextPendingTask = tasks.find(t => {
+                            const taskKey = t.subject ? `${t.prof.id}-${t.subject.id}` : t.prof.id;
+                            return !completedProfs.includes(taskKey);
+                          });
+
+                          if (nextPendingTask) {
+                            setSelectedProf(nextPendingTask.prof);
+                            setSelectedSubject(nextPendingTask.subject);
                             evaluationForm.reset();
                             setWizardStep(2);
                             setCurrentClusterIndex(0);
@@ -847,6 +921,7 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
                   } else {
                     evaluationForm.reset();
                     setSelectedProf(null);
+                    setSelectedSubject(null);
                     setWizardStep(1);
                   }
                 }}
@@ -897,9 +972,24 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
                 {/* Active Cluster questions */}
                 <div className="space-y-6">
                   <div className="border-b border-border/50 pb-2 mb-4">
-                    <div className="flex flex-wrap items-center gap-x-1.5 text-xs sm:text-sm text-muted-foreground mb-1 font-medium">
-                      <span>Evaluating</span>
-                      <span className="text-foreground font-semibold">{selectedProf.name}</span>
+                    <div className="flex flex-col gap-1 pb-3 mb-3 border-b border-border/30">
+                      <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Evaluating Faculty</span>
+                      <h2 className="text-xl sm:text-2xl font-serif font-bold text-foreground">{selectedProf.name}</h2>
+                      {selectedSubject ? (
+                        <div className="flex flex-wrap gap-1.5 mt-1">
+                          <span className="text-[10px] sm:text-xs bg-ua-navy/5 dark:bg-ua-gold/10 border border-ua-navy/15 dark:border-ua-gold/20 text-ua-navy dark:text-ua-gold px-2.5 py-0.5 rounded font-medium">
+                            📚 {selectedSubject.name} ({selectedSubject.code})
+                          </span>
+                        </div>
+                      ) : selectedProf.teachingAssignments && selectedProf.teachingAssignments.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 mt-1">
+                          {selectedProf.teachingAssignments.map((ta: any) => (
+                            <span key={ta.id} className="text-[10px] sm:text-xs bg-ua-navy/5 dark:bg-ua-gold/10 border border-ua-navy/15 dark:border-ua-gold/20 text-ua-navy dark:text-ua-gold px-2.5 py-0.5 rounded font-medium">
+                              📚 {ta.subject.name} ({ta.subject.code})
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                     <h3 className="font-serif text-xl font-bold text-ua-navy dark:text-ua-gold uppercase tracking-wide">
                       {template.clusters[currentClusterIndex].title}
@@ -934,6 +1024,21 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
                   <div>
                     <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block mb-0.5">STEP 3: SUMMARY REVIEW</span>
                     <CardTitle className="text-lg font-bold">Reviewing: {selectedProf.name}</CardTitle>
+                    {selectedSubject ? (
+                      <div className="flex flex-wrap gap-1 mt-1.5">
+                        <span className="text-[10px] bg-muted text-muted-foreground border border-border/40 px-2 py-0.5 rounded font-medium">
+                          {selectedSubject.name} ({selectedSubject.code})
+                        </span>
+                      </div>
+                    ) : selectedProf.teachingAssignments && selectedProf.teachingAssignments.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1.5">
+                        {selectedProf.teachingAssignments.map((ta: any) => (
+                          <span key={ta.id} className="text-[10px] bg-muted text-muted-foreground border border-border/40 px-2 py-0.5 rounded font-medium">
+                            {ta.subject.name} ({ta.subject.code})
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <Button
                     uaVariant="outline"
@@ -1033,7 +1138,7 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
           }
         >
           <p className="text-sm text-muted-foreground leading-relaxed">
-            Are you sure you want to submit your evaluation for <strong>{selectedProf?.name}</strong>? This action is permanent and completely anonymous. Your responses cannot be altered post-submission.
+            Are you sure you want to submit your evaluation for <strong>{selectedProf?.name}</strong>{selectedSubject && <> for <strong>{selectedSubject.name} ({selectedSubject.code})</strong></>}? This action is permanent and completely anonymous. Your responses cannot be altered post-submission.
           </p>
         </Modal>
       </main>

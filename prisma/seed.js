@@ -1,8 +1,15 @@
+if (typeof process.loadEnvFile === 'function') {
+  try {
+    process.loadEnvFile();
+  } catch (e) {
+    // ignore
+  }
+}
 const { PrismaClient } = require('@prisma/client');
 const { Pool } = require('pg');
 const { PrismaPg } = require('@prisma/adapter-pg');
 
-const connectionString = process.env.DATABASE_URL || "postgresql://postgres:admin@localhost:5432/evaluation_db?schema=public";
+const connectionString = process.env.DIRECT_URL || process.env.DATABASE_URL || "postgresql://postgres:admin@localhost:5432/evaluation_db?schema=public";
 const pool = new Pool({ connectionString });
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
@@ -154,10 +161,33 @@ async function main() {
     "Shakespeare", "Darwin", "Galileo", "Copernicus", "Kepler", "Planck", "Pasteur", "Mendel"
   ];
 
+  // Create subjects first
+  const subjectsMap = {};
+  for (const config of deptConfigs) {
+    const dept = createdDepts[config.code];
+    subjectsMap[dept.id] = [];
+    const subjectsList = [
+      { name: `Introduction to ${config.code} Core`, code: `${config.code}-101` },
+      { name: `Advanced ${config.code} Studies`, code: `${config.code}-202` },
+      { name: `Specialized ${config.code} Seminar`, code: `${config.code}-303` }
+    ];
+    for (const sub of subjectsList) {
+      const dbSub = await prisma.subject.create({
+        data: {
+          name: sub.name,
+          code: sub.code,
+          departmentId: dept.id
+        }
+      });
+      subjectsMap[dept.id].push(dbSub);
+    }
+  }
+
   let deptIndex = 0;
   for (const config of deptConfigs) {
     const dept = createdDepts[config.code];
     const sections = createdSectionsByDept[config.code] || [];
+    const deptSubjects = subjectsMap[dept.id] || [];
 
     for (let k = 1; k <= 10; k++) {
       const fName = firstNames[(deptIndex * 10 + k) % firstNames.length];
@@ -169,14 +199,31 @@ async function main() {
 
       // Get 3 random sections
       const shuffledSections = shuffle(sections);
-      const connectedSections = shuffledSections.slice(0, 3).map(s => ({ id: s.id }));
+      const connectedSections = shuffledSections.slice(0, 3);
+
+      const assignmentsData = [];
+      for (const section of connectedSections) {
+        // assign 1-2 random subjects
+        const assignedSubjects = shuffle(deptSubjects).slice(0, Math.min(2, deptSubjects.length));
+        for (const sub of assignedSubjects) {
+          assignmentsData.push({
+            sectionId: section.id,
+            subjectId: sub.id
+          });
+        }
+      }
 
       await prisma.professor.create({
         data: {
           name,
           email,
           departmentId: dept.id,
-          sections: { connect: connectedSections }
+          sections: { connect: connectedSections.map(s => ({ id: s.id })) },
+          teachingAssignments: {
+            createMany: {
+              data: assignmentsData
+            }
+          }
         }
       });
     }
@@ -583,64 +630,75 @@ async function main() {
   for (const [, section] of seededSections) {
     const sectionProfs = section.professors;
 
-    // Each mock student evaluates ALL professors in this section
+    // Each mock student evaluates ALL professors in this section for each subject they teach
     for (const student of students) {
       for (const prof of sectionProfs) {
-        const profTemplate = templates.find(t =>
-          t.level === section.department.level &&
-          (t.departmentId === section.departmentId || t.departmentId === null)
-        );
-        if (!profTemplate) continue;
-
-        // Create Evaluation Receipt
-        await prisma.evaluationReceipt.create({
-          data: {
-            studentEmail: student.email,
+        const assignments = await prisma.teachingAssignment.findMany({
+          where: {
             professorId: prof.id,
-            sectionId: section.id,
-            academicYear: activeYear,
-            semester: activeSem
+            sectionId: section.id
           }
         });
 
-        // Create answers
-        const answersData = [];
-        for (const cluster of profTemplate.clusters) {
-          for (const crit of cluster.criteria) {
-            let score = null;
-            let textVal = null;
-            let jsonVal = null;
+        for (const assignment of assignments) {
+          const profTemplate = templates.find(t =>
+            t.level === section.department.level &&
+            (t.departmentId === section.departmentId || t.departmentId === null)
+          );
+          if (!profTemplate) continue;
 
-            if (crit.type === 'SCALE_0_TO_4') {
-              score = Math.floor(Math.random() * 3) + 2;
-            } else if (crit.type === 'SCALE_1_TO_5') {
-              score = Math.floor(Math.random() * 3) + 3;
-            } else if (crit.type === 'RADIO_EXPECTATION') {
-              textVal = crit.options ? JSON.parse(JSON.stringify(crit.options))[Math.floor(Math.random() * 3)] : "The teacher meets my expectations.";
-            } else if (crit.type === 'CHECKBOX_AREAS') {
-              jsonVal = ["Communication Skills", "Instructional Skills"];
-            } else if (crit.type === 'TEXT_LONG') {
-              textVal = "Great teacher, very interactive and helpful in class discussions.";
+          // Create Evaluation Receipt
+          await prisma.evaluationReceipt.create({
+            data: {
+              studentEmail: student.email,
+              professorId: prof.id,
+              sectionId: section.id,
+              subjectId: assignment.subjectId,
+              academicYear: activeYear,
+              semester: activeSem
             }
+          });
 
-            answersData.push({ criterionId: crit.id, score, textVal, jsonVal });
+          // Create answers
+          const answersData = [];
+          for (const cluster of profTemplate.clusters) {
+            for (const crit of cluster.criteria) {
+              let score = null;
+              let textVal = null;
+              let jsonVal = null;
+
+              if (crit.type === 'SCALE_0_TO_4') {
+                score = Math.floor(Math.random() * 3) + 2;
+              } else if (crit.type === 'SCALE_1_TO_5') {
+                score = Math.floor(Math.random() * 3) + 3;
+              } else if (crit.type === 'RADIO_EXPECTATION') {
+                textVal = crit.options ? JSON.parse(JSON.stringify(crit.options))[Math.floor(Math.random() * 3)] : "The teacher meets my expectations.";
+              } else if (crit.type === 'CHECKBOX_AREAS') {
+                jsonVal = ["Communication Skills", "Instructional Skills"];
+              } else if (crit.type === 'TEXT_LONG') {
+                textVal = "Great teacher, very interactive and helpful in class discussions.";
+              }
+
+              answersData.push({ criterionId: crit.id, score, textVal, jsonVal });
+            }
           }
+
+          // Create Evaluation
+          await prisma.evaluation.create({
+            data: {
+              sectionId: section.id,
+              professorId: prof.id,
+              departmentId: section.departmentId,
+              templateId: profTemplate.id,
+              subjectId: assignment.subjectId,
+              academicYear: activeYear,
+              semester: activeSem,
+              answers: { create: answersData }
+            }
+          });
+
+          evaluatedProfIds.add(prof.id);
         }
-
-        // Create Evaluation
-        await prisma.evaluation.create({
-          data: {
-            sectionId: section.id,
-            professorId: prof.id,
-            departmentId: section.departmentId,
-            templateId: profTemplate.id,
-            academicYear: activeYear,
-            semester: activeSem,
-            answers: { create: answersData }
-          }
-        });
-
-        evaluatedProfIds.add(prof.id);
       }
     }
   }

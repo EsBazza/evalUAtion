@@ -1,4 +1,4 @@
-import { defineConfig, env } from '@prisma/config';
+import { defineConfig } from '@prisma/config';
 
 // Load environment variables from .env file
 if (typeof process.loadEnvFile === 'function') {
@@ -11,9 +11,6 @@ if (typeof process.loadEnvFile === 'function') {
 
 export default defineConfig({
   datasource: {
-    url: env("DATABASE_URL"),
-    // Note: directUrl for migrations is not yet supported in prisma.config.ts (Prisma 7.x).
-    // Use the DATABASE_URL (pooled Supabase URL) for both runtime and migrations.
-    // For running migrations directly, set DATABASE_URL to the direct URL temporarily.
+    url: process.env.DIRECT_URL || process.env.DATABASE_URL,
   },
 });

@@ -26,6 +26,16 @@ export async function getProfessorsBySection(sectionId: string) {
         },
       },
     },
+    include: {
+      teachingAssignments: {
+        where: {
+          sectionId: sectionId,
+        },
+        include: {
+          subject: true,
+        },
+      },
+    },
   });
 }
 
@@ -87,10 +97,11 @@ export async function getCompletedEvaluations(studentEmail: string, sectionId: s
     },
     select: {
       professorId: true,
+      subjectId: true,
     },
   });
 
-  return receipts.map(r => r.professorId);
+  return receipts.map(r => `${r.professorId}-${r.subjectId}`);
 }
 
 import { createHash } from 'crypto';
@@ -102,6 +113,7 @@ export async function submitProfessorEvaluation(data: {
   professorId: string;
   departmentId: string;
   templateId: string;
+  subjectId: string;
   answers: {
     criterionId: string;
     score?: number;
@@ -144,10 +156,11 @@ export async function submitProfessorEvaluation(data: {
       // 1. Check if receipt already exists to prevent duplicate submissions
       const existingReceipt = await tx.evaluationReceipt.findUnique({
         where: {
-          studentEmail_professorId_sectionId_academicYear_semester: {
+          studentEmail_professorId_sectionId_subjectId_academicYear_semester: {
             studentEmail: data.studentEmail,
             professorId: data.professorId,
             sectionId: data.sectionId,
+            subjectId: data.subjectId,
             academicYear: termYear,
             semester: termSem
           }
@@ -155,7 +168,7 @@ export async function submitProfessorEvaluation(data: {
       });
 
       if (existingReceipt) {
-        return { success: false, error: "You have already evaluated this professor for this section in the current term." };
+        return { success: false, error: "You have already evaluated this professor for this subject in the current term." };
       }
 
       // 2. Create the Evaluation Receipt (attendance tracking)
@@ -164,6 +177,7 @@ export async function submitProfessorEvaluation(data: {
           studentEmail: data.studentEmail,
           professorId: data.professorId,
           sectionId: data.sectionId,
+          subjectId: data.subjectId,
           academicYear: termYear,
           semester: termSem
         }
@@ -171,7 +185,7 @@ export async function submitProfessorEvaluation(data: {
 
       // 3. Handle SecureEvaluation Audit Recording (ECDH+AES payload)
       const submissionHash = createHash('sha256')
-        .update(`${data.studentEmail}:${data.professorId}:${data.sectionId}:${termYear}:${termSem}`)
+        .update(`${data.studentEmail}:${data.professorId}:${data.sectionId}:${data.subjectId}:${termYear}:${termSem}`)
         .digest('hex');
 
       // If client encryption payload is present, write to SecureEvaluation
@@ -247,6 +261,7 @@ export async function submitProfessorEvaluation(data: {
           professorId: data.professorId,
           departmentId: data.departmentId,
           templateId: data.templateId,
+          subjectId: data.subjectId,
           academicYear: termYear,
           semester: termSem,
           answers: {
