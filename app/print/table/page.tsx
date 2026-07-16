@@ -203,6 +203,14 @@ export default async function PrintTablePage({ searchParams }: PageProps) {
         }
       `}} />
       <div className="relative min-h-screen bg-white text-slate-800 p-6 max-w-[800px] mx-auto print:p-0">
+        {/* Watermark Logo (Centered overlay, repeated on every printed page via CSS fixed position, pointer-events-none so it doesn't block interactions/selections) */}
+        <div className="pointer-events-none fixed inset-0 flex items-center justify-center z-[9999] opacity-[0.035] print:opacity-[0.035]">
+          <img 
+            src="/ua-logo.png" 
+            alt="UA Seal Watermark" 
+            className="w-[520px] h-[520px] object-contain animate-fade-in"
+          />
+        </div>
         
         {/* Title Details */}
         <div className="border-b border-slate-200 pb-2 mb-6">

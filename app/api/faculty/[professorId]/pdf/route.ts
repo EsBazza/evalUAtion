@@ -26,9 +26,9 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     <div style="font-size: 8px; width: 100%; font-family: 'Inter', sans-serif; box-sizing: border-box; display: flex; flex-direction: column;">
       <div style="background-color: #0B2F64; height: 48px; display: flex; align-items: center; justify-content: space-between; padding: 0 18px; color: white;">
         <div style="display: flex; align-items: center; gap: 10px;">
-          ${logoBase64 ? `<img src="${logoBase64}" style="height: 32px; width: 32px; object-fit: contain; border-radius: 50%; border: 1.5px solid rgba(255,255,255,0.3); background-color: #ffffff; padding: 1.5px;" />` : ''}
+          ${logoBase64 ? `<img src="${logoBase64}" style="height: 38px; width: 38px; object-fit: contain; border-radius: 50%; border: 1.5px solid rgba(255,255,255,0.4); background-color: #ffffff; padding: 1.5px;" />` : ''}
           <div style="display: flex; flex-direction: column; justify-content: center; line-height: 1.1;">
-            <span style="font-weight: 600; font-size: 8px; letter-spacing: 1.2px; color: rgba(255, 255, 255, 0.75);">UNIVERSITY OF THE</span>
+            <span style="font-weight: 700; font-size: 8px; letter-spacing: 1.2px; color: #D4AF37;">UNIVERSITY OF THE</span>
             <span style="font-weight: 800; font-size: 15px; letter-spacing: 0.8px; color: #D4AF37;">ASSUMPTION</span>
           </div>
         </div>
