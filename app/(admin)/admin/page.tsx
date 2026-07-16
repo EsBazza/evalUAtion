@@ -1044,50 +1044,78 @@ function AdminDashboardContent() {
                           </div>
                         </div>
 
-                        {/* 2. Subject/Course Dropdown (Only show if department chosen) */}
+                        {/* 2. Subject/Course Selection (Scrollable Checklist like Department) */}
                         {selectedRatingsDept ? (() => {
                           const activeDept = departments.find(d => d.name === selectedRatingsDept);
                           const activeSubjects = activeDept?.subjects || [];
                           return (
                             <div className="space-y-2 animate-fade-in">
-                              <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-widest font-sans">Subject / Course</label>
-                              <select
-                                value={selectedRatingsSubject}
-                                onChange={(e) => setSelectedRatingsSubject(e.target.value)}
-                                className="w-full p-2 border border-border rounded-lg text-xs bg-card focus:ring-2 focus:ring-ua-gold/30 outline-none text-foreground font-semibold"
-                              >
-                                <option value="">All Subjects</option>
-                                {activeSubjects.map((sub: any) => (
-                                  <option key={sub.id} value={sub.name}>
-                                    {sub.code} - {sub.name}
-                                  </option>
-                                ))}
-                              </select>
+                              <span className="block text-[10px] font-bold text-muted-foreground uppercase tracking-widest font-sans">Subject / Course</span>
+                              <div className="border border-border rounded-lg p-3 max-h-36 overflow-y-auto space-y-2 bg-muted/5">
+                                {activeSubjects.length === 0 ? (
+                                  <p className="text-xs text-muted-foreground italic font-semibold">No subjects found.</p>
+                                ) : (
+                                  activeSubjects.map((sub: any) => {
+                                    const checked = selectedRatingsSubject === sub.name;
+                                    return (
+                                      <label key={sub.id} className="flex items-center gap-2.5 text-xs font-semibold cursor-pointer select-none text-foreground/80 hover:text-foreground">
+                                        <input
+                                          type="checkbox"
+                                          checked={checked}
+                                          onChange={() => {
+                                            if (checked) {
+                                              setSelectedRatingsSubject('');
+                                            } else {
+                                              setSelectedRatingsSubject(sub.name);
+                                            }
+                                          }}
+                                          className="rounded border-gray-300 text-ua-navy focus:ring-ua-navy/35 cursor-pointer"
+                                        />
+                                        {sub.code} - {sub.name}
+                                      </label>
+                                    );
+                                  })
+                                )}
+                              </div>
                             </div>
                           );
                         })() : (
                           <div className="hidden md:block"></div>
                         )}
 
-                        {/* 3. Section Dropdown (Only show if department chosen) */}
+                        {/* 3. Section Selection (Scrollable Checklist like Department) */}
                         {selectedRatingsDept ? (() => {
                           const activeDept = departments.find(d => d.name === selectedRatingsDept);
                           const activeSections = activeDept?.sections || [];
                           return (
                             <div className="space-y-2 animate-fade-in">
-                              <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-widest font-sans">Section</label>
-                              <select
-                                value={selectedRatingsSection}
-                                onChange={(e) => setSelectedRatingsSection(e.target.value)}
-                                className="w-full p-2 border border-border rounded-lg text-xs bg-card focus:ring-2 focus:ring-ua-gold/30 outline-none text-foreground font-semibold"
-                              >
-                                <option value="">All Sections</option>
-                                {activeSections.map((sec: any) => (
-                                  <option key={sec.id} value={sec.name}>
-                                    {sec.name}
-                                  </option>
-                                ))}
-                              </select>
+                              <span className="block text-[10px] font-bold text-muted-foreground uppercase tracking-widest font-sans">Section</span>
+                              <div className="border border-border rounded-lg p-3 max-h-36 overflow-y-auto space-y-2 bg-muted/5">
+                                {activeSections.length === 0 ? (
+                                  <p className="text-xs text-muted-foreground italic font-semibold">No sections found.</p>
+                                ) : (
+                                  activeSections.map((sec: any) => {
+                                    const checked = selectedRatingsSection === sec.name;
+                                    return (
+                                      <label key={sec.id} className="flex items-center gap-2.5 text-xs font-semibold cursor-pointer select-none text-foreground/80 hover:text-foreground">
+                                        <input
+                                          type="checkbox"
+                                          checked={checked}
+                                          onChange={() => {
+                                            if (checked) {
+                                              setSelectedRatingsSection('');
+                                            } else {
+                                              setSelectedRatingsSection(sec.name);
+                                            }
+                                          }}
+                                          className="rounded border-gray-300 text-ua-navy focus:ring-ua-navy/35 cursor-pointer"
+                                        />
+                                        {sec.name}
+                                      </label>
+                                    );
+                                  })
+                                )}
+                              </div>
                             </div>
                           );
                         })() : (
