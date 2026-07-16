@@ -7,7 +7,7 @@ import { getSystemSettings } from '@/app/actions/settings';
 import { RadarClusterChart } from '@/components/charts/RadarClusterChart';
 import { SectionBarChart } from '@/components/charts/SectionBarChart';
 import { HistoricalTrendChart } from '@/components/charts/HistoricalTrendChart';
-import { Award, BrainCircuit, RefreshCw, BarChart3, AlertCircle, LogOut } from 'lucide-react';
+import { Award, BrainCircuit, RefreshCw, BarChart3, AlertCircle, LogOut, Download } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 import { exportFacultyCSV, exportFacultyPDF } from '@/lib/exports';
 
@@ -340,9 +340,10 @@ function FacultyDashboardContent() {
                   sectionScores,
                   commentsList
                 })}
-                uaVariant="outline"
-                className="h-10 text-xs flex items-center"
+                uaVariant="ghost"
+                className="h-10 text-xs flex items-center gap-1.5 font-bold px-3.5 bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/30 transition-all rounded-lg"
               >
+                <Download className="size-3.5" />
                 Export CSV
               </Button>
               <Button
@@ -351,9 +352,10 @@ function FacultyDashboardContent() {
                   academicYear,
                   semester
                 })}
-                uaVariant="outline"
-                className="h-10 text-xs flex items-center"
+                uaVariant="ghost"
+                className="h-10 text-xs flex items-center gap-1.5 font-bold px-3.5 bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-900/30 transition-all rounded-lg"
               >
+                <Download className="size-3.5" />
                 Export PDF
               </Button>
             </div>

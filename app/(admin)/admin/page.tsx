@@ -990,13 +990,13 @@ function AdminDashboardContent() {
                         </Button>
                       )}
 
-                      <div className="flex items-center gap-1.5 bg-muted/50 p-1 rounded-lg border border-border/40 ml-auto xl:ml-0">
+                      <div className="flex items-center gap-1.5 ml-auto xl:ml-0">
                         <Button
                           type="button"
                           uaVariant="ghost"
                           onClick={() => handleExportRatings('csv')}
                           disabled={filteredRankings.length === 0}
-                          className="h-7 text-[10px] font-bold px-2 flex items-center gap-1 hover:bg-card"
+                          className="h-7 text-[10px] font-bold px-2.5 flex items-center gap-1 bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/30 transition-all rounded-md"
                         >
                           <Download className="size-3" />
                           CSV
@@ -1006,7 +1006,7 @@ function AdminDashboardContent() {
                           uaVariant="ghost"
                           onClick={() => handleExportRatings('pdf')}
                           disabled={filteredRankings.length === 0}
-                          className="h-7 text-[10px] font-bold px-2 flex items-center gap-1 hover:bg-card"
+                          className="h-7 text-[10px] font-bold px-2.5 flex items-center gap-1 bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-900/30 transition-all rounded-md"
                         >
                           <Download className="size-3" />
                           PDF
@@ -1330,20 +1330,20 @@ function AdminDashboardContent() {
                         </Button>
                         <Button
                           type="button"
-                          uaVariant="primary"
+                          uaVariant="ghost"
                           onClick={() => handleExportAudit('csv')}
                           disabled={filteredAndSortedLogs.length === 0}
-                          className="h-8 text-xs flex items-center gap-1 font-semibold px-2.5"
+                          className="h-8 text-xs flex items-center gap-1.5 font-bold px-3 bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/30 transition-all rounded-md"
                         >
                           <Download className="size-3.5" />
                           CSV
                         </Button>
                         <Button
                           type="button"
-                          uaVariant="accent"
+                          uaVariant="ghost"
                           onClick={() => handleExportAudit('pdf')}
                           disabled={filteredAndSortedLogs.length === 0}
-                          className="h-8 text-xs flex items-center gap-1 font-semibold px-2.5"
+                          className="h-8 text-xs flex items-center gap-1.5 font-bold px-3 bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-900/30 transition-all rounded-md"
                         >
                           <Download className="size-3.5" />
                           PDF
@@ -1447,26 +1447,26 @@ function AdminDashboardContent() {
                         <div className="flex gap-2">
                           <Button
                             type="button"
-                            uaVariant="primary"
+                            uaVariant="ghost"
                             onClick={() => {
                               setExportFormat('csv');
                               setIsExportModalOpen(true);
                             }}
                             disabled={receipts.length === 0}
-                            className="h-9 text-xs flex items-center gap-1.5"
+                            className="h-9 text-xs flex items-center gap-1.5 font-bold px-3 bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/30 transition-all rounded-md"
                           >
                             <Download className="size-3.5" />
                             Export CSV
                           </Button>
                           <Button
                             type="button"
-                            uaVariant="accent"
+                            uaVariant="ghost"
                             onClick={() => {
                               setExportFormat('pdf');
                               setIsExportModalOpen(true);
                             }}
                             disabled={receipts.length === 0}
-                            className="h-9 text-xs flex items-center gap-1.5"
+                            className="h-9 text-xs flex items-center gap-1.5 font-bold px-3 bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-900/30 transition-all rounded-md"
                           >
                             <Download className="size-3.5" />
                             Export PDF

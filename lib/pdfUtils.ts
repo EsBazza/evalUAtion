@@ -70,29 +70,33 @@ export function drawBrandedLayout({
 
   // 2. Draw Navy Blue Header Band
   doc.setFillColor(11, 47, 100); // #0B2F64 (Navy)
-  doc.rect(0, 0, pageWidth, 25, 'F');
+  doc.rect(0, 0, pageWidth, 30, 'F');
 
   // 3. Draw Gold Accent Stripe
   doc.setFillColor(212, 175, 55); // #D4AF37 (Gold)
-  doc.rect(0, 25, pageWidth, 2, 'F');
+  doc.rect(0, 30, pageWidth, 2, 'F');
 
   // 4. Draw Logo (if provided)
   let logoOffset = 14;
   if (logoDataUrl) {
-    doc.addImage(logoDataUrl, 'PNG', 14, 5, 15, 15);
-    logoOffset = 34; // Shift title text to right
+    doc.addImage(logoDataUrl, 'PNG', 14, 6, 18, 18);
+    logoOffset = 36; // Shift title text to right
   }
 
-  // 5. Draw Header Title Texts
-  doc.setTextColor(255, 255, 255);
+  // 5. Draw Header Title Texts (Double-decked header matching new standard)
+  doc.setTextColor(200, 200, 200);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(12);
-  doc.text('UNIVERSITY OF THE ASSUMPTION', logoOffset, 12);
+  doc.setFontSize(7.5);
+  doc.text('UNIVERSITY OF THE', logoOffset, 11);
 
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8);
-  doc.setTextColor(220, 220, 220);
-  doc.text(title.toUpperCase(), logoOffset, 18);
+  doc.setFontSize(13);
+  doc.setTextColor(212, 175, 55); // Gold
+  doc.text('ASSUMPTION', logoOffset, 17);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8.5);
+  doc.setTextColor(255, 255, 255); // White subtitle
+  doc.text(title.toUpperCase(), logoOffset, 24);
 
   // 6. Draw Footer Line (Gold)
   doc.setFillColor(212, 175, 55);
