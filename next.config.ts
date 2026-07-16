@@ -3,6 +3,7 @@ import withBundleAnalyzer from "@next/bundle-analyzer";
 
 const nextConfig: NextConfig = {
   output: 'standalone',
+  serverExternalPackages: ['@sparticuz/chromium', 'puppeteer-core'],
 };
 
 const withAnalyzer = withBundleAnalyzer({
