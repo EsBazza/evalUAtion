@@ -74,8 +74,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       await page.setCookie({
         name: cookie.name,
         value: cookie.value,
-        domain: req.nextUrl.hostname,
-        path: '/',
+        url: req.nextUrl.origin,
       });
     }
 
