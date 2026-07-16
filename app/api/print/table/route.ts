@@ -20,20 +20,19 @@ export async function GET(req: NextRequest) {
   const reportLabel = type === 'ratings' ? 'Ratings Ledger<br/>Report' : type === 'attendance' ? 'Attendance Logs<br/>Report' : 'System Audit<br/>Report';
   const headerTemplate = `
     <div style="font-size: 8px; width: 100%; font-family: 'Inter', sans-serif; box-sizing: border-box; display: flex; flex-direction: column;">
-      <div style="background-color: #ffffff; height: 52px; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; width: 100%; border-bottom: none;">
-        <!-- LEFT: Logo -->
-        <div style="flex-shrink: 0;">
-          ${logoBase64 ? `<img src="${logoBase64}" style="height: 44px; width: 44px; object-fit: contain; border-radius: 50%; border: 2px solid #0B2265; padding: 1px;" />` : ''}
+      <div style="background-color: #ffffff; height: 62px; display: flex; align-items: center; width: 100%; padding: 0 24px;">
+        <!-- LEFT: Report Type -->
+        <div style="flex: 0 0 100px;">
+          <span style="font-weight: 800; font-size: 7px; letter-spacing: 0.5px; color: #000000; text-transform: uppercase; line-height: 1.3;">${reportLabel}</span>
         </div>
-        <!-- CENTER: University Name -->
-        <div style="display: flex; flex-direction: column; align-items: center; line-height: 1.2;">
-          <span style="font-weight: 800; font-size: 11px; letter-spacing: 1.5px; color: #F4B400; text-transform: uppercase;">UNIVERSITY OF THE ASSUMPTION</span>
-          <span style="font-weight: 500; font-size: 6.5px; letter-spacing: 0.8px; color: #64748B; margin-top: 2px;">San Fernando, Pampanga</span>
+        <!-- CENTER: Logo + University Name stacked -->
+        <div style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+          ${logoBase64 ? `<img src="${logoBase64}" style="height: 36px; width: 36px; object-fit: contain; border-radius: 50%;" />` : ''}
+          <span style="font-weight: 800; font-size: 10px; letter-spacing: 1.5px; color: #F4B400; text-transform: uppercase; margin-top: 2px;">UNIVERSITY OF THE ASSUMPTION</span>
+          <span style="font-weight: 500; font-size: 6px; letter-spacing: 0.8px; color: #64748B; margin-top: 1px;">San Fernando, Pampanga</span>
         </div>
-        <!-- RIGHT: Report Type -->
-        <div style="flex-shrink: 0; text-align: right;">
-          <span style="font-weight: 800; font-size: 8px; letter-spacing: 0.6px; color: #000000; text-transform: uppercase;">${reportLabel}</span>
-        </div>
+        <!-- RIGHT: Empty for balance -->
+        <div style="flex: 0 0 100px;"></div>
       </div>
       <div style="background-color: #F4B400; height: 3px; width: 100%;"></div>
     </div>
