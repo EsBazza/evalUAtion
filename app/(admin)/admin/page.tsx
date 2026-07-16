@@ -139,9 +139,9 @@ function AdminDashboardContent() {
   const [selectedLedgerDept, setSelectedLedgerDept] = useState<string>('All');
   // Ratings Ledger advanced search states
   const [ratingsSearch, setRatingsSearch] = useState('');
-  const [selectedRatingsDept, setSelectedRatingsDept] = useState('');
-  const [selectedRatingsSubject, setSelectedRatingsSubject] = useState('');
-  const [selectedRatingsSection, setSelectedRatingsSection] = useState('');
+  const [selectedRatingsDepts, setSelectedRatingsDepts] = useState<string[]>([]);
+  const [selectedRatingsSubjects, setSelectedRatingsSubjects] = useState<string[]>([]);
+  const [selectedRatingsSections, setSelectedRatingsSections] = useState<string[]>([]);
   const [isRatingsAdvancedSearchOpen, setIsRatingsAdvancedSearchOpen] = useState(false);
   const [departments, setDepartments] = useState<any[]>([]);
   const [templates, setTemplates] = useState<any[]>([]);
@@ -158,13 +158,22 @@ function AdminDashboardContent() {
   const ledgerItemsPerPage = 10;
 
   useEffect(() => {
-    setSelectedRatingsSubject('');
-    setSelectedRatingsSection('');
-  }, [selectedRatingsDept]);
+    if (selectedRatingsDepts.length > 0) {
+      const activeDepts = departments.filter(d => selectedRatingsDepts.includes(d.name));
+      const allowedSubjectNames = new Set(activeDepts.flatMap(d => (d.subjects || []).map((s: any) => s.name)));
+      const allowedSectionNames = new Set(activeDepts.flatMap(d => (d.sections || []).map((s: any) => s.name)));
+      
+      setSelectedRatingsSubjects(prev => prev.filter(name => allowedSubjectNames.has(name)));
+      setSelectedRatingsSections(prev => prev.filter(name => allowedSectionNames.has(name)));
+    } else {
+      setSelectedRatingsSubjects([]);
+      setSelectedRatingsSections([]);
+    }
+  }, [selectedRatingsDepts, departments]);
 
   useEffect(() => {
     setLedgerPage(1);
-  }, [selectedLedgerDept, ratingsSearch, selectedRatingsDept, selectedRatingsSubject, selectedRatingsSection]);
+  }, [selectedLedgerDept, ratingsSearch, selectedRatingsDepts, selectedRatingsSubjects, selectedRatingsSections]);
 
   useEffect(() => {
     setAttendancePage(1);
@@ -740,14 +749,14 @@ function AdminDashboardContent() {
       (r.name || '').toLowerCase().includes(searchVal) ||
       (r.email || '').toLowerCase().includes(searchVal);
 
-    // 2. Department filter (by specific department name)
-    const deptMatch = !selectedRatingsDept || r.department === selectedRatingsDept;
+    // 2. Department filter (by selected departments)
+    const deptMatch = selectedRatingsDepts.length === 0 || selectedRatingsDepts.includes(r.department);
 
     // 3. Subject/Course filter
-    const subjectMatch = !selectedRatingsSubject || (r.teachingAssignments && r.teachingAssignments.some((ta: any) => ta.subjectName === selectedRatingsSubject));
+    const subjectMatch = selectedRatingsSubjects.length === 0 || (r.teachingAssignments && r.teachingAssignments.some((ta: any) => selectedRatingsSubjects.includes(ta.subjectName)));
 
     // 4. Section filter
-    const sectionMatch = !selectedRatingsSection || (r.teachingAssignments && r.teachingAssignments.some((ta: any) => ta.sectionName === selectedRatingsSection));
+    const sectionMatch = selectedRatingsSections.length === 0 || (r.teachingAssignments && r.teachingAssignments.some((ta: any) => selectedRatingsSections.includes(ta.sectionName)));
 
     return searchMatch && deptMatch && subjectMatch && sectionMatch;
   });
@@ -963,15 +972,15 @@ function AdminDashboardContent() {
                         Advanced Search
                       </Button>
 
-                      {(ratingsSearch || selectedRatingsDept || selectedRatingsSubject || selectedRatingsSection) && (
+                      {(ratingsSearch || selectedRatingsDepts.length > 0 || selectedRatingsSubjects.length > 0 || selectedRatingsSections.length > 0) && (
                         <Button
                           type="button"
                           uaVariant="ghost"
                           onClick={() => {
                             setRatingsSearch('');
-                            setSelectedRatingsDept('');
-                            setSelectedRatingsSubject('');
-                            setSelectedRatingsSection('');
+                            setSelectedRatingsDepts([]);
+                            setSelectedRatingsSubjects([]);
+                            setSelectedRatingsSections([]);
                             toast.success("Filters cleared");
                           }}
                           className="h-9 text-xs font-semibold text-ua-crimson hover:bg-ua-crimson/5"
@@ -1021,7 +1030,7 @@ function AdminDashboardContent() {
                               <p className="text-xs text-muted-foreground italic font-semibold">No departments found.</p>
                             ) : (
                               departments.map((dept) => {
-                                const checked = selectedRatingsDept === dept.name;
+                                const checked = selectedRatingsDepts.includes(dept.name);
                                 return (
                                   <label key={dept.id} className="flex items-center gap-2.5 text-xs font-semibold cursor-pointer select-none text-foreground/80 hover:text-foreground">
                                     <input
@@ -1029,9 +1038,9 @@ function AdminDashboardContent() {
                                       checked={checked}
                                       onChange={() => {
                                         if (checked) {
-                                          setSelectedRatingsDept('');
+                                          setSelectedRatingsDepts(prev => prev.filter(name => name !== dept.name));
                                         } else {
-                                          setSelectedRatingsDept(dept.name);
+                                          setSelectedRatingsDepts(prev => [...prev, dept.name]);
                                         }
                                       }}
                                       className="rounded border-gray-300 text-ua-navy focus:ring-ua-navy/35 cursor-pointer"
@@ -1045,9 +1054,16 @@ function AdminDashboardContent() {
                         </div>
 
                         {/* 2. Subject/Course Selection (Scrollable Checklist like Department) */}
-                        {selectedRatingsDept ? (() => {
-                          const activeDept = departments.find(d => d.name === selectedRatingsDept);
-                          const activeSubjects = activeDept?.subjects || [];
+                        {selectedRatingsDepts.length > 0 ? (() => {
+                          const activeDepts = departments.filter(d => selectedRatingsDepts.includes(d.name));
+                          // Gather all unique subjects from selected departments
+                          const activeSubjectsMap = new Map<string, any>();
+                          activeDepts.forEach(d => {
+                            (d.subjects || []).forEach((sub: any) => {
+                              activeSubjectsMap.set(sub.name, sub);
+                            });
+                          });
+                          const activeSubjects = Array.from(activeSubjectsMap.values());
                           return (
                             <div className="space-y-2 animate-fade-in">
                               <span className="block text-[10px] font-bold text-muted-foreground uppercase tracking-widest font-sans">Subject / Course</span>
@@ -1056,7 +1072,7 @@ function AdminDashboardContent() {
                                   <p className="text-xs text-muted-foreground italic font-semibold">No subjects found.</p>
                                 ) : (
                                   activeSubjects.map((sub: any) => {
-                                    const checked = selectedRatingsSubject === sub.name;
+                                    const checked = selectedRatingsSubjects.includes(sub.name);
                                     return (
                                       <label key={sub.id} className="flex items-center gap-2.5 text-xs font-semibold cursor-pointer select-none text-foreground/80 hover:text-foreground">
                                         <input
@@ -1064,9 +1080,9 @@ function AdminDashboardContent() {
                                           checked={checked}
                                           onChange={() => {
                                             if (checked) {
-                                              setSelectedRatingsSubject('');
+                                              setSelectedRatingsSubjects(prev => prev.filter(name => name !== sub.name));
                                             } else {
-                                              setSelectedRatingsSubject(sub.name);
+                                              setSelectedRatingsSubjects(prev => [...prev, sub.name]);
                                             }
                                           }}
                                           className="rounded border-gray-300 text-ua-navy focus:ring-ua-navy/35 cursor-pointer"
@@ -1084,9 +1100,16 @@ function AdminDashboardContent() {
                         )}
 
                         {/* 3. Section Selection (Scrollable Checklist like Department) */}
-                        {selectedRatingsDept ? (() => {
-                          const activeDept = departments.find(d => d.name === selectedRatingsDept);
-                          const activeSections = activeDept?.sections || [];
+                        {selectedRatingsDepts.length > 0 ? (() => {
+                          const activeDepts = departments.filter(d => selectedRatingsDepts.includes(d.name));
+                          // Gather all unique sections from selected departments
+                          const activeSectionsMap = new Map<string, any>();
+                          activeDepts.forEach(d => {
+                            (d.sections || []).forEach((sec: any) => {
+                              activeSectionsMap.set(sec.name, sec);
+                            });
+                          });
+                          const activeSections = Array.from(activeSectionsMap.values());
                           return (
                             <div className="space-y-2 animate-fade-in">
                               <span className="block text-[10px] font-bold text-muted-foreground uppercase tracking-widest font-sans">Section</span>
@@ -1095,7 +1118,7 @@ function AdminDashboardContent() {
                                   <p className="text-xs text-muted-foreground italic font-semibold">No sections found.</p>
                                 ) : (
                                   activeSections.map((sec: any) => {
-                                    const checked = selectedRatingsSection === sec.name;
+                                    const checked = selectedRatingsSections.includes(sec.name);
                                     return (
                                       <label key={sec.id} className="flex items-center gap-2.5 text-xs font-semibold cursor-pointer select-none text-foreground/80 hover:text-foreground">
                                         <input
@@ -1103,9 +1126,9 @@ function AdminDashboardContent() {
                                           checked={checked}
                                           onChange={() => {
                                             if (checked) {
-                                              setSelectedRatingsSection('');
+                                              setSelectedRatingsSections(prev => prev.filter(name => name !== sec.name));
                                             } else {
-                                              setSelectedRatingsSection(sec.name);
+                                              setSelectedRatingsSections(prev => [...prev, sec.name]);
                                             }
                                           }}
                                           className="rounded border-gray-300 text-ua-navy focus:ring-ua-navy/35 cursor-pointer"
