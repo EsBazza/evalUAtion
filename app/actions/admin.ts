@@ -19,6 +19,7 @@ export async function getDepartments() {
   return prisma.department.findMany({
     include: {
       sections: true,
+      subjects: true,
       professors: true,
     },
   });
@@ -93,6 +94,12 @@ export async function getFacultyRankings(academicYear?: string, semester?: strin
       include: {
         department: true,
         sections: true,
+        teachingAssignments: {
+          include: {
+            subject: true,
+            section: true,
+          }
+        }
       },
     }),
     prisma.scoreCache.findMany({
@@ -114,6 +121,13 @@ export async function getFacultyRankings(academicYear?: string, semester?: strin
     level: prof.department.level,
     sections: prof.sections.map(s => s.name).join(', '),
     averageScore: cacheMap.get(prof.id)?.compositeScore ?? null,
+    teachingAssignments: prof.teachingAssignments.map(ta => ({
+      subjectId: ta.subjectId,
+      subjectName: ta.subject.name,
+      subjectCode: ta.subject.code,
+      sectionId: ta.sectionId,
+      sectionName: ta.section.name,
+    }))
   }));
 
   return rankings;

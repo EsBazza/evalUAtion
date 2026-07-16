@@ -139,8 +139,9 @@ function AdminDashboardContent() {
   const [selectedLedgerDept, setSelectedLedgerDept] = useState<string>('All');
   // Ratings Ledger advanced search states
   const [ratingsSearch, setRatingsSearch] = useState('');
-  const [selectedRatingsDepts, setSelectedRatingsDepts] = useState<string[]>([]);
-  const [selectedRatingsLevels, setSelectedRatingsLevels] = useState<string[]>([]);
+  const [selectedRatingsDept, setSelectedRatingsDept] = useState('');
+  const [selectedRatingsSubject, setSelectedRatingsSubject] = useState('');
+  const [selectedRatingsSection, setSelectedRatingsSection] = useState('');
   const [isRatingsAdvancedSearchOpen, setIsRatingsAdvancedSearchOpen] = useState(false);
   const [departments, setDepartments] = useState<any[]>([]);
   const [templates, setTemplates] = useState<any[]>([]);
@@ -157,8 +158,13 @@ function AdminDashboardContent() {
   const ledgerItemsPerPage = 10;
 
   useEffect(() => {
+    setSelectedRatingsSubject('');
+    setSelectedRatingsSection('');
+  }, [selectedRatingsDept]);
+
+  useEffect(() => {
     setLedgerPage(1);
-  }, [selectedLedgerDept, ratingsSearch, selectedRatingsDepts, selectedRatingsLevels]);
+  }, [selectedLedgerDept, ratingsSearch, selectedRatingsDept, selectedRatingsSubject, selectedRatingsSection]);
 
   useEffect(() => {
     setAttendancePage(1);
@@ -730,13 +736,16 @@ function AdminDashboardContent() {
       (r.name || '').toLowerCase().includes(searchVal) ||
       (r.email || '').toLowerCase().includes(searchVal);
 
-    // 2. Level filter (COLLEGE / BASIC_ED)
-    const levelMatch = selectedRatingsLevels.length === 0 || selectedRatingsLevels.includes(r.level);
+    // 2. Department filter (by specific department name)
+    const deptMatch = !selectedRatingsDept || r.department === selectedRatingsDept;
 
-    // 3. Department filter (by specific department name)
-    const deptMatch = selectedRatingsDepts.length === 0 || selectedRatingsDepts.includes(r.department);
+    // 3. Subject/Course filter
+    const subjectMatch = !selectedRatingsSubject || (r.teachingAssignments && r.teachingAssignments.some((ta: any) => ta.subjectName === selectedRatingsSubject));
 
-    return searchMatch && levelMatch && deptMatch;
+    // 4. Section filter
+    const sectionMatch = !selectedRatingsSection || (r.teachingAssignments && r.teachingAssignments.some((ta: any) => ta.sectionName === selectedRatingsSection));
+
+    return searchMatch && deptMatch && subjectMatch && sectionMatch;
   });
 
   return (
@@ -950,14 +959,15 @@ function AdminDashboardContent() {
                         Advanced Search
                       </Button>
 
-                      {(ratingsSearch || selectedRatingsDepts.length > 0 || selectedRatingsLevels.length > 0) && (
+                      {(ratingsSearch || selectedRatingsDept || selectedRatingsSubject || selectedRatingsSection) && (
                         <Button
                           type="button"
                           uaVariant="ghost"
                           onClick={() => {
                             setRatingsSearch('');
-                            setSelectedRatingsDepts([]);
-                            setSelectedRatingsLevels([]);
+                            setSelectedRatingsDept('');
+                            setSelectedRatingsSubject('');
+                            setSelectedRatingsSection('');
                             toast.success("Filters cleared");
                           }}
                           className="h-9 text-xs font-semibold text-ua-crimson hover:bg-ua-crimson/5"
@@ -998,67 +1008,69 @@ function AdminDashboardContent() {
                       <div className="border-b border-border/40 pb-2">
                         <h4 className="text-xs font-bold uppercase tracking-wider text-ua-navy dark:text-ua-gold">Filter Ratings Ledger</h4>
                       </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {/* 1. Education Level Checklist */}
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        {/* 1. Department Selection */}
                         <div className="space-y-2">
-                          <span className="block text-[10px] font-bold text-muted-foreground uppercase tracking-widest font-sans">Educational Level</span>
-                          <div className="border border-border rounded-lg p-3 space-y-2 bg-muted/5">
-                            {[
-                              { label: 'College Level', value: 'COLLEGE' },
-                              { label: 'Basic Education', value: 'BASIC_ED' }
-                            ].map((levelOption) => {
-                              const checked = selectedRatingsLevels.includes(levelOption.value);
-                              return (
-                                <label key={levelOption.value} className="flex items-center gap-2.5 text-xs font-semibold cursor-pointer select-none text-foreground/80 hover:text-foreground">
-                                  <input
-                                    type="checkbox"
-                                    checked={checked}
-                                    onChange={() => {
-                                      if (checked) {
-                                        setSelectedRatingsLevels(prev => prev.filter(v => v !== levelOption.value));
-                                      } else {
-                                        setSelectedRatingsLevels(prev => [...prev, levelOption.value]);
-                                      }
-                                    }}
-                                    className="rounded border-gray-300 text-ua-navy focus:ring-ua-navy/35"
-                                  />
-                                  {levelOption.label}
-                                </label>
-                              );
-                            })}
-                          </div>
+                          <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-widest font-sans">Department</label>
+                          <select
+                            value={selectedRatingsDept}
+                            onChange={(e) => setSelectedRatingsDept(e.target.value)}
+                            className="w-full p-2 border border-border rounded-lg text-xs bg-card focus:ring-2 focus:ring-ua-gold/30 outline-none text-foreground font-semibold"
+                          >
+                            <option value="">All Departments</option>
+                            {departments.map((dept) => (
+                              <option key={dept.id} value={dept.name}>
+                                {dept.name} ({dept.level})
+                              </option>
+                            ))}
+                          </select>
                         </div>
 
-                        {/* 2. Department Checklist */}
-                        <div className="space-y-2">
-                          <span className="block text-[10px] font-bold text-muted-foreground uppercase tracking-widest font-sans">Departments</span>
-                          <div className="border border-border rounded-lg p-3 max-h-32 overflow-y-auto space-y-2 bg-muted/5">
-                            {departments.length === 0 ? (
-                              <p className="text-xs text-muted-foreground italic font-semibold">No departments found.</p>
-                            ) : (
-                              departments.map((dept) => {
-                                const checked = selectedRatingsDepts.includes(dept.name);
-                                return (
-                                  <label key={dept.id} className="flex items-center gap-2.5 text-xs font-semibold cursor-pointer select-none text-foreground/80 hover:text-foreground">
-                                    <input
-                                      type="checkbox"
-                                      checked={checked}
-                                      onChange={() => {
-                                        if (checked) {
-                                          setSelectedRatingsDepts(prev => prev.filter(name => name !== dept.name));
-                                        } else {
-                                          setSelectedRatingsDepts(prev => [...prev, dept.name]);
-                                        }
-                                      }}
-                                      className="rounded border-gray-300 text-ua-navy focus:ring-ua-navy/35"
-                                    />
-                                    {dept.name} <span className="text-[9px] text-muted-foreground font-bold">({dept.level})</span>
-                                  </label>
-                                );
-                              })
-                            )}
-                          </div>
-                        </div>
+                        {/* 2. Subject/Course Dropdown (Only show if department chosen) */}
+                        {selectedRatingsDept && (() => {
+                          const activeDept = departments.find(d => d.name === selectedRatingsDept);
+                          const activeSubjects = activeDept?.subjects || [];
+                          return (
+                            <div className="space-y-2">
+                              <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-widest font-sans">Subject / Course</label>
+                              <select
+                                value={selectedRatingsSubject}
+                                onChange={(e) => setSelectedRatingsSubject(e.target.value)}
+                                className="w-full p-2 border border-border rounded-lg text-xs bg-card focus:ring-2 focus:ring-ua-gold/30 outline-none text-foreground font-semibold animate-fade-in"
+                              >
+                                <option value="">All Subjects</option>
+                                {activeSubjects.map((sub: any) => (
+                                  <option key={sub.id} value={sub.name}>
+                                    {sub.code} - {sub.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          );
+                        })()}
+
+                        {/* 3. Section Dropdown (Only show if department chosen) */}
+                        {selectedRatingsDept && (() => {
+                          const activeDept = departments.find(d => d.name === selectedRatingsDept);
+                          const activeSections = activeDept?.sections || [];
+                          return (
+                            <div className="space-y-2">
+                              <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-widest font-sans">Section</label>
+                              <select
+                                value={selectedRatingsSection}
+                                onChange={(e) => setSelectedRatingsSection(e.target.value)}
+                                className="w-full p-2 border border-border rounded-lg text-xs bg-card focus:ring-2 focus:ring-ua-gold/30 outline-none text-foreground font-semibold animate-fade-in"
+                              >
+                                <option value="">All Sections</option>
+                                {activeSections.map((sec: any) => (
+                                  <option key={sec.id} value={sec.name}>
+                                    {sec.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          );
+                        })()}
                       </div>
                     </div>
                   )}
