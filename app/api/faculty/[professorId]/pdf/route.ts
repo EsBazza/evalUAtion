@@ -24,12 +24,12 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
   // 2. Define branding templates
   const headerTemplate = `
     <div style="font-size: 8px; width: 100%; font-family: 'Inter', sans-serif; box-sizing: border-box; display: flex; flex-direction: column;">
-      <div style="background-color: #0B2F64; height: 30px; display: flex; align-items: center; justify-content: space-between; padding: 0 15px; color: white;">
-        <div style="display: flex; align-items: center; gap: 6px;">
-          ${logoBase64 ? `<img src="${logoBase64}" style="height: 18px; width: 18px; object-fit: contain;" />` : ''}
-          <span style="font-weight: 800; font-size: 9px; letter-spacing: 0.5px; color: #ffffff;">UNIVERSITY OF ANTIGRAVITY</span>
+      <div style="background-color: #0B2F64; height: 38px; display: flex; align-items: center; justify-content: space-between; padding: 0 15px; color: white;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          ${logoBase64 ? `<img src="${logoBase64}" style="height: 24px; width: 24px; object-fit: contain;" />` : ''}
+          <span style="font-weight: 800; font-size: 10px; letter-spacing: 0.5px; color: #ffffff;">UNIVERSITY OF THE ASSUMPTION</span>
         </div>
-        <span style="font-size: 8px; font-weight: 600; opacity: 0.85; color: #ffffff;">FACULTY EVALUATION REPORT</span>
+        <span style="font-size: 8px; font-weight: 700; opacity: 0.9; color: #ffffff; letter-spacing: 0.3px;">FACULTY EVALUATION REPORT</span>
       </div>
       <div style="background-color: #D4AF37; height: 3px; width: 100%;"></div>
     </div>
@@ -78,7 +78,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       headerTemplate,
       footerTemplate,
       margin: {
-        top: '20mm',
+        top: '24mm',
         bottom: '20mm',
         left: '15mm',
         right: '15mm',
