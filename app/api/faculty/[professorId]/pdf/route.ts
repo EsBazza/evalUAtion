@@ -24,12 +24,15 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
   // 2. Define branding templates
   const headerTemplate = `
     <div style="font-size: 8px; width: 100%; font-family: 'Inter', sans-serif; box-sizing: border-box; display: flex; flex-direction: column;">
-      <div style="background-color: #0B2F64; height: 38px; display: flex; align-items: center; justify-content: space-between; padding: 0 15px; color: white;">
-        <div style="display: flex; align-items: center; gap: 8px;">
-          ${logoBase64 ? `<img src="${logoBase64}" style="height: 24px; width: 24px; object-fit: contain;" />` : ''}
-          <span style="font-weight: 800; font-size: 10px; letter-spacing: 0.5px; color: #ffffff;">UNIVERSITY OF THE ASSUMPTION</span>
+      <div style="background-color: #0B2F64; height: 48px; display: flex; align-items: center; justify-content: space-between; padding: 0 18px; color: white;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          ${logoBase64 ? `<img src="${logoBase64}" style="height: 32px; width: 32px; object-fit: contain; border-radius: 50%; border: 1.5px solid rgba(255,255,255,0.3); background-color: #ffffff; padding: 1.5px;" />` : ''}
+          <div style="display: flex; flex-direction: column; justify-content: center; line-height: 1.1;">
+            <span style="font-weight: 600; font-size: 8px; letter-spacing: 1.2px; color: rgba(255, 255, 255, 0.75);">UNIVERSITY OF THE</span>
+            <span style="font-weight: 800; font-size: 15px; letter-spacing: 0.8px; color: #D4AF37;">ASSUMPTION</span>
+          </div>
         </div>
-        <span style="font-size: 8px; font-weight: 700; opacity: 0.9; color: #ffffff; letter-spacing: 0.3px;">FACULTY EVALUATION REPORT</span>
+        <span style="font-size: 8.5px; font-weight: 800; color: #ffffff; letter-spacing: 0.6px; border-left: 1.5px solid rgba(255, 255, 255, 0.2); padding-left: 12px; height: 22px; display: flex; align-items: center;">FACULTY EVALUATION REPORT</span>
       </div>
       <div style="background-color: #D4AF37; height: 3px; width: 100%;"></div>
     </div>
