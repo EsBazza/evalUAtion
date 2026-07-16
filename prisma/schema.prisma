@@ -190,12 +190,13 @@ model AiSummary {
   professorId String
   academicYear String
   semester     String
+  subjectId    String    @default("all")
   summaryText String    @db.Text
   ratingScore Float     // AI generated qualitative aggregate metric
   updatedAt   DateTime  @updatedAt
   professor   Professor @relation(fields: [professorId], references: [id], onDelete: Cascade)
 
-  @@unique([professorId, academicYear, semester])
+  @@unique([professorId, academicYear, semester, subjectId])
 }
 
 model SecureEvaluation {

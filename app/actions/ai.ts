@@ -65,9 +65,15 @@ export async function calculateScaleScore(professorId: string, academicYear: str
 /**
  * Regenerates the AI summary and sentiment rating from text comments
  */
-export async function processFacultyEvaluationSummary(professorId: string, academicYear?: string, semester?: string) {
+export async function processFacultyEvaluationSummary(
+  professorId: string, 
+  academicYear?: string, 
+  semester?: string,
+  subjectId?: string
+) {
   let termYear = academicYear;
   let termSem = semester;
+  const targetSubjectId = (subjectId && subjectId !== 'all') ? subjectId : "all";
 
   if (!termYear || !termSem) {
     const settings = await getSystemSettings();
@@ -82,7 +88,8 @@ export async function processFacultyEvaluationSummary(professorId: string, acade
       evaluation: { 
         professorId: professorId,
         academicYear: termYear,
-        semester: termSem
+        semester: termSem,
+        subjectId: targetSubjectId === "all" ? undefined : targetSubjectId
       }
     },
     select: { textVal: true }
@@ -100,6 +107,7 @@ export async function processFacultyEvaluationSummary(professorId: string, acade
       professorId,
       academicYear: termYear,
       semester: termSem,
+      subjectId: targetSubjectId === "all" ? undefined : targetSubjectId
     },
     include: {
       answers: {
@@ -204,10 +212,11 @@ export async function processFacultyEvaluationSummary(professorId: string, acade
   // Upsert the AI summary
   await prisma.aiSummary.upsert({
     where: {
-      professorId_academicYear_semester: {
+      professorId_academicYear_semester_subjectId: {
         professorId,
         academicYear: termYear,
-        semester: termSem
+        semester: termSem,
+        subjectId: targetSubjectId
       }
     },
     update: { summaryText, ratingScore },
@@ -215,6 +224,7 @@ export async function processFacultyEvaluationSummary(professorId: string, acade
       professorId, 
       academicYear: termYear,
       semester: termSem,
+      subjectId: targetSubjectId,
       summaryText, 
       ratingScore 
     }
@@ -268,9 +278,15 @@ export async function processFacultyEvaluationSummary(professorId: string, acade
 /**
  * Retrieves the AI summary
  */
-export async function getFacultySummary(professorId: string, academicYear?: string, semester?: string) {
+export async function getFacultySummary(
+  professorId: string, 
+  academicYear?: string, 
+  semester?: string,
+  subjectId?: string
+) {
   let termYear = academicYear;
   let termSem = semester;
+  const targetSubjectId = (subjectId && subjectId !== 'all') ? subjectId : "all";
 
   if (!termYear || !termSem) {
     const settings = await getSystemSettings();
@@ -280,10 +296,11 @@ export async function getFacultySummary(professorId: string, academicYear?: stri
 
   return prisma.aiSummary.findUnique({
     where: {
-      professorId_academicYear_semester: {
+      professorId_academicYear_semester_subjectId: {
         professorId,
         academicYear: termYear,
-        semester: termSem
+        semester: termSem,
+        subjectId: targetSubjectId
       }
     }
   });

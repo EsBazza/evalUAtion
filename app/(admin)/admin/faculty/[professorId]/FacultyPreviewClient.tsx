@@ -98,7 +98,7 @@ export default function FacultyPreviewClient({ professorId }: FacultyPreviewClie
     if (!professorId) return;
     setIsProcessing(true);
     try {
-      const res = await processFacultyEvaluationSummary(professorId, academicYear, semester);
+      const res = await processFacultyEvaluationSummary(professorId, academicYear, semester, selectedSubjectId);
       if (res.success) {
         toast.success("AI analysis narrative generated successfully!");
         await fetchProfileData(professorId, academicYear, semester, selectedSubjectId);

@@ -339,12 +339,14 @@ export async function getFacultyProfileData(
   }));
 
   // 5. Fetch AI Narrative Summary
+  const summarySubjectId = (subjectId && subjectId !== 'all') ? subjectId : "all";
   const aiSummary = await prisma.aiSummary.findUnique({
     where: {
-      professorId_academicYear_semester: {
+      professorId_academicYear_semester_subjectId: {
         professorId,
         academicYear: termYear,
         semester: termSem,
+        subjectId: summarySubjectId,
       },
     },
   });
