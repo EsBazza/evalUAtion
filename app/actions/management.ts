@@ -201,17 +201,7 @@ export async function getFacultyProfileData(
   };
 
   if (subjectId && subjectId !== 'all') {
-    const assignments = await prisma.teachingAssignment.findMany({
-      where: {
-        professorId,
-        subjectId,
-      },
-      select: {
-        sectionId: true,
-      },
-    });
-    const sectionIds = assignments.map(a => a.sectionId);
-    evaluationsWhere.sectionId = { in: sectionIds };
+    evaluationsWhere.subjectId = subjectId;
   }
 
   const evaluations = await prisma.evaluation.findMany({
