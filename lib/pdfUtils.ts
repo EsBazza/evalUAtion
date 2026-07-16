@@ -69,11 +69,11 @@ export function drawBrandedLayout({
   }
 
   // 2. Draw Navy Blue Header Band
-  doc.setFillColor(11, 47, 100); // #0B2F64 (Navy)
+  doc.setFillColor(11, 34, 101); // #0B2265 (Navy)
   doc.rect(0, 0, pageWidth, 30, 'F');
 
   // 3. Draw Gold Accent Stripe
-  doc.setFillColor(212, 175, 55); // #D4AF37 (Gold)
+  doc.setFillColor(244, 180, 0); // #F4B400 (UA Gold)
   doc.rect(0, 30, pageWidth, 2, 'F');
 
   // 4. Draw Logo (if provided)
@@ -84,13 +84,13 @@ export function drawBrandedLayout({
   }
 
   // 5. Draw Header Title Texts (Double-decked header matching new standard)
-  doc.setTextColor(200, 200, 200);
+  doc.setTextColor(244, 180, 0); // UA Gold
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(7.5);
   doc.text('UNIVERSITY OF THE', logoOffset, 11);
 
   doc.setFontSize(13);
-  doc.setTextColor(212, 175, 55); // Gold
+  doc.setTextColor(244, 180, 0); // UA Gold
   doc.text('ASSUMPTION', logoOffset, 17);
 
   doc.setFont('helvetica', 'bold');
@@ -99,7 +99,7 @@ export function drawBrandedLayout({
   doc.text(title.toUpperCase(), logoOffset, 24);
 
   // 6. Draw Footer Line (Gold)
-  doc.setFillColor(212, 175, 55);
+  doc.setFillColor(244, 180, 0);
   doc.rect(14, pageHeight - 15, pageWidth - 28, 0.5, 'F');
 
   // 7. Draw Footer Texts
