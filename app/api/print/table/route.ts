@@ -17,18 +17,22 @@ export async function GET(req: NextRequest) {
     : '';
 
   // 2. Define standard header template (matching University of the Assumption styling)
+  const reportLabel = type === 'ratings' ? 'Ratings Ledger<br/>Report' : type === 'attendance' ? 'Attendance Logs<br/>Report' : 'System Audit<br/>Report';
   const headerTemplate = `
-    <div style="font-size: 8px; width: 100%; font-family: 'Inter', sans-serif; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center;">
-      <div style="background-color: #0B2265; height: 68px; display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; color: white; gap: 4px;">
-        ${logoBase64 ? `<img src="${logoBase64}" style="height: 42px; width: 42px; object-fit: contain; border-radius: 50%; border: 1.5px solid rgba(255,255,255,0.4); background-color: #ffffff; padding: 1.5px;" />` : ''}
-        <div style="display: flex; flex-direction: column; align-items: center; line-height: 1.1;">
-          <div style="display: flex; align-items: center; gap: 5px;">
-            <span style="font-weight: 700; font-size: 7.5px; letter-spacing: 1.2px; color: #F4B400;">UNIVERSITY OF THE</span>
-            <span style="font-weight: 800; font-size: 11px; letter-spacing: 0.8px; color: #F4B400;">ASSUMPTION</span>
-          </div>
-          <span style="font-size: 6.5px; font-weight: 700; color: rgba(255,255,255,0.7); letter-spacing: 0.6px; text-transform: uppercase; margin-top: 1px;">
-            ${type === 'ratings' ? 'RATINGS LEDGER REPORT' : type === 'attendance' ? 'ATTENDANCE LOGS REPORT' : 'SYSTEM AUDIT REPORT'}
-          </span>
+    <div style="font-size: 8px; width: 100%; font-family: 'Inter', sans-serif; box-sizing: border-box; display: flex; flex-direction: column;">
+      <div style="background-color: #ffffff; height: 52px; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; width: 100%; border-bottom: none;">
+        <!-- LEFT: Logo -->
+        <div style="flex-shrink: 0;">
+          ${logoBase64 ? `<img src="${logoBase64}" style="height: 44px; width: 44px; object-fit: contain; border-radius: 50%; border: 2px solid #0B2265; padding: 1px;" />` : ''}
+        </div>
+        <!-- CENTER: University Name -->
+        <div style="display: flex; flex-direction: column; align-items: center; line-height: 1.2;">
+          <span style="font-weight: 800; font-size: 11px; letter-spacing: 1.5px; color: #F4B400; text-transform: uppercase;">UNIVERSITY OF THE ASSUMPTION</span>
+          <span style="font-weight: 500; font-size: 6.5px; letter-spacing: 0.8px; color: #64748B; margin-top: 2px;">San Fernando, Pampanga</span>
+        </div>
+        <!-- RIGHT: Report Type -->
+        <div style="flex-shrink: 0; text-align: right;">
+          <span style="font-weight: 800; font-size: 8px; letter-spacing: 0.6px; color: #000000; text-transform: uppercase;">${reportLabel}</span>
         </div>
       </div>
       <div style="background-color: #F4B400; height: 3px; width: 100%;"></div>
