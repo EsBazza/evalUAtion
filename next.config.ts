@@ -3,6 +3,10 @@ import withBundleAnalyzer from "@next/bundle-analyzer";
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ['@sparticuz/chromium', 'puppeteer-core'],
+  outputFileTracingIncludes: {
+    '/api/faculty/[professorId]/pdf': ['./node_modules/@sparticuz/chromium/bin/**'],
+    '/api/print/table': ['./node_modules/@sparticuz/chromium/bin/**'],
+  },
 };
 
 const withAnalyzer = withBundleAnalyzer({
