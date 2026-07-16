@@ -129,7 +129,43 @@ export async function exportFacultyPDF({
           scale: 2,
           useCORS: true,
           logging: false,
-          backgroundColor: '#ffffff'
+          backgroundColor: '#ffffff',
+          onclone: (clonedDoc) => {
+            // Clean style tag text contents containing oklch/oklab
+            const styleElements = Array.from(clonedDoc.querySelectorAll('style'));
+            styleElements.forEach(style => {
+              try {
+                if (style.innerHTML) {
+                  style.innerHTML = style.innerHTML
+                    .replace(/oklch\([^)]+\)/g, 'rgb(0,0,0)')
+                    .replace(/oklab\([^)]+\)/g, 'rgb(0,0,0)');
+                }
+              } catch (e) {
+                console.error('Failed to clean style tag innerHTML', e);
+              }
+            });
+
+            // Clean active stylesheet rules containing oklch/oklab
+            try {
+              for (let i = 0; i < clonedDoc.styleSheets.length; i++) {
+                const sheet = clonedDoc.styleSheets[i] as CSSStyleSheet;
+                try {
+                  if (sheet && sheet.cssRules) {
+                    for (let j = sheet.cssRules.length - 1; j >= 0; j--) {
+                      const rule = sheet.cssRules[j];
+                      if (rule.cssText.includes('oklch(') || rule.cssText.includes('oklab(')) {
+                        sheet.deleteRule(j);
+                      }
+                    }
+                  }
+                } catch (e) {
+                  // Ignore cross-origin stylesheet reading constraints
+                }
+              }
+            } catch (e) {
+              console.error('Failed to clean stylesheets rules', e);
+            }
+          }
         })
       )
     );
