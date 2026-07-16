@@ -305,13 +305,13 @@ export async function getEvaluationAttendanceLogs(filters: AttendanceLogFilters)
             AND er2."semester" = er."semester"
         ) = (
           SELECT COUNT(*) 
-          FROM "_SectionToProfessor" sp 
-          WHERE sp."B" = er."sectionId"
+          FROM "TeachingAssignment" ta 
+          WHERE ta."sectionId" = er."sectionId"
         )
         AND (
           SELECT COUNT(*) 
-          FROM "_SectionToProfessor" sp 
-          WHERE sp."B" = er."sectionId"
+          FROM "TeachingAssignment" ta 
+          WHERE ta."sectionId" = er."sectionId"
         ) > 0
       ORDER BY "studentEmail", "createdAt" DESC, id DESC
     )
@@ -355,13 +355,13 @@ export async function getEvaluationAttendanceLogs(filters: AttendanceLogFilters)
             AND er2."semester" = er."semester"
         ) = (
           SELECT COUNT(*) 
-          FROM "_SectionToProfessor" sp 
-          WHERE sp."B" = er."sectionId"
+          FROM "TeachingAssignment" ta 
+          WHERE ta."sectionId" = er."sectionId"
         )
         AND (
           SELECT COUNT(*) 
-          FROM "_SectionToProfessor" sp 
-          WHERE sp."B" = er."sectionId"
+          FROM "TeachingAssignment" ta 
+          WHERE ta."sectionId" = er."sectionId"
         ) > 0
     )
     SELECT COUNT(*)::integer AS count
@@ -430,13 +430,13 @@ export async function getEvaluationAttendanceLogsForExport(filters: Omit<Attenda
             AND er2."semester" = er."semester"
         ) = (
           SELECT COUNT(*) 
-          FROM "_SectionToProfessor" sp 
-          WHERE sp."B" = er."sectionId"
+          FROM "TeachingAssignment" ta 
+          WHERE ta."sectionId" = er."sectionId"
         )
         AND (
           SELECT COUNT(*) 
-          FROM "_SectionToProfessor" sp 
-          WHERE sp."B" = er."sectionId"
+          FROM "TeachingAssignment" ta 
+          WHERE ta."sectionId" = er."sectionId"
         ) > 0
       ORDER BY "studentEmail", "createdAt" DESC, id DESC
     )
