@@ -1004,7 +1004,7 @@ function AdminDashboardContent() {
 
                   {/* Collapsible Advanced Search Panel */}
                   {isRatingsAdvancedSearchOpen && (
-                    <div className="bg-card border-b border-border/80 p-5 space-y-5 animate-fade-in shadow-inner">
+                    <div className="relative z-10 bg-card border-b border-border/80 p-5 space-y-5 animate-fade-in shadow-inner">
                       <div className="border-b border-border/40 pb-2">
                         <h4 className="text-xs font-bold uppercase tracking-wider text-ua-navy dark:text-ua-gold">Filter Ratings Ledger</h4>
                       </div>

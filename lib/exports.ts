@@ -75,6 +75,45 @@ export function exportFacultyCSV({
   }
 }
 
+function cleanColorString(val: string): string {
+  if (typeof val !== 'string') return val;
+  // Handle oklch(L C H) or oklch(L C H / alpha)
+  const oklchMatch = val.match(/oklch\(([\d.]+)\s+([\d.]+)\s+([\d.]+)(?:\s*\/\s*([\d.%]+))?\)/);
+  if (oklchMatch) {
+    const l = parseFloat(oklchMatch[1]);
+    const c = parseFloat(oklchMatch[2]);
+    const h = parseFloat(oklchMatch[3]);
+    const a = oklchMatch[4] ? oklchMatch[4] : '1';
+    
+    const saturation = Math.min(100, Math.round(c * 250));
+    const lightness = Math.round(l * 100);
+    const hue = Math.round(h);
+    
+    return `hsla(${hue}, ${saturation}%, ${lightness}%, ${a})`;
+  }
+  
+  // Handle oklab(L a b)
+  const oklabMatch = val.match(/oklab\(([\d.]+)\s+([-\d.]+)\s+([-\d.]+)(?:\s*\/\s*([\d.%]+))?\)/);
+  if (oklabMatch) {
+    const l = parseFloat(oklabMatch[1]);
+    const aVal = parseFloat(oklabMatch[2]);
+    const bVal = parseFloat(oklabMatch[3]);
+    const alpha = oklabMatch[4] ? oklabMatch[4] : '1';
+    
+    const c = Math.sqrt(aVal * aVal + bVal * bVal);
+    let h = Math.atan2(bVal, aVal) * 180 / Math.PI;
+    if (h < 0) h += 360;
+    
+    const saturation = Math.min(100, Math.round(c * 250));
+    const lightness = Math.round(l * 100);
+    const hue = Math.round(h);
+    
+    return `hsla(${hue}, ${saturation}%, ${lightness}%, ${alpha})`;
+  }
+
+  return val;
+}
+
 interface ExportPDFProps {
   professor: {
     name: string;
@@ -131,7 +170,60 @@ export async function exportFacultyPDF({
           logging: false,
           backgroundColor: '#ffffff',
           onclone: (clonedDoc) => {
-            // Clean style tag text contents containing oklch/oklab
+            const clonedWindow = clonedDoc.defaultView;
+            if (clonedWindow) {
+              const originalGetComputedStyle = clonedWindow.getComputedStyle;
+              clonedWindow.getComputedStyle = function (elt, pseudoElt) {
+                const style = originalGetComputedStyle.call(this, elt, pseudoElt);
+                return new Proxy(style, {
+                  get(target, prop) {
+                    const value = target[prop as any];
+                    if (typeof value === 'function') {
+                      return function (...args: any[]) {
+                        const res = (value as any).apply(target, args);
+                        if (typeof res === 'string') {
+                          return cleanColorString(res);
+                        }
+                        return res;
+                      };
+                    }
+                    if (typeof value === 'string') {
+                      return cleanColorString(value);
+                    }
+                    return value;
+                  }
+                });
+              };
+            }
+
+            // 1. Inline all link stylesheets as cleaned style tags and remove link elements
+            const linkSheets = Array.from(clonedDoc.querySelectorAll('link[rel="stylesheet"]'));
+            linkSheets.forEach(link => {
+              try {
+                const sheet = (link as any).sheet as CSSStyleSheet;
+                if (sheet && sheet.cssRules) {
+                  let cssText = '';
+                  for (let i = 0; i < sheet.cssRules.length; i++) {
+                    cssText += sheet.cssRules[i].cssText + '\n';
+                  }
+                  
+                  const cleanedCssText = cssText
+                    .replace(/oklch\([^)]+\)/g, 'rgb(0,0,0)')
+                    .replace(/oklab\([^)]+\)/g, 'rgb(0,0,0)');
+
+                  const styleEl = clonedDoc.createElement('style');
+                  styleEl.innerHTML = cleanedCssText;
+                  clonedDoc.head.appendChild(styleEl);
+
+                  // Remove the link element so html2canvas doesn't try to fetch it
+                  link.parentNode?.removeChild(link);
+                }
+              } catch (e) {
+                // Ignore CORS restriction warnings
+              }
+            });
+
+            // 2. Clean up existing style elements
             const styleElements = Array.from(clonedDoc.querySelectorAll('style'));
             styleElements.forEach(style => {
               try {
@@ -145,26 +237,18 @@ export async function exportFacultyPDF({
               }
             });
 
-            // Clean active stylesheet rules containing oklch/oklab
-            try {
-              for (let i = 0; i < clonedDoc.styleSheets.length; i++) {
-                const sheet = clonedDoc.styleSheets[i] as CSSStyleSheet;
-                try {
-                  if (sheet && sheet.cssRules) {
-                    for (let j = sheet.cssRules.length - 1; j >= 0; j--) {
-                      const rule = sheet.cssRules[j];
-                      if (rule.cssText.includes('oklch(') || rule.cssText.includes('oklab(')) {
-                        sheet.deleteRule(j);
-                      }
-                    }
-                  }
-                } catch (e) {
-                  // Ignore cross-origin stylesheet reading constraints
+            // 3. Clean up inline styles on elements
+            const allElements = Array.from(clonedDoc.getElementsByTagName('*'));
+            allElements.forEach(el => {
+              const htmlEl = el as HTMLElement;
+              if (htmlEl.style && htmlEl.style.cssText) {
+                if (htmlEl.style.cssText.includes('oklch') || htmlEl.style.cssText.includes('oklab')) {
+                  htmlEl.style.cssText = htmlEl.style.cssText
+                    .replace(/oklch\([^)]+\)/g, 'rgb(0,0,0)')
+                    .replace(/oklab\([^)]+\)/g, 'rgb(0,0,0)');
                 }
               }
-            } catch (e) {
-              console.error('Failed to clean stylesheets rules', e);
-            }
+            });
           }
         })
       )
