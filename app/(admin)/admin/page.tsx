@@ -230,8 +230,12 @@ function AdminDashboardContent() {
     try {
       if (activeView === 'rankings') {
         const subAdminDeptId = currentUser?.role === 'SUB_ADMIN' ? currentUser.departmentId : undefined;
-        const data = await getFacultyRankings(undefined, undefined, subAdminDeptId);
-        setRankings(data);
+        const [rankingsData, deps] = await Promise.all([
+          getFacultyRankings(undefined, undefined, subAdminDeptId),
+          getDepartments()
+        ]);
+        setRankings(rankingsData);
+        setDepartments(deps);
         if (subAdminDeptId) {
           setIsSummaryLoading(true);
           try {
