@@ -161,98 +161,129 @@ export async function exportFacultyPDF({
       }
     }
 
-    // 3. Render elements to canvas screenshots
-    const canvases = await Promise.all(
-      elementsToCapture.map(el =>
-        html2canvas(el, {
-          scale: 2,
-          useCORS: true,
-          logging: false,
-          backgroundColor: '#ffffff',
-          onclone: (clonedDoc) => {
-            const clonedWindow = clonedDoc.defaultView;
-            if (clonedWindow) {
-              const originalGetComputedStyle = clonedWindow.getComputedStyle;
-              clonedWindow.getComputedStyle = function (elt, pseudoElt) {
-                const style = originalGetComputedStyle.call(this, elt, pseudoElt);
-                return new Proxy(style, {
-                  get(target, prop) {
-                    const value = target[prop as any];
-                    if (typeof value === 'function') {
-                      return function (...args: any[]) {
-                        const res = (value as any).apply(target, args);
-                        if (typeof res === 'string') {
-                          return cleanColorString(res);
-                        }
-                        return res;
-                      };
-                    }
-                    if (typeof value === 'string') {
-                      return cleanColorString(value);
-                    }
-                    return value;
-                  }
-                });
-              };
-            }
-
-            // 1. Inline all link stylesheets as cleaned style tags and remove link elements
-            const linkSheets = Array.from(clonedDoc.querySelectorAll('link[rel="stylesheet"]'));
-            linkSheets.forEach(link => {
-              try {
-                const sheet = (link as any).sheet as CSSStyleSheet;
-                if (sheet && sheet.cssRules) {
-                  let cssText = '';
-                  for (let i = 0; i < sheet.cssRules.length; i++) {
-                    cssText += sheet.cssRules[i].cssText + '\n';
-                  }
-                  
-                  const cleanedCssText = cssText
-                    .replace(/oklch\([^)]+\)/g, 'rgb(0,0,0)')
-                    .replace(/oklab\([^)]+\)/g, 'rgb(0,0,0)');
-
-                  const styleEl = clonedDoc.createElement('style');
-                  styleEl.innerHTML = cleanedCssText;
-                  clonedDoc.head.appendChild(styleEl);
-
-                  // Remove the link element so html2canvas doesn't try to fetch it
-                  link.parentNode?.removeChild(link);
-                }
-              } catch (e) {
-                // Ignore CORS restriction warnings
+    // 3. Render elements to canvas screenshots with a temporary global getComputedStyle override
+    const originalGetComputedStyle = window.getComputedStyle;
+    
+    // Override globally on the active window context since html2canvas evaluates computed styles in this thread
+    window.getComputedStyle = function (elt, pseudoElt) {
+      const style = originalGetComputedStyle.call(this, elt, pseudoElt);
+      return new Proxy(style, {
+        get(target, prop) {
+          const value = target[prop as any];
+          if (typeof value === 'function') {
+            return function (...args: any[]) {
+              const res = (value as any).apply(target, args);
+              if (typeof res === 'string') {
+                return cleanColorString(res);
               }
-            });
-
-            // 2. Clean up existing style elements
-            const styleElements = Array.from(clonedDoc.querySelectorAll('style'));
-            styleElements.forEach(style => {
-              try {
-                if (style.innerHTML) {
-                  style.innerHTML = style.innerHTML
-                    .replace(/oklch\([^)]+\)/g, 'rgb(0,0,0)')
-                    .replace(/oklab\([^)]+\)/g, 'rgb(0,0,0)');
-                }
-              } catch (e) {
-                console.error('Failed to clean style tag innerHTML', e);
-              }
-            });
-
-            // 3. Clean up inline styles on elements
-            const allElements = Array.from(clonedDoc.getElementsByTagName('*'));
-            allElements.forEach(el => {
-              const htmlEl = el as HTMLElement;
-              if (htmlEl.style && htmlEl.style.cssText) {
-                if (htmlEl.style.cssText.includes('oklch') || htmlEl.style.cssText.includes('oklab')) {
-                  htmlEl.style.cssText = htmlEl.style.cssText
-                    .replace(/oklch\([^)]+\)/g, 'rgb(0,0,0)')
-                    .replace(/oklab\([^)]+\)/g, 'rgb(0,0,0)');
-                }
-              }
-            });
+              return res;
+            };
           }
-        })
-      )
-    );
+          if (typeof value === 'string') {
+            return cleanColorString(value);
+          }
+          return value;
+        }
+      });
+    };
+
+    let canvases: HTMLCanvasElement[];
+    try {
+      canvases = await Promise.all(
+        elementsToCapture.map(el =>
+          html2canvas(el, {
+            scale: 2,
+            useCORS: true,
+            logging: false,
+            backgroundColor: '#ffffff',
+            onclone: (clonedDoc) => {
+              const clonedWindow = clonedDoc.defaultView;
+              if (clonedWindow) {
+                const clonedWindowGetComputedStyle = clonedWindow.getComputedStyle;
+                clonedWindow.getComputedStyle = function (elt, pseudoElt) {
+                  const style = clonedWindowGetComputedStyle.call(this, elt, pseudoElt);
+                  return new Proxy(style, {
+                    get(target, prop) {
+                      const value = target[prop as any];
+                      if (typeof value === 'function') {
+                        return function (...args: any[]) {
+                          const res = (value as any).apply(target, args);
+                          if (typeof res === 'string') {
+                            return cleanColorString(res);
+                          }
+                          return res;
+                        };
+                      }
+                      if (typeof value === 'string') {
+                        return cleanColorString(value);
+                      }
+                      return value;
+                    }
+                  });
+                };
+              }
+
+              // 1. Inline all link stylesheets as cleaned style tags and remove link elements
+              const linkSheets = Array.from(clonedDoc.querySelectorAll('link[rel="stylesheet"]'));
+              linkSheets.forEach(link => {
+                try {
+                  const sheet = (link as any).sheet as CSSStyleSheet;
+                  if (sheet && sheet.cssRules) {
+                    let cssText = '';
+                    for (let i = 0; i < sheet.cssRules.length; i++) {
+                      cssText += sheet.cssRules[i].cssText + '\n';
+                    }
+                    
+                    const cleanedCssText = cssText
+                      .replace(/oklch\([^)]+\)/g, 'rgb(0,0,0)')
+                      .replace(/oklab\([^)]+\)/g, 'rgb(0,0,0)');
+
+                    const styleEl = clonedDoc.createElement('style');
+                    styleEl.innerHTML = cleanedCssText;
+                    clonedDoc.head.appendChild(styleEl);
+
+                    // Remove the link element so html2canvas doesn't try to fetch it
+                    link.parentNode?.removeChild(link);
+                  }
+                } catch (e) {
+                  // Ignore CORS restriction warnings
+                }
+              });
+
+              // 2. Clean up existing style elements
+              const styleElements = Array.from(clonedDoc.querySelectorAll('style'));
+              styleElements.forEach(style => {
+                try {
+                  if (style.innerHTML) {
+                    style.innerHTML = style.innerHTML
+                      .replace(/oklch\([^)]+\)/g, 'rgb(0,0,0)')
+                      .replace(/oklab\([^)]+\)/g, 'rgb(0,0,0)');
+                  }
+                } catch (e) {
+                  console.error('Failed to clean style tag innerHTML', e);
+                }
+              });
+
+              // 3. Clean up inline styles on elements
+              const allElements = Array.from(clonedDoc.getElementsByTagName('*'));
+              allElements.forEach(el => {
+                const htmlEl = el as HTMLElement;
+                if (htmlEl.style && htmlEl.style.cssText) {
+                  if (htmlEl.style.cssText.includes('oklch') || htmlEl.style.cssText.includes('oklab')) {
+                    htmlEl.style.cssText = htmlEl.style.cssText
+                      .replace(/oklch\([^)]+\)/g, 'rgb(0,0,0)')
+                      .replace(/oklab\([^)]+\)/g, 'rgb(0,0,0)');
+                  }
+                }
+              });
+            }
+          })
+        )
+      );
+    } finally {
+      // Always restore getComputedStyle to the original function
+      window.getComputedStyle = originalGetComputedStyle;
+    }
 
     const pdf = new jsPDF('p', 'mm', 'a4');
     const pageWidth = pdf.internal.pageSize.getWidth();
