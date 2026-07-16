@@ -202,6 +202,34 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
   const selectedSectionId = watch('sectionId');
   const answers = evaluationForm.watch("answers") || {};
 
+  const tasks = professors.flatMap(p => {
+    if (!p.teachingAssignments || p.teachingAssignments.length === 0) {
+      return [{ prof: p, subject: null }];
+    }
+    return p.teachingAssignments.map((ta: any) => ({
+      prof: p,
+      subject: ta.subject
+    }));
+  });
+
+  const allTasksCompleted = !!selectedSectionId && tasks.length > 0 && tasks.every(t => {
+    const taskKey = t.subject ? `${t.prof.id}-${t.subject.id}` : t.prof.id;
+    return completedProfs.includes(taskKey);
+  });
+
+  const handleEvaluateAnotherSection = () => {
+    setSectionCode('');
+    setValue('level', undefined as any);
+    setValue('departmentId', '');
+    setValue('sectionId', '');
+    setDepartments([]);
+    setSections([]);
+    setProfessors([]);
+    setCompletedProfs([]);
+    clearFormProgress();
+    toast.info("Validation cleared. Please enter another section code.");
+  };
+
   const handleSignOut = () => {
     setIsSigningOut(true);
     localStorage.removeItem('ua_evaluation_progress');
@@ -661,7 +689,7 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
         )}
 
         {/* Wizard Steps indicator - hide when in stepper mode to prevent distraction */}
-        {wizardStep !== 2 && (
+        {wizardStep !== 2 && !allTasksCompleted && (
           <div className="flex items-center justify-between max-w-md mx-auto bg-card p-3 rounded-lg border border-border/80 shadow-sm">
             {[
               { step: 1, label: 'Parameters' },
@@ -690,195 +718,260 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
           {/* STEP 1: Select parameters and choose professor */}
           {wizardStep === 1 && (
             <motion.div 
-              key="step-1"
+              key={allTasksCompleted ? "success-screen" : "step-1"}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
               className="space-y-6"
             >
-              <Card className="border border-border/80 bg-card">
-                <CardHeader className="border-b border-border/40 pb-4">
-                  <CardTitle className="text-sm font-bold uppercase tracking-wider text-ua-navy dark:text-ua-gold">
-                    Course Parameters
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-6 space-y-6">
-                  {/* Alphanumeric Code Input */}
-                  <div className="space-y-3">
-                    <div>
-                      <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Section Access Code</label>
-                      <div className="flex gap-3">
-                        <input
-                          type="text"
-                          value={sectionCode}
-                          onChange={(e) => setSectionCode(e.target.value)}
-                          placeholder="Enter system-generated 8-character code (e.g. A1B2C3D4)"
-                          className="flex-grow h-11 px-4 border border-border rounded-lg text-sm bg-card font-semibold uppercase tracking-wider text-foreground focus:ring-2 focus:ring-ua-gold/30 outline-none"
+              {allTasksCompleted ? (
+                <Card className="border border-border/80 bg-card overflow-hidden shadow-xl max-w-2xl mx-auto relative">
+                  {/* Decorative university branding gradient bar */}
+                  <div className="h-2 bg-gradient-to-r from-ua-navy via-ua-gold to-ua-navy" />
+                  
+                  <CardContent className="p-8 text-center flex flex-col items-center justify-center space-y-6">
+                    {/* Symbolic University Branding */}
+                    <div className="relative group">
+                      <div className="absolute -inset-0.5 bg-gradient-to-r from-ua-navy to-ua-gold rounded-full blur opacity-30 group-hover:opacity-60 transition duration-1000" />
+                      <div className="relative bg-card p-4 rounded-full border border-border shadow-md">
+                        <img 
+                          src="/ua-logo.png" 
+                          alt="UA Logo" 
+                          className="size-16 object-contain rounded-full" 
                         />
-                        <Button 
-                          type="button"
-                          onClick={handleVerifyCode}
-                          disabled={isVerifyingCode}
-                          uaVariant="primary"
-                          className="h-11 px-6 text-xs font-bold uppercase tracking-wider"
-                        >
-                          {isVerifyingCode ? "Verifying..." : "Verify Code"}
-                        </Button>
-                      </div>
-                      <p className="text-[10px] text-muted-foreground mt-2 font-medium">Input the code provided by the administrator to load your course details.</p>
-                    </div>
-                  </div>
-
-                  {/* Verified Course parameters layout */}
-                  {selectedSectionId && (
-                    <div className="p-5 border border-border/80 rounded-lg bg-muted/10 space-y-4 animate-fade-in">
-                      <h3 className="text-xs font-bold text-ua-navy dark:text-ua-gold uppercase tracking-wider border-b border-border/50 pb-2">Verified Course Parameters</h3>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className="space-y-1">
-                          <span className="block text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Education Level</span>
-                          <span className="block text-sm font-bold text-foreground bg-card border border-border/60 px-3 py-1.5 rounded-lg shadow-sm">{selectedLevel}</span>
-                        </div>
-                        <div className="space-y-1">
-                          <span className="block text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Department</span>
-                          <span className="block text-sm font-bold text-foreground bg-card border border-border/60 px-3 py-1.5 rounded-lg shadow-sm truncate">{departments.find(d => d.id === selectedDepartmentId)?.name || "N/A (School Core)"}</span>
-                        </div>
-                        <div className="space-y-1">
-                          <span className="block text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Year & Section</span>
-                          <span className="block text-sm font-bold text-foreground bg-card border border-border/60 px-3 py-1.5 rounded-lg shadow-sm">{sections.find(s => s.id === selectedSectionId)?.name || "Assigned Section"}</span>
-                        </div>
                       </div>
                     </div>
-                  )}
-                </CardContent>
-              </Card>
 
-              {/* Professor Selection Cards */}
-              {selectedSectionId && (
-                <div className="space-y-6">
+                    <div className="space-y-2">
+                      <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest bg-emerald-50/50 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-900 px-3 py-1 rounded-full">
+                        ✓ Section Completed
+                      </span>
+                      <h2 className="text-2xl sm:text-3xl font-serif font-bold text-foreground mt-2 tracking-tight">
+                        Evaluation Submitted Successfully
+                      </h2>
+                      <p className="text-xs font-mono text-muted-foreground bg-muted/40 border border-border/60 px-2.5 py-1 rounded inline-block">
+                        Section: {sections[0]?.name || "Verified Section"}
+                      </p>
+                    </div>
+
+                    {/* Personalized acknowledgement message */}
+                    <div className="max-w-md mx-auto space-y-4">
+                      <p className="text-sm text-foreground/85 leading-relaxed font-medium">
+                        Thank you, <span className="text-ua-navy dark:text-ua-gold font-bold">{displayName || "Student"}</span>, for your valuable contribution to our institutional quality assurance.
+                      </p>
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        Your feedback has been securely and anonymously committed to the university database. Your honest assessment plays a critical role in continuous instructional improvement.
+                      </p>
+                    </div>
+
+                    {/* High-contrast exit pathways CTAs */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full pt-4 border-t border-border/40">
+                      <Button
+                        type="button"
+                        uaVariant="primary"
+                        onClick={handleEvaluateAnotherSection}
+                        className="h-11 text-xs font-bold uppercase tracking-wider shadow-lg shadow-ua-navy/10 hover:shadow-xl transition-all animate-fade-in"
+                      >
+                        Evaluate Another Section
+                      </Button>
+                      <Button
+                        type="button"
+                        uaVariant="outline"
+                        onClick={handleSignOut}
+                        className="h-11 text-xs font-bold uppercase tracking-wider border-red-200 dark:border-red-950 hover:bg-red-50 dark:hover:bg-red-950/20 text-red-600 dark:text-red-400 transition-all"
+                      >
+                        Sign Out
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : (
+                <>
                   <Card className="border border-border/80 bg-card">
                     <CardHeader className="border-b border-border/40 pb-4">
                       <CardTitle className="text-sm font-bold uppercase tracking-wider text-ua-navy dark:text-ua-gold">
-                        Your Instructors
+                        Course Parameters
                       </CardTitle>
-                      <CardDescription>
-                        The list of instructors assigned to your section.
-                      </CardDescription>
                     </CardHeader>
-                    <CardContent className="p-6">
-                      {professors.length === 0 ? (
-                        <div className="p-8 text-center bg-muted/20 border border-dashed rounded-lg font-medium text-muted-foreground">No instructors assigned to this section.</div>
-                      ) : !template ? (
-                        <div className="p-8 text-center bg-ua-gold/5 border border-ua-gold/25 rounded-lg text-ua-gold-dark dark:text-ua-gold font-medium">
-                          <p>No active evaluation form template registered for this level.</p>
+                    <CardContent className="p-6 space-y-6">
+                      {/* Alphanumeric Code Input */}
+                      <div className="space-y-3">
+                        <div>
+                          <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Section Access Code</label>
+                          <div className="flex gap-3">
+                            <input
+                              type="text"
+                              value={sectionCode}
+                              onChange={(e) => setSectionCode(e.target.value)}
+                              placeholder="Enter system-generated 8-character code (e.g. A1B2C3D4)"
+                              className="flex-grow h-11 px-4 border border-border rounded-lg text-sm bg-card font-semibold uppercase tracking-wider text-foreground focus:ring-2 focus:ring-ua-gold/30 outline-none"
+                            />
+                            <Button 
+                              type="button"
+                              onClick={handleVerifyCode}
+                              disabled={isVerifyingCode}
+                              uaVariant="primary"
+                              className="h-11 px-6 text-xs font-bold uppercase tracking-wider"
+                            >
+                              {isVerifyingCode ? "Verifying..." : "Verify Code"}
+                            </Button>
+                          </div>
+                          <p className="text-[10px] text-muted-foreground mt-2 font-medium">Input the code provided by the administrator to load your course details.</p>
                         </div>
-                      ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          {(() => {
-                            const tasks = professors.flatMap(p => {
-                              if (!p.teachingAssignments || p.teachingAssignments.length === 0) {
-                                return [{ prof: p, subject: null }];
-                              }
-                              return p.teachingAssignments.map((ta: any) => ({
-                                prof: p,
-                                subject: ta.subject
-                              }));
-                            });
+                      </div>
 
-                            return tasks.map((task, idx) => {
-                              const taskKey = task.subject ? `${task.prof.id}-${task.subject.id}` : task.prof.id;
-                              const isCompleted = completedProfs.includes(taskKey);
-
-                              return (
-                                <div
-                                  key={`${taskKey}-${idx}`}
-                                  onClick={() => {
-                                    if (isCompleted) {
-                                      toast.info(`You have already completed the evaluation for ${task.prof.name} ${task.subject ? `(${task.subject.code})` : ''}.`);
-                                      return;
-                                    }
-                                    setSelectedProf(task.prof);
-                                    setSelectedSubject(task.subject);
-                                    evaluationForm.reset();
-                                    setWizardStep(2);
-                                    setCurrentClusterIndex(0);
-                                  }}
-                                  className={cn(
-                                    "p-5 border rounded-lg text-left transition-all duration-200",
-                                    isCompleted 
-                                      ? 'border-emerald-100 bg-emerald-50/10 dark:border-emerald-950 dark:bg-emerald-950/10 opacity-80 cursor-not-allowed' 
-                                      : 'border-border bg-card cursor-pointer hover:border-ua-navy dark:hover:border-ua-gold shadow-sm hover:shadow'
-                                  )}
-                                >
-                                  <div className="flex justify-between items-start gap-4">
-                                    <div>
-                                      <span className="font-bold text-sm text-foreground block">{task.prof.name}</span>
-                                      <span className="text-[10px] text-muted-foreground mt-1 block font-medium">{task.prof.email}</span>
-                                      {task.subject && (
-                                        <div className="mt-2">
-                                          <span className="text-[9px] bg-ua-navy/5 dark:bg-ua-gold/10 border border-ua-navy/15 dark:border-ua-gold/20 text-ua-navy dark:text-ua-gold px-2 py-0.5 rounded font-mono font-semibold">
-                                            📚 {task.subject.name} ({task.subject.code})
-                                          </span>
-                                        </div>
-                                      )}
-                                    </div>
-                                    {isCompleted ? (
-                                      <span className="text-[9px] px-2.5 py-1 bg-emerald-50 border border-emerald-100 text-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-400 rounded-full font-bold uppercase tracking-wider flex items-center gap-1 shrink-0">
-                                        ✓ Done
-                                      </span>
-                                    ) : (
-                                      <span className="text-[9px] px-2.5 py-1 bg-ua-navy/5 border border-ua-navy/10 text-ua-navy dark:bg-ua-gold/10 dark:border-ua-gold/20 dark:text-ua-gold rounded-full font-bold uppercase tracking-wider shrink-0">
-                                        Pending
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                              );
-                            });
-                          })()}
+                      {/* Verified Course parameters layout */}
+                      {selectedSectionId && (
+                        <div className="p-5 border border-border/80 rounded-lg bg-muted/10 space-y-4 animate-fade-in">
+                          <h3 className="text-xs font-bold text-ua-navy dark:text-ua-gold uppercase tracking-wider border-b border-border/50 pb-2">Verified Course Parameters</h3>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="space-y-1">
+                              <span className="block text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Education Level</span>
+                              <span className="block text-sm font-bold text-foreground bg-card border border-border/60 px-3 py-1.5 rounded-lg shadow-sm">{selectedLevel}</span>
+                            </div>
+                            <div className="space-y-1">
+                              <span className="block text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Department</span>
+                              <span className="block text-sm font-bold text-foreground bg-card border border-border/60 px-3 py-1.5 rounded-lg shadow-sm truncate">{departments.find(d => d.id === selectedDepartmentId)?.name || "N/A (School Core)"}</span>
+                            </div>
+                            <div className="space-y-1">
+                              <span className="block text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Year & Section</span>
+                              <span className="block text-sm font-bold text-foreground bg-card border border-border/60 px-3 py-1.5 rounded-lg shadow-sm">{sections.find(s => s.id === selectedSectionId)?.name || "Assigned Section"}</span>
+                            </div>
+                          </div>
                         </div>
                       )}
                     </CardContent>
                   </Card>
 
-                  {professors.length > 0 && template && (
-                    <div className="flex justify-end pt-2">
-                      <Button
-                        type="button"
-                        uaVariant="primary"
-                        onClick={() => {
-                          const tasks = professors.flatMap(p => {
-                            if (!p.teachingAssignments || p.teachingAssignments.length === 0) {
-                              return [{ prof: p, subject: null }];
-                            }
-                            return p.teachingAssignments.map((ta: any) => ({
-                              prof: p,
-                              subject: ta.subject
-                            }));
-                          });
+                  {/* Professor Selection Cards */}
+                  {selectedSectionId && (
+                    <div className="space-y-6">
+                      <Card className="border border-border/80 bg-card">
+                        <CardHeader className="border-b border-border/40 pb-4">
+                          <CardTitle className="text-sm font-bold uppercase tracking-wider text-ua-navy dark:text-ua-gold">
+                            Your Instructors
+                          </CardTitle>
+                          <CardDescription>
+                            The list of instructors assigned to your section.
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent className="p-6">
+                          {professors.length === 0 ? (
+                            <div className="p-8 text-center bg-muted/20 border border-dashed rounded-lg font-medium text-muted-foreground">No instructors assigned to this section.</div>
+                          ) : !template ? (
+                            <div className="p-8 text-center bg-ua-gold/5 border border-ua-gold/25 rounded-lg text-ua-gold-dark dark:text-ua-gold font-medium">
+                              <p>No active evaluation form template registered for this level.</p>
+                            </div>
+                          ) : (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                              {(() => {
+                                const tasks = professors.flatMap(p => {
+                                  if (!p.teachingAssignments || p.teachingAssignments.length === 0) {
+                                    return [{ prof: p, subject: null }];
+                                  }
+                                  return p.teachingAssignments.map((ta: any) => ({
+                                    prof: p,
+                                    subject: ta.subject
+                                  }));
+                                });
 
-                          const nextPendingTask = tasks.find(t => {
-                            const taskKey = t.subject ? `${t.prof.id}-${t.subject.id}` : t.prof.id;
-                            return !completedProfs.includes(taskKey);
-                          });
+                                return tasks.map((task, idx) => {
+                                  const taskKey = task.subject ? `${task.prof.id}-${task.subject.id}` : task.prof.id;
+                                  const isCompleted = completedProfs.includes(taskKey);
 
-                          if (nextPendingTask) {
-                            setSelectedProf(nextPendingTask.prof);
-                            setSelectedSubject(nextPendingTask.subject);
-                            evaluationForm.reset();
-                            setWizardStep(2);
-                            setCurrentClusterIndex(0);
-                          } else {
-                            toast.error("All instructors in this section have already been evaluated!");
-                          }
-                        }}
-                        className="flex items-center gap-1.5"
-                      >
-                        Start Evaluation
-                        <ChevronRight className="size-4" />
-                      </Button>
+                                  return (
+                                    <div
+                                      key={`${taskKey}-${idx}`}
+                                      onClick={() => {
+                                        if (isCompleted) {
+                                          toast.info(`You have already completed the evaluation for ${task.prof.name} ${task.subject ? `(${task.subject.code})` : ''}.`);
+                                          return;
+                                        }
+                                        setSelectedProf(task.prof);
+                                        setSelectedSubject(task.subject);
+                                        evaluationForm.reset();
+                                        setWizardStep(2);
+                                        setCurrentClusterIndex(0);
+                                      }}
+                                      className={cn(
+                                        "p-5 border rounded-lg text-left transition-all duration-200",
+                                        isCompleted 
+                                          ? 'border-emerald-100 bg-emerald-50/10 dark:border-emerald-950 dark:bg-emerald-950/10 opacity-80 cursor-not-allowed' 
+                                          : 'border-border bg-card cursor-pointer hover:border-ua-navy dark:hover:border-ua-gold shadow-sm hover:shadow'
+                                      )}
+                                    >
+                                      <div className="flex justify-between items-start gap-4">
+                                        <div>
+                                          <span className="font-bold text-sm text-foreground block">{task.prof.name}</span>
+                                          <span className="text-[10px] text-muted-foreground mt-1 block font-medium">{task.prof.email}</span>
+                                          {task.subject && (
+                                            <div className="mt-2">
+                                              <span className="text-[9px] bg-ua-navy/5 dark:bg-ua-gold/10 border border-ua-navy/15 dark:border-ua-gold/20 text-ua-navy dark:text-ua-gold px-2.5 py-0.5 rounded font-mono font-semibold">
+                                                📚 {task.subject.name} ({task.subject.code})
+                                              </span>
+                                            </div>
+                                          )}
+                                        </div>
+                                        {isCompleted ? (
+                                          <span className="text-[9px] px-2.5 py-1 bg-emerald-50 border border-emerald-100 text-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-400 rounded-full font-bold uppercase tracking-wider flex items-center gap-1 shrink-0">
+                                            ✓ Done
+                                          </span>
+                                        ) : (
+                                          <span className="text-[9px] px-2.5 py-1 bg-ua-navy/5 border border-ua-navy/10 text-ua-navy dark:bg-ua-gold/10 dark:border-ua-gold/20 dark:text-ua-gold rounded-full font-bold uppercase tracking-wider shrink-0">
+                                            Pending
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  );
+                                });
+                              })()}
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+
+                      {professors.length > 0 && template && (
+                        <div className="flex justify-end pt-2">
+                          <Button
+                            type="button"
+                            uaVariant="primary"
+                            onClick={() => {
+                              const tasks = professors.flatMap(p => {
+                                if (!p.teachingAssignments || p.teachingAssignments.length === 0) {
+                                  return [{ prof: p, subject: null }];
+                                }
+                                return p.teachingAssignments.map((ta: any) => ({
+                                  prof: p,
+                                  subject: ta.subject
+                                }));
+                              });
+
+                              const nextPendingTask = tasks.find(t => {
+                                const taskKey = t.subject ? `${t.prof.id}-${t.subject.id}` : t.prof.id;
+                                return !completedProfs.includes(taskKey);
+                              });
+
+                              if (nextPendingTask) {
+                                setSelectedProf(nextPendingTask.prof);
+                                setSelectedSubject(nextPendingTask.subject);
+                                evaluationForm.reset();
+                                setWizardStep(2);
+                                setCurrentClusterIndex(0);
+                              } else {
+                                toast.error("All instructors in this section have already been evaluated!");
+                              }
+                            }}
+                            className="flex items-center gap-1.5"
+                          >
+                            Start Evaluation
+                            <ChevronRight className="size-4" />
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   )}
-                </div>
+                </>
               )}
             </motion.div>
           )}
