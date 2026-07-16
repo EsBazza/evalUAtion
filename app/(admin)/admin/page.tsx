@@ -439,208 +439,76 @@ function AdminDashboardContent() {
     URL.revokeObjectURL(url);
   };
 
-  const exportToPDF = async (title: string, headers: string[], rows: string[][], filename: string) => {
-    const { jsPDF } = await import('jspdf');
-    const { getFadedImageDataUrl, drawBrandedLayout } = await import('@/lib/pdfUtils');
-
-    // Pre-process branding images
-    const [watermarkUrl, logoUrl] = await Promise.all([
-      getFadedImageDataUrl('/bg.jpg', 0.08),
-      getFadedImageDataUrl('/ua-logo.png', 1.0)
-    ]);
-
-    const doc = new jsPDF('p', 'mm', 'a4');
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
-    const margin = 14;
-    const contentWidth = pageWidth - margin * 2;
-    const generatedDate = new Date().toLocaleString();
-
-    // Map column widths dynamically based on headers count and total content width (182mm)
-    const colWidths = headers.map((_, i) => {
-      if (headers.length === 5) {
-        // Ratings ledger: Name, Email, Department, Sections, Score
-        const widths = [42, 48, 38, 39, 15];
-        return widths[i];
-      } else if (headers.length === 6) {
-        // Attendance logs: Name, Email, First Sub, Most Recent Sub, Department, Section
-        const widths = [28, 42, 28, 28, 31, 25];
-        return widths[i];
-      } else if (headers.length === 3) {
-        // Attendance logs (simple): Name, Email, Section
-        const widths = [52, 70, 60];
-        return widths[i];
-      } else if (headers.length === 4) {
-        // Audit logs: Timestamp, Event Type, Description, Actor
-        const widths = [35, 30, 75, 42];
-        return widths[i];
-      }
-      return contentWidth / headers.length;
-    });
-
-    // Layout configuration
-    const cellLineHeight = 4.0; // mm
-    const cellPadding = 2.5; // mm
-    const headerHeight = 8; // mm
-
-    // Pre-calculate line splitting and row heights
-    const rowLines: Array<{ cellLines: string[][]; rowHeight: number }> = [];
-    rows.forEach((row) => {
-      const cellLines = row.map((val, colIdx) => {
-        return doc.splitTextToSize(String(val || ''), colWidths[colIdx] - cellPadding * 2);
-      });
-      const maxLines = Math.max(...cellLines.map(lines => lines.length));
-      const rowHeight = maxLines * cellLineHeight + cellPadding * 2;
-      rowLines.push({ cellLines, rowHeight });
-    });
-
-    // Determine pagination layout (Dry run)
-    const pages: Array<typeof rowLines> = [[]];
-    let currentPageY = 38; // Starts below header band
-    const maxPageY = pageHeight - 20; // Margin buffer at bottom
-
-    rowLines.forEach((item) => {
-      if (currentPageY + item.rowHeight > maxPageY) {
-        pages.push([item]);
-        currentPageY = 38 + item.rowHeight;
-      } else {
-        pages[pages.length - 1].push(item);
-        currentPageY += item.rowHeight;
-      }
-    });
-
-    const totalPages = pages.length;
-
-    // Render pages sequentially
-    pages.forEach((pageRows, pageIdx) => {
-      if (pageIdx > 0) {
-        doc.addPage();
-      }
-
-      // Draw UA frame, watermarks, headers, and footers
-      drawBrandedLayout({
-        doc,
-        watermarkDataUrl: watermarkUrl || undefined,
-        logoDataUrl: logoUrl || undefined,
-        title,
-        currentPage: pageIdx + 1,
-        totalPages,
-        generatedDate,
-      });
-
-      // Draw table header container
-      let currentY = 35;
-      doc.setFillColor(11, 47, 100); // Navy #0B2F64
-      doc.rect(margin, currentY, contentWidth, headerHeight, 'F');
-      
-      // Draw table header columns
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(8);
-      doc.setTextColor(255, 255, 255); // White text
-
-      let currentX = margin;
-      headers.forEach((header, colIdx) => {
-        doc.text(header, currentX + cellPadding, currentY + 5.5);
-        currentX += colWidths[colIdx];
-      });
-
-      // Draw Gold Accent bottom border line for header
-      doc.setFillColor(212, 175, 55); // Gold #D4AF37
-      doc.rect(margin, currentY + headerHeight, contentWidth, 0.5, 'F');
-
-      currentY += headerHeight;
-
-      // Draw row content and backgrounds
-      pageRows.forEach((rowInfo, rowIdx) => {
-        if (rowIdx % 2 === 1) {
-          doc.setFillColor(248, 250, 253); // Subtle zebra tint
-        } else {
-          doc.setFillColor(255, 255, 255);
-        }
-        doc.rect(margin, currentY, contentWidth, rowInfo.rowHeight, 'F');
-
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(7.5);
-        doc.setTextColor(50, 50, 50);
-
-        let cellX = margin;
-        rowInfo.cellLines.forEach((lines, colIdx) => {
-          lines.forEach((lineText, lineIdx) => {
-            doc.text(lineText, cellX + cellPadding, currentY + cellPadding + 3 + (lineIdx * cellLineHeight));
-          });
-          cellX += colWidths[colIdx];
-        });
-
-        // Row dividing lines
-        doc.setDrawColor(226, 232, 240);
-        doc.setLineWidth(0.1);
-        doc.line(margin, currentY + rowInfo.rowHeight, margin + contentWidth, currentY + rowInfo.rowHeight);
-
-        currentY += rowInfo.rowHeight;
-      });
-    });
-
-    doc.save(filename);
-  };
-
   const handleExportAttendance = async () => {
     try {
-      let dataToExport = [];
-      if (exportScope === 'current') {
-        dataToExport = await getEvaluationAttendanceLogsForExport({
-          search: receiptSearch,
-          departments: selectedDepts,
-          sections: selectedSections,
-          academicYears: selectedYears,
-          semesters: selectedSems
-        });
-      } else {
-        if (!exportSelectedDeptId) {
-          toast.error("Please select a department to export.");
+      if (exportFormat === 'csv') {
+        let dataToExport = [];
+        if (exportScope === 'current') {
+          dataToExport = await getEvaluationAttendanceLogsForExport({
+            search: receiptSearch,
+            departments: selectedDepts,
+            sections: selectedSections,
+            academicYears: selectedYears,
+            semesters: selectedSems
+          });
+        } else {
+          if (!exportSelectedDeptId) {
+            toast.error("Please select a department to export.");
+            return;
+          }
+          dataToExport = await getEvaluationAttendanceLogsForExport({
+            departments: [exportSelectedDeptId]
+          });
+        }
+
+        if (dataToExport.length === 0) {
+          toast.error("No records found to export.");
           return;
         }
-        dataToExport = await getEvaluationAttendanceLogsForExport({
-          departments: [exportSelectedDeptId]
-        });
-      }
 
-      if (dataToExport.length === 0) {
-        toast.error("No records found to export.");
-        return;
-      }
+        let headers = [];
+        let rows = [];
 
-      let headers = [];
-      let rows = [];
+        if (exportAllFields) {
+          headers = ["Name", "Email", "First Submitted", "Most Recent Submitted", "Department", "Section"];
+          rows = dataToExport.map(r => [
+            r.studentName || 'Not Set',
+            r.studentEmail,
+            new Date(r.firstSubmitted).toLocaleString(),
+            new Date(r.mostRecentSubmitted).toLocaleString(),
+            r.departmentName || 'N/A',
+            r.sectionName || 'N/A'
+          ]);
+        } else {
+          headers = ["Name", "Email", "Section"];
+          rows = dataToExport.map(r => [
+            r.studentName || 'Not Set',
+            r.studentEmail,
+            r.sectionName || 'N/A'
+          ]);
+        }
 
-      if (exportAllFields) {
-        headers = ["Name", "Email", "First Submitted", "Most Recent Submitted", "Department", "Section"];
-        rows = dataToExport.map(r => [
-          r.studentName || 'Not Set',
-          r.studentEmail,
-          new Date(r.firstSubmitted).toLocaleString(),
-          new Date(r.mostRecentSubmitted).toLocaleString(),
-          r.departmentName || 'N/A',
-          r.sectionName || 'N/A'
-        ]);
-      } else {
-        headers = ["Name", "Email", "Section"];
-        rows = dataToExport.map(r => [
-          r.studentName || 'Not Set',
-          r.studentEmail,
-          r.sectionName || 'N/A'
-        ]);
-      }
-
-      const baseFilename = exportScope === 'current' 
-        ? `evaluation_attendance_current_${new Date().toISOString().slice(0,10)}`
-        : `evaluation_attendance_dept_${exportSelectedDeptId}`;
+        const baseFilename = exportScope === 'current' 
+          ? `evaluation_attendance_current_${new Date().toISOString().slice(0,10)}`
+          : `evaluation_attendance_dept_${exportSelectedDeptId}`;
         
-      if (exportFormat === 'csv') {
         exportToCSV(headers, rows, `${baseFilename}.csv`);
         toast.success("CSV exported successfully!");
       } else {
-        await exportToPDF("Evaluation Attendance Logs", headers, rows, `${baseFilename}.pdf`);
-        toast.success("PDF exported successfully!");
+        const toastId = toast.loading("Generating vector PDF report...");
+        const query = new URLSearchParams({
+          type: 'attendance',
+          scope: exportScope,
+          deptId: exportSelectedDeptId,
+          search: receiptSearch,
+          depts: selectedDepts.join(','),
+          sections: selectedSections.join(','),
+          years: selectedYears.join(','),
+          sems: selectedSems.join(','),
+          allFields: String(exportAllFields)
+        }).toString();
+        window.location.href = `/api/print/table?${query}`;
+        toast.success("PDF export started!", undefined, { id: toastId });
       }
       setIsExportModalOpen(false);
     } catch (err: any) {
@@ -656,23 +524,32 @@ function AdminDashboardContent() {
         return;
       }
 
-      const headers = ["Faculty Name", "Email Address", "Department", "Assigned Sections", "Score"];
-      const rows = dataToExport.map(r => [
-        r.name || 'Not Set',
-        r.email || '',
-        r.department || 'N/A',
-        r.sections || 'None',
-        r.averageScore !== null ? `${r.averageScore}%` : 'N/A'
-      ]);
-
       const baseFilename = `faculty_ratings_ledger_${selectedLedgerDept.toLowerCase().replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}`;
 
       if (format === 'csv') {
+        const headers = ["Faculty Name", "Email Address", "Department", "Assigned Sections", "Score"];
+        const rows = dataToExport.map(r => [
+          r.name || 'Not Set',
+          r.email || '',
+          r.department || 'N/A',
+          r.sections || 'None',
+          r.averageScore !== null ? `${r.averageScore}%` : 'N/A'
+        ]);
         exportToCSV(headers, rows, `${baseFilename}.csv`);
         toast.success("CSV exported successfully!");
       } else {
-        await exportToPDF("Faculty Ratings Ledger", headers, rows, `${baseFilename}.pdf`);
-        toast.success("PDF exported successfully!");
+        const toastId = toast.loading("Generating vector PDF report...");
+        const query = new URLSearchParams({
+          type: 'ratings',
+          search: ratingsSearch,
+          depts: selectedRatingsDepts.join(','),
+          subjects: selectedRatingsSubjects.join(','),
+          sections: selectedRatingsSections.join(','),
+          academicYear: sysYear,
+          semester: sysSem
+        }).toString();
+        window.location.href = `/api/print/table?${query}`;
+        toast.success("PDF export started!", undefined, { id: toastId });
       }
     } catch (err) {
       toast.error(`Failed to export ratings as ${format.toUpperCase()}`);
@@ -687,22 +564,28 @@ function AdminDashboardContent() {
         return;
       }
 
-      const headers = ["Timestamp", "Event Type", "Description", "Actor"];
-      const rows = dataToExport.map(log => [
-        new Date(log.createdAt).toLocaleString(),
-        log.eventType || '',
-        log.details?.desc || log.details?.message || JSON.stringify(log.details) || '',
-        log.actorEmail || ''
-      ]);
-
       const baseFilename = `system_audit_logs_${new Date().toISOString().slice(0, 10)}`;
 
       if (format === 'csv') {
+        const headers = ["Timestamp", "Event Type", "Description", "Actor"];
+        const rows = dataToExport.map(log => [
+          new Date(log.createdAt).toLocaleString(),
+          log.eventType || '',
+          log.details?.desc || log.details?.message || JSON.stringify(log.details) || '',
+          log.actorEmail || ''
+        ]);
         exportToCSV(headers, rows, `${baseFilename}.csv`);
         toast.success("CSV exported successfully!");
       } else {
-        await exportToPDF("System Audit Logs", headers, rows, `${baseFilename}.pdf`);
-        toast.success("PDF exported successfully!");
+        const toastId = toast.loading("Generating vector PDF report...");
+        const query = new URLSearchParams({
+          type: 'audit',
+          search: logSearch,
+          sortBy: logSortField,
+          sortDirection: logSortDirection
+        }).toString();
+        window.location.href = `/api/print/table?${query}`;
+        toast.success("PDF export started!", undefined, { id: toastId });
       }
     } catch (err) {
       toast.error(`Failed to export audit logs as ${format.toUpperCase()}`);
