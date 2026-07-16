@@ -4,6 +4,10 @@ import chromium from '@sparticuz/chromium';
 import fs from 'fs';
 import path from 'path';
 
+// Force Node.js runtime (not Edge) and allow time for Chromium cold start
+export const runtime = 'nodejs';
+export const maxDuration = 60;
+
 export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl;
   const type = searchParams.get('type') || '';
