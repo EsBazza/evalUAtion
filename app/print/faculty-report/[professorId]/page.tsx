@@ -40,12 +40,32 @@ export default async function FacultyReportPrintPage({ params, searchParams }: P
             margin: 0 !important;
             padding: 0 !important;
           }
+
+          /* Watermark logo positioned behind the page content on every page */
+          body::before {
+            content: "" !important;
+            position: fixed !important;
+            top: 50% !important;
+            left: 50% !important;
+            transform: translate(-50%, -50%) !important;
+            width: 500px !important;
+            height: 500px !important;
+            background-image: url('/ua-logo.png') !important;
+            background-repeat: no-repeat !important;
+            background-position: center !important;
+            background-size: contain !important;
+            opacity: 0.055 !important;
+            z-index: -1000 !important;
+            pointer-events: none !important;
+          }
           
           /* Prevent page cutoffs inside components */
           .print-card {
             page-break-inside: avoid !important;
             break-inside: avoid !important;
             margin-bottom: 20px !important;
+            background-color: transparent !important;
+            background: transparent !important;
           }
           
           /* Force colors to output */

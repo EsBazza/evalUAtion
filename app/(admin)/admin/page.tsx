@@ -530,19 +530,23 @@ function AdminDashboardContent() {
 
       // Draw table header container
       let currentY = 35;
-      doc.setFillColor(240, 243, 248);
+      doc.setFillColor(11, 47, 100); // Navy #0B2F64
       doc.rect(margin, currentY, contentWidth, headerHeight, 'F');
       
       // Draw table header columns
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(8);
-      doc.setTextColor(11, 47, 100); // UA Navy for headers
+      doc.setTextColor(255, 255, 255); // White text
 
       let currentX = margin;
       headers.forEach((header, colIdx) => {
         doc.text(header, currentX + cellPadding, currentY + 5.5);
         currentX += colWidths[colIdx];
       });
+
+      // Draw Gold Accent bottom border line for header
+      doc.setFillColor(212, 175, 55); // Gold #D4AF37
+      doc.rect(margin, currentY + headerHeight, contentWidth, 0.5, 'F');
 
       currentY += headerHeight;
 
