@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import puppeteer, { Browser } from 'puppeteer';
+import puppeteer, { Browser } from 'puppeteer-core';
+import chromium from '@sparticuz/chromium';
 import fs from 'fs';
 import path from 'path';
 
@@ -54,10 +55,11 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
 
   let browser: Browser | null = null;
   try {
-    // 3. Launch headless chromium
+    // 3. Launch headless chromium (serverless-compatible via @sparticuz/chromium)
     browser = await puppeteer.launch({
+      args: chromium.args,
+      executablePath: await chromium.executablePath(),
       headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
     });
 
     const page = await browser.newPage();
