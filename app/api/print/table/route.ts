@@ -76,7 +76,10 @@ export async function GET(req: NextRequest) {
 
     // 5. Navigate to the Print Table page
     const queryParams = searchParams.toString();
-    const printUrl = `${req.nextUrl.origin}/print/table?${queryParams}`;
+    let printUrl = `${req.nextUrl.origin}/print/table?${queryParams}`;
+    if (printUrl.startsWith('https://localhost') || printUrl.startsWith('https://127.0.0.1')) {
+      printUrl = printUrl.replace(/^https:/, 'http:');
+    }
     await page.goto(printUrl, { waitUntil: 'networkidle0' });
 
     // 6. Generate vector PDF

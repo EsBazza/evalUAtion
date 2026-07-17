@@ -79,7 +79,10 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     }
 
     // 5. Navigate to the dedicated print page and wait for the network to become idle (Recharts SVGs rendered)
-    const printUrl = `${req.nextUrl.origin}/print/faculty-report/${professorId}?academicYear=${encodeURIComponent(academicYear)}&semester=${encodeURIComponent(semester)}&subjectId=${encodeURIComponent(subjectId)}`;
+    let printUrl = `${req.nextUrl.origin}/print/faculty-report/${professorId}?academicYear=${encodeURIComponent(academicYear)}&semester=${encodeURIComponent(semester)}&subjectId=${encodeURIComponent(subjectId)}`;
+    if (printUrl.startsWith('https://localhost') || printUrl.startsWith('https://127.0.0.1')) {
+      printUrl = printUrl.replace(/^https:/, 'http:');
+    }
     await page.goto(printUrl, { waitUntil: 'networkidle0' });
 
     // 6. Generate the vector PDF
