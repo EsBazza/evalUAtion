@@ -13,7 +13,9 @@ import {
   createSubject,
   deleteSubject,
   updateSection,
-  updateSubject
+  updateSubject,
+  updateDepartment,
+  deleteDepartment
 } from '@/app/actions/management';
 import Link from 'next/link';
 import { FolderKanban, Plus, UserPlus, FileText, CheckSquare, Settings, ArrowUp, ArrowDown, Edit3, Trash2, BookOpen } from 'lucide-react';
@@ -73,6 +75,50 @@ export default function FacultyDepartmentManagement() {
   // Department Form state
   const [newDeptName, setNewDeptName] = useState('');
   const [newDeptLevel, setNewDeptLevel] = useState<EducationLevel>('COLLEGE');
+
+  // Edit Department Form state
+  const [isEditDeptModalOpen, setIsEditDeptModalOpen] = useState(false);
+  const [editingDept, setEditingDept] = useState<any | null>(null);
+  const [editDeptName, setEditDeptName] = useState('');
+  const [editDeptLevel, setEditDeptLevel] = useState<EducationLevel>('COLLEGE');
+
+  const handleStartEditDept = (dep: any) => {
+    setEditingDept(dep);
+    setEditDeptName(dep.name);
+    setEditDeptLevel(dep.level);
+    setIsEditDeptModalOpen(true);
+  };
+
+  const handleSaveEditDept = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingDept || !editDeptName.trim()) return;
+    try {
+      await updateDepartment(editingDept.id, editDeptName.trim(), editDeptLevel);
+      setEditingDept(null);
+      setIsEditDeptModalOpen(false);
+      toast.success("Division updated successfully!");
+      await loadDeps();
+      if (selectedDeptId === editingDept.id) {
+        loadDeptDetails(editingDept.id);
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update division");
+    }
+  };
+
+  const handleDeleteDept = async (deptId: string, deptName: string) => {
+    if (!confirm(`Are you sure you want to permanently delete the division "${deptName}"? This will delete all associated sections, courses, faculty, and evaluations!`)) return;
+    try {
+      await deleteDepartment(deptId);
+      toast.success("Division deleted successfully!");
+      if (selectedDeptId === deptId) {
+        setSelectedDeptId(null);
+      }
+      await loadDeps();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to delete division");
+    }
+  };
 
   // Sorting and action menus
   const [activeKebabId, setActiveKebabId] = useState<string | null>(null);
@@ -346,24 +392,39 @@ export default function FacultyDepartmentManagement() {
                     const jdep = departments.find(d => d.level === 'JHS');
                     const isActive = selectedDeptId === jdep.id;
                     return (
-                      <li key={jdep.id}>
+                      <li 
+                        key={jdep.id} 
+                        className={cn(
+                          "group relative flex items-center hover:bg-muted/30 transition-all border-l-4 pr-3",
+                          isActive 
+                            ? 'bg-ua-navy/5 border-ua-gold text-ua-navy dark:text-ua-gold font-bold' 
+                            : 'border-transparent text-foreground font-medium'
+                        )}
+                      >
                         <button 
                           onClick={() => {
                             setSelectedDeptId(jdep.id);
                             setEditingFaculty(null);
                           }}
-                          className={cn(
-                            "w-full text-left p-5 hover:bg-muted/30 transition-all border-l-4 outline-none",
-                            isActive 
-                              ? 'bg-ua-navy/5 border-ua-gold pl-4 text-ua-navy dark:text-ua-gold font-bold' 
-                              : 'border-transparent pl-5 text-foreground font-medium'
-                          )}
+                          className="flex-1 text-left p-5 outline-none"
                         >
                           <p className="text-sm">Junior High School</p>
                           <span className="inline-block text-[9px] bg-muted text-muted-foreground px-2 py-0.5 rounded-full font-bold uppercase tracking-wider mt-1.5">
                             JHS Level
                           </span>
                         </button>
+                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleStartEditDept(jdep);
+                            }}
+                            uaVariant="ghost"
+                            className="h-8 w-8 p-0 text-blue-500 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/30"
+                          >
+                            <Edit3 className="size-4" />
+                          </Button>
+                        </div>
                       </li>
                     );
                   })()
@@ -373,24 +434,39 @@ export default function FacultyDepartmentManagement() {
                     const sdep = departments.find(d => d.level === 'SHS');
                     const isActive = selectedDeptId === sdep.id;
                     return (
-                      <li key={sdep.id}>
+                      <li 
+                        key={sdep.id} 
+                        className={cn(
+                          "group relative flex items-center hover:bg-muted/30 transition-all border-l-4 pr-3",
+                          isActive 
+                            ? 'bg-ua-navy/5 border-ua-gold text-ua-navy dark:text-ua-gold font-bold' 
+                            : 'border-transparent text-foreground font-medium'
+                        )}
+                      >
                         <button 
                           onClick={() => {
                             setSelectedDeptId(sdep.id);
                             setEditingFaculty(null);
                           }}
-                          className={cn(
-                            "w-full text-left p-5 hover:bg-muted/30 transition-all border-l-4 outline-none",
-                            isActive 
-                              ? 'bg-ua-navy/5 border-ua-gold pl-4 text-ua-navy dark:text-ua-gold font-bold' 
-                              : 'border-transparent pl-5 text-foreground font-medium'
-                          )}
+                          className="flex-1 text-left p-5 outline-none"
                         >
                           <p className="text-sm">Senior High School</p>
                           <span className="inline-block text-[9px] bg-muted text-muted-foreground px-2 py-0.5 rounded-full font-bold uppercase tracking-wider mt-1.5">
                             SHS Level
                           </span>
                         </button>
+                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleStartEditDept(sdep);
+                            }}
+                            uaVariant="ghost"
+                            className="h-8 w-8 p-0 text-blue-500 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/30"
+                          >
+                            <Edit3 className="size-4" />
+                          </Button>
+                        </div>
                       </li>
                     );
                   })()
@@ -402,24 +478,49 @@ export default function FacultyDepartmentManagement() {
                   .map(dep => {
                     const isActive = selectedDeptId === dep.id;
                     return (
-                      <li key={dep.id}>
+                      <li 
+                        key={dep.id}
+                        className={cn(
+                          "group relative flex items-center hover:bg-muted/30 transition-all border-l-4 pr-3",
+                          isActive 
+                            ? 'bg-ua-navy/5 border-ua-gold text-ua-navy dark:text-ua-gold font-bold' 
+                            : 'border-transparent text-foreground font-medium'
+                        )}
+                      >
                         <button 
                           onClick={() => {
                             setSelectedDeptId(dep.id);
                             setEditingFaculty(null);
                           }}
-                          className={cn(
-                            "w-full text-left p-5 hover:bg-muted/30 transition-all border-l-4 outline-none",
-                            isActive 
-                              ? 'bg-ua-navy/5 border-ua-gold pl-4 text-ua-navy dark:text-ua-gold font-bold' 
-                              : 'border-transparent pl-5 text-foreground font-medium'
-                          )}
+                          className="flex-1 text-left p-5 outline-none"
                         >
                           <p className="text-sm">{dep.name}</p>
                           <span className="inline-block text-[9px] bg-muted text-muted-foreground px-2 py-0.5 rounded-full font-bold uppercase tracking-wider mt-1.5">
                             {dep.level}
                           </span>
                         </button>
+                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleStartEditDept(dep);
+                            }}
+                            uaVariant="ghost"
+                            className="h-8 w-8 p-0 text-blue-500 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/30"
+                          >
+                            <Edit3 className="size-4" />
+                          </Button>
+                          <Button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteDept(dep.id, dep.name);
+                            }}
+                            uaVariant="ghost"
+                            className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30"
+                          >
+                            <Trash2 className="size-4" />
+                          </Button>
+                        </div>
                       </li>
                     );
                   })}
@@ -802,6 +903,49 @@ export default function FacultyDepartmentManagement() {
           </div>
         </form>
       </Modal>
+
+      {/* Edit Department Modal */}
+      {editingDept && (
+        <Modal
+          isOpen={isEditDeptModalOpen}
+          onClose={() => setIsEditDeptModalOpen(false)}
+          title="Edit Division / Department"
+          footer={
+            <>
+              <Button uaVariant="ghost" onClick={() => setIsEditDeptModalOpen(false)}>Cancel</Button>
+              <Button uaVariant="primary" onClick={handleSaveEditDept}>Save Changes</Button>
+            </>
+          }
+        >
+          <form onSubmit={handleSaveEditDept} className="space-y-4 text-left">
+            <div>
+              <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Department Name</label>
+              <input 
+                type="text"
+                value={editDeptName}
+                onChange={(e) => setEditDeptName(e.target.value)}
+                placeholder="e.g. Computer Studies"
+                className="w-full h-11 px-3 border border-border rounded-lg text-sm bg-card text-foreground focus:ring-2 focus:ring-ua-gold/30 outline-none font-semibold"
+                required
+                autoFocus
+              />
+            </div>
+            {editingDept.level !== 'JHS' && editingDept.level !== 'SHS' && (
+              <div>
+                <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Education Level</label>
+                <select 
+                  value={editDeptLevel}
+                  onChange={(e) => setEditDeptLevel(e.target.value as EducationLevel)}
+                  className="w-full h-11 px-3 border border-border rounded-lg text-sm bg-card text-foreground focus:ring-2 focus:ring-ua-gold/30 outline-none font-bold"
+                >
+                  <option value="COLLEGE">COLLEGE</option>
+                  <option value="GRADUATE">GRADUATE</option>
+                </select>
+              </div>
+            )}
+          </form>
+        </Modal>
+      )}
 
       {/* 2. Add Section Modal */}
       {deptDetails && (

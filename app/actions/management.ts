@@ -3,6 +3,7 @@
 import { prisma } from '@/lib/prisma';
 import { writeAuditLog } from './audit';
 import { generateCodeSegment, buildSectionCode } from '@/lib/codegen';
+import { EducationLevel } from '@prisma/client';
 
 
 export async function getDepartmentDetails(departmentId: string) {
@@ -523,6 +524,61 @@ export async function updateSubject(subjectId: string, name: string, code: strin
   await writeAuditLog('SUBJECT_UPDATED', { desc: `Updated subject ${subject.name} (${subject.code}) under department ${subject.department.name}` });
 
   return subject;
+}
+
+export async function updateDepartment(departmentId: string, name: string, level: EducationLevel) {
+  if (!name.trim()) throw new Error("Department name cannot be empty");
+
+  const dept = await prisma.department.findUnique({
+    where: { id: departmentId },
+  });
+  if (!dept) throw new Error("Department not found");
+
+  if ((dept.level === 'JHS' || dept.level === 'SHS') && (level !== dept.level)) {
+    throw new Error("Cannot change education level of core school divisions (JHS/SHS).");
+  }
+
+  const updated = await prisma.department.update({
+    where: { id: departmentId },
+    data: {
+      name: name.trim(),
+      level,
+    },
+  });
+
+  await writeAuditLog('DEPARTMENT_UPDATED', { desc: `Updated department ${updated.name} (${updated.level})` });
+
+  return updated;
+}
+
+export async function deleteDepartment(departmentId: string) {
+  const dept = await prisma.department.findUnique({
+    where: { id: departmentId },
+  });
+  if (!dept) throw new Error("Department not found");
+
+  if (dept.level === 'JHS' || dept.level === 'SHS') {
+    throw new Error("Core school divisions (JHS and SHS) cannot be deleted.");
+  }
+
+  // Set departmentId to null for linked templates and users before deleting
+  await prisma.template.updateMany({
+    where: { departmentId },
+    data: { departmentId: null }
+  });
+
+  await prisma.user.updateMany({
+    where: { departmentId },
+    data: { departmentId: null }
+  });
+
+  await prisma.department.delete({
+    where: { id: departmentId },
+  });
+
+  await writeAuditLog('DEPARTMENT_DELETED', { desc: `Deleted department ${dept.name} (${dept.level})` });
+
+  return { success: true };
 }
 
 
