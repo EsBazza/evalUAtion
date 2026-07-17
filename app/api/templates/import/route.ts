@@ -252,6 +252,8 @@ EXTRACTION RULES:
       }
 
       return createdTemplate;
+    }, {
+      timeout: 25000 // 25 seconds timeout to avoid expiry on slow DB writes
     });
 
     await writeAuditLog('TEMPLATE_IMPORT', {
