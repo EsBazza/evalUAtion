@@ -557,9 +557,7 @@ export async function deleteDepartment(departmentId: string) {
   });
   if (!dept) throw new Error("Department not found");
 
-  if (dept.level === 'JHS' || dept.level === 'SHS') {
-    throw new Error("Core school divisions (JHS and SHS) cannot be deleted.");
-  }
+
 
   // Set departmentId to null for linked templates and users before deleting
   await prisma.template.updateMany({

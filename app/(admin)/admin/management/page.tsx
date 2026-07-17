@@ -424,6 +424,16 @@ export default function FacultyDepartmentManagement() {
                           >
                             <Edit3 className="size-4" />
                           </Button>
+                          <Button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteDept(jdep.id, jdep.name || "Junior High School");
+                            }}
+                            uaVariant="ghost"
+                            className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30"
+                          >
+                            <Trash2 className="size-4" />
+                          </Button>
                         </div>
                       </li>
                     );
@@ -465,6 +475,16 @@ export default function FacultyDepartmentManagement() {
                             className="h-8 w-8 p-0 text-blue-500 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/30"
                           >
                             <Edit3 className="size-4" />
+                          </Button>
+                          <Button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteDept(sdep.id, sdep.name || "Senior High School");
+                            }}
+                            uaVariant="ghost"
+                            className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30"
+                          >
+                            <Trash2 className="size-4" />
                           </Button>
                         </div>
                       </li>
