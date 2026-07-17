@@ -6,7 +6,7 @@ import { auth } from '@/auth';
 import { getSystemSettings } from './settings';
 
 // Use the lightweight model for all AI evaluation work
-const GEMINI_MODEL = 'gemini-3.1-flash-lite-preview';
+const GEMINI_MODEL = 'gemini-3.1-flash-lite';
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY?.replace(/"/g, "").trim() });
 
