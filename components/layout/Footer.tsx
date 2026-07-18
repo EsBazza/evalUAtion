@@ -99,22 +99,42 @@ export function Footer({ className = "" }: FooterProps) {
         </div>
 
         {/* Column 4: Developed By */}
-        <div className="space-y-3">
-          <div className="flex items-center gap-2">
-            <h4 className="text-xs font-black tracking-widest text-slate-205 text-slate-200 uppercase">Developed by:</h4>
-            <img 
-              src="/how-logo.png" 
-              alt="HOW Logo" 
-              className="h-5 object-contain bg-white/10 rounded px-1 py-0.5" 
-            />
+        <div className="space-y-4">
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <h4 className="text-xs font-black tracking-widest text-slate-200 uppercase">Developed by:</h4>
+              <img 
+                src="/how-logo.png" 
+                alt="HOW Logo" 
+                className="h-5 object-contain bg-white/10 rounded px-1 py-0.5" 
+              />
+            </div>
+            
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[10px] font-bold text-slate-300 uppercase tracking-wide">
+              {developers.map((dev) => (
+                <div key={dev} className="hover:text-ua-gold transition-colors duration-100">
+                  {dev}
+                </div>
+              ))}
+            </div>
           </div>
-          
-          <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[10px] font-bold text-slate-300 uppercase tracking-wide">
-            {developers.map((dev) => (
-              <div key={dev} className="hover:text-ua-gold transition-colors duration-100">
-                {dev}
-              </div>
-            ))}
+
+          <div className="pt-3 border-t border-white/10">
+            <a 
+              href="https://ua-cit.com" 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="inline-flex items-center gap-2 group hover:text-ua-gold transition-colors"
+            >
+              <img 
+                src="/cit-logo.png" 
+                alt="CIT Logo" 
+                className="w-7 h-7 object-contain rounded-full bg-white/5 p-0.5 group-hover:scale-105 transition-transform duration-150" 
+              />
+              <span className="text-[11px] font-bold text-slate-300 group-hover:text-ua-gold transition-colors">
+                ua-cit.com
+              </span>
+            </a>
           </div>
         </div>
 

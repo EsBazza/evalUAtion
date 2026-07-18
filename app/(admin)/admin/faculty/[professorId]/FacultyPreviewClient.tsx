@@ -354,17 +354,17 @@ export default function FacultyPreviewClient({ professorId }: FacultyPreviewClie
         </div>
       </div>
 
-      {/* 3. Average Score Per Cluster */}
+      {/* 3. Evaluation Clusters */}
       <Card>
         <CardHeader className="border-b border-border/40 pb-4">
-          <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Average Score Per Cluster</CardTitle>
+          <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Evaluation Clusters</CardTitle>
         </CardHeader>
         <CardContent className="p-6">
           <div className="divide-y divide-border/40">
             {clusterScores && clusterScores.length > 0 ? (
               clusterScores.map((item: any, i: number) => (
                 <div key={i} className="py-3.5 flex justify-between items-center text-xs">
-                  <span className="font-semibold text-foreground pr-4 leading-normal">{item.title || item.subject} - Average Score</span>
+                  <span className="font-semibold text-foreground pr-4 leading-normal">{item.title || item.subject}</span>
                   <span className="font-bold text-ua-navy dark:text-ua-gold bg-muted px-2.5 py-1 rounded border border-border shrink-0">
                     {item.score !== null ? `${item.score}%` : 'N/A'}
                   </span>
