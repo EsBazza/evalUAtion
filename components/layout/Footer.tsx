@@ -129,7 +129,7 @@ export function Footer({ className = "" }: FooterProps) {
               <img 
                 src="/cit-logo.png" 
                 alt="CIT Logo" 
-                className="w-12 h-12 object-contain rounded-full bg-white/5 p-1 group-hover:scale-105 group-hover:bg-white/15 transition-all duration-200" 
+                className="w-[60px] h-[60px] object-contain rounded-full bg-white/5 p-1 group-hover:scale-105 group-hover:bg-white/15 transition-all duration-200" 
               />
             </a>
           </div>
