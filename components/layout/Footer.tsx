@@ -124,16 +124,13 @@ export function Footer({ className = "" }: FooterProps) {
               href="https://ua-cit.com" 
               target="_blank" 
               rel="noopener noreferrer" 
-              className="inline-flex items-center gap-2 group hover:text-ua-gold transition-colors"
+              className="inline-block group"
             >
               <img 
                 src="/cit-logo.png" 
                 alt="CIT Logo" 
-                className="w-7 h-7 object-contain rounded-full bg-white/5 p-0.5 group-hover:scale-105 transition-transform duration-150" 
+                className="w-12 h-12 object-contain rounded-full bg-white/5 p-1 group-hover:scale-105 group-hover:bg-white/15 transition-all duration-200" 
               />
-              <span className="text-[11px] font-bold text-slate-300 group-hover:text-ua-gold transition-colors">
-                ua-cit.com
-              </span>
             </a>
           </div>
         </div>
