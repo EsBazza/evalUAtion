@@ -12,6 +12,9 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 export const metadata: Metadata = {
   title: "evalUAte - Faculty Evaluation System",
   description: "University of the Assumption Faculty Evaluation System",
+  icons: {
+    icon: "/favicon_logo.png",
+  },
 };
 
 export default function RootLayout({
