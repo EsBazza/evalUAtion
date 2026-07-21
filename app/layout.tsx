@@ -13,7 +13,14 @@ export const metadata: Metadata = {
   title: "evalUAte - Faculty Evaluation System",
   description: "University of the Assumption Faculty Evaluation System",
   icons: {
-    icon: "/favicon_logo.png",
+    icon: [
+      { url: "/favicon_logo.png", sizes: "32x32", type: "image/png" },
+      { url: "/favicon_logo.png", sizes: "192x192", type: "image/png" },
+      { url: "/favicon_logo.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [
+      { url: "/favicon_logo.png", sizes: "180x180", type: "image/png" },
+    ],
   },
 };
 
