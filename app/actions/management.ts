@@ -375,7 +375,8 @@ export async function getFacultyProfileData(
   const comments: string[] = [];
   evaluations.forEach((evaluation) => {
     evaluation.answers.forEach((ans) => {
-      if (ans.textVal && ans.textVal.trim()) {
+      // Only written feedback; multiple-choice answers (e.g. "Meets expectations") also use textVal
+      if (ans.criterion.type === 'TEXT_LONG' && ans.textVal && ans.textVal.trim()) {
         comments.push(ans.textVal.trim());
       }
     });

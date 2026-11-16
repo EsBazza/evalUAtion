@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { readSystemSettings } from '@/lib/settings';
 import { writeAuditLog } from '@/lib/audit';
-import { getGemini, GEMINI_MODEL, describeGeminiError } from '@/lib/gemini';
+import { getGemini, GEMINI_MODEL, describeGeminiError, withGeminiRetry } from '@/lib/gemini';
 
 // Server-only scoring helpers. These are NOT server actions: callers must do
 // their own authorization checks before using them.
@@ -84,7 +84,7 @@ export async function computeFacultySummary(professorId: string, academicYear?: 
   let isAiAvailable = true;
 
   try {
-    const aiPromise = getGemini().models.generateContent({
+    const aiPromise = withGeminiRetry(() => getGemini().models.generateContent({
       model: GEMINI_MODEL,
       contents: `You are a warm, professional academic performance coach at the University of the Assumption.
       Your role is to read through anonymous student evaluation feedback and the numerical cluster averages for a faculty member and write a personal,
@@ -110,7 +110,7 @@ export async function computeFacultySummary(professorId: string, academicYear?: 
 
       Student feedback comments:
       - ${feedbackData}`,
-    });
+    }));
 
     // 30-second timeout guard — prevents slow Gemini calls from blocking rankings page
     const timeoutPromise = new Promise<never>((_, reject) =>

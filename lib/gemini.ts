@@ -18,6 +18,28 @@ export function getGemini(): GoogleGenAI {
   return client;
 }
 
+/** Google's "busy/overloaded" style errors, which usually clear within seconds. */
+function isTransient(e: unknown): boolean {
+  const msg = e instanceof Error ? e.message : String(e);
+  return /\b(503|500|502|504|429)\b|UNAVAILABLE|overloaded|high demand|RESOURCE_EXHAUSTED|fetch failed|ECONNRESET/i.test(msg);
+}
+
+/**
+ * Runs a Gemini call, retrying transient failures (e.g. 503 "high demand")
+ * twice with a short backoff before giving up.
+ */
+export async function withGeminiRetry<T>(call: () => Promise<T>, delaysMs: number[] = [1500, 4000]): Promise<T> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await call();
+    } catch (e) {
+      if (attempt >= delaysMs.length || !isTransient(e)) throw e;
+      console.warn(`Gemini busy (attempt ${attempt + 1}), retrying in ${delaysMs[attempt]} ms`);
+      await new Promise(r => setTimeout(r, delaysMs[attempt]));
+    }
+  }
+}
+
 /** Maps a Gemini failure to a message that is safe to show users (no internals). */
 export function describeGeminiError(e: unknown): string {
   const reason = e instanceof Error ? e.message : String(e);

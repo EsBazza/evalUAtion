@@ -21,7 +21,7 @@ const FacultyRankingChart = dynamic(() => import('@/components/charts/FacultyRan
 const DepartmentDonutChart = dynamic(() => import('@/components/charts/DepartmentDonutChart').then((mod) => mod.DepartmentDonutChart), { ssr: false });
 import { EducationLevel, Role } from '@prisma/client';
 import Link from 'next/link';
-import { Search, Filter, Download, RefreshCw, SlidersHorizontal } from 'lucide-react';
+import { FileSpreadsheet, Search, Filter, Download, RefreshCw, SlidersHorizontal } from 'lucide-react';
 import { getDepartmentAiSummary } from '@/app/actions/ai';
 import { getAuditLogs } from '@/app/actions/audit';
 import { 
@@ -32,6 +32,7 @@ import {
   deleteAdminAction
 } from '@/app/actions/settings';
 import { ChangePasswordCard } from '@/components/admin/ChangePasswordCard';
+import { downloadTable, type ExportFormat } from '@/lib/exports';
 
 // UA UI Primitives
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui-ua/card';
@@ -134,7 +135,7 @@ function AdminDashboardContent() {
   const [exportScope, setExportScope] = useState<'current' | 'department'>('current');
   const [exportAllFields, setExportAllFields] = useState(false);
   const [exportSelectedDeptId, setExportSelectedDeptId] = useState('');
-  const [exportFormat, setExportFormat] = useState<'csv' | 'pdf'>('csv');
+  const [exportFormat, setExportFormat] = useState<ExportFormat>('csv');
 
   const [rankings, setRankings] = useState<any[]>([]);
   const [selectedLedgerDept, setSelectedLedgerDept] = useState<string>('All');
@@ -427,22 +428,11 @@ function AdminDashboardContent() {
     }
   };
 
-  const exportToCSV = (headers: string[], rows: string[][], filename: string) => {
-    const csvContent = "\uFEFF" + [headers.join(","), ...rows.map(row => row.map(val => `"${(val || '').replace(/"/g, '""')}"`).join(","))].join("\n");
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", filename);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
+  const formatLabel = (f: ExportFormat) => (f === 'xlsx' ? 'Excel' : f.toUpperCase());
 
   const handleExportAttendance = async () => {
     try {
-      if (exportFormat === 'csv') {
+      if (exportFormat === 'csv' || exportFormat === 'xlsx') {
         let dataToExport = [];
         if (exportScope === 'current') {
           dataToExport = await getEvaluationAttendanceLogsForExport({
@@ -493,8 +483,8 @@ function AdminDashboardContent() {
           ? `evaluation_attendance_current_${new Date().toISOString().slice(0,10)}`
           : `evaluation_attendance_dept_${exportSelectedDeptId}`;
         
-        exportToCSV(headers, rows, `${baseFilename}.csv`);
-        toast.success("CSV exported successfully!");
+        await downloadTable(exportFormat, headers, rows, baseFilename, 'Attendance');
+        toast.success(`${formatLabel(exportFormat)} exported successfully!`);
       } else {
         const toastId = toast.loading("Generating vector PDF report...");
         const query = new URLSearchParams({
@@ -513,11 +503,11 @@ function AdminDashboardContent() {
       }
       setIsExportModalOpen(false);
     } catch (err: any) {
-      toast.error(`Failed to generate ${exportFormat.toUpperCase()} file.`);
+      toast.error(`Failed to generate ${formatLabel(exportFormat)} file.`);
     }
   };
 
-  const handleExportRatings = async (format: 'csv' | 'pdf') => {
+  const handleExportRatings = async (format: ExportFormat) => {
     try {
       const dataToExport = filteredRankings;
       if (dataToExport.length === 0) {
@@ -527,17 +517,18 @@ function AdminDashboardContent() {
 
       const baseFilename = `faculty_ratings_ledger_${selectedLedgerDept.toLowerCase().replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}`;
 
-      if (format === 'csv') {
-        const headers = ["Faculty Name", "Email Address", "Department", "Assigned Sections", "Score"];
+      if (format === 'csv' || format === 'xlsx') {
+        const headers = ["Faculty Name", "Email Address", "Department", "Assigned Sections", format === 'xlsx' ? "Score (%)" : "Score"];
         const rows = dataToExport.map(r => [
           r.name || 'Not Set',
           r.email || '',
           r.department || 'N/A',
           r.sections || 'None',
-          r.averageScore !== null ? `${r.averageScore}%` : 'N/A'
+          // Excel keeps the score numeric so it can be sorted and averaged
+          r.averageScore !== null ? (format === 'xlsx' ? Number(r.averageScore) : `${r.averageScore}%`) : 'N/A'
         ]);
-        exportToCSV(headers, rows, `${baseFilename}.csv`);
-        toast.success("CSV exported successfully!");
+        await downloadTable(format, headers, rows, baseFilename, 'Ratings');
+        toast.success(`${formatLabel(format)} exported successfully!`);
       } else {
         const toastId = toast.loading("Generating vector PDF report...");
         const query = new URLSearchParams({
@@ -553,11 +544,11 @@ function AdminDashboardContent() {
         toast.success("PDF export started!", undefined, { id: toastId });
       }
     } catch (err) {
-      toast.error(`Failed to export ratings as ${format.toUpperCase()}`);
+      toast.error(`Failed to export ratings as ${formatLabel(format)}`);
     }
   };
 
-  const handleExportAudit = async (format: 'csv' | 'pdf') => {
+  const handleExportAudit = async (format: ExportFormat) => {
     try {
       const dataToExport = filteredAndSortedLogs;
       if (dataToExport.length === 0) {
@@ -567,7 +558,7 @@ function AdminDashboardContent() {
 
       const baseFilename = `system_audit_logs_${new Date().toISOString().slice(0, 10)}`;
 
-      if (format === 'csv') {
+      if (format === 'csv' || format === 'xlsx') {
         const headers = ["Timestamp", "Event Type", "Description", "Actor"];
         const rows = dataToExport.map(log => [
           new Date(log.createdAt).toLocaleString(),
@@ -575,8 +566,8 @@ function AdminDashboardContent() {
           log.details?.desc || log.details?.message || JSON.stringify(log.details) || '',
           log.actorEmail || ''
         ]);
-        exportToCSV(headers, rows, `${baseFilename}.csv`);
-        toast.success("CSV exported successfully!");
+        await downloadTable(format, headers, rows, baseFilename, 'Audit Logs');
+        toast.success(`${formatLabel(format)} exported successfully!`);
       } else {
         const toastId = toast.loading("Generating vector PDF report...");
         const query = new URLSearchParams({
@@ -589,7 +580,7 @@ function AdminDashboardContent() {
         toast.success("PDF export started!", undefined, { id: toastId });
       }
     } catch (err) {
-      toast.error(`Failed to export audit logs as ${format.toUpperCase()}`);
+      toast.error(`Failed to export audit logs as ${formatLabel(format)}`);
     }
   };
 
@@ -888,6 +879,16 @@ function AdminDashboardContent() {
                         >
                           <Download className="size-3" />
                           CSV
+                        </Button>
+                        <Button
+                          type="button"
+                          uaVariant="ghost"
+                          onClick={() => handleExportRatings('xlsx')}
+                          disabled={filteredRankings.length === 0}
+                          className="h-7 text-[10px] flex items-center gap-1.5 font-bold px-3 bg-sky-50 text-sky-700 border border-sky-200 hover:bg-sky-100 dark:bg-sky-950/20 dark:text-sky-400 dark:border-sky-900/30 transition-all rounded-md"
+                        >
+                          <FileSpreadsheet className="size-3" />
+                          Excel
                         </Button>
                         <Button
                           type="button"
@@ -1229,6 +1230,16 @@ function AdminDashboardContent() {
                         <Button
                           type="button"
                           uaVariant="ghost"
+                          onClick={() => handleExportAudit('xlsx')}
+                          disabled={filteredAndSortedLogs.length === 0}
+                          className="h-8 text-xs flex items-center gap-1.5 font-bold px-3 bg-sky-50 text-sky-700 border border-sky-200 hover:bg-sky-100 dark:bg-sky-950/20 dark:text-sky-400 dark:border-sky-900/30 transition-all rounded-md"
+                        >
+                          <FileSpreadsheet className="size-3.5" />
+                          Excel
+                        </Button>
+                        <Button
+                          type="button"
+                          uaVariant="ghost"
                           onClick={() => handleExportAudit('pdf')}
                           disabled={filteredAndSortedLogs.length === 0}
                           className="h-8 text-xs flex items-center gap-1.5 font-bold px-3 bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-900/30 transition-all rounded-md"
@@ -1345,6 +1356,19 @@ function AdminDashboardContent() {
                           >
                             <Download className="size-3.5" />
                             Export CSV
+                          </Button>
+                          <Button
+                            type="button"
+                            uaVariant="ghost"
+                            onClick={() => {
+                              setExportFormat('xlsx');
+                              setIsExportModalOpen(true);
+                            }}
+                            disabled={receipts.length === 0}
+                            className="h-9 text-xs flex items-center gap-1.5 font-bold px-3 bg-sky-50 text-sky-700 border border-sky-200 hover:bg-sky-100 dark:bg-sky-950/20 dark:text-sky-400 dark:border-sky-900/30 transition-all rounded-md"
+                          >
+                            <FileSpreadsheet className="size-3.5" />
+                            Export Excel
                           </Button>
                           <Button
                             type="button"
@@ -1608,8 +1632,8 @@ function AdminDashboardContent() {
                     <Modal
                       isOpen={isExportModalOpen}
                       onClose={() => setIsExportModalOpen(false)}
-                      title={`Export Attendance Ledger (${exportFormat.toUpperCase()})`}
-                      description={`Choose the scope and columns to include in the exported ${exportFormat.toUpperCase()} file.`}
+                      title={`Export Attendance Ledger (${formatLabel(exportFormat)})`}
+                      description={`Choose the scope and columns to include in the exported ${formatLabel(exportFormat)} file.`}
                     >
                       <div className="space-y-6">
                         {/* Scope Radio Selection */}
@@ -1697,7 +1721,7 @@ function AdminDashboardContent() {
                             onClick={handleExportAttendance}
                             className="h-10 text-xs font-bold px-4"
                           >
-                            {exportFormat === 'csv' ? 'Export CSV' : 'Export PDF'}
+                            {`Export ${formatLabel(exportFormat)}`}
                           </Button>
                         </div>
                       </div>

@@ -9,8 +9,8 @@ import { getSystemSettings } from '@/app/actions/settings';
 import { RadarClusterChart } from '@/components/charts/RadarClusterChart';
 import { SectionBarChart } from '@/components/charts/SectionBarChart';
 import { HistoricalTrendChart } from '@/components/charts/HistoricalTrendChart';
-import { ChevronLeft, BrainCircuit, RefreshCw, BarChart3, ShieldAlert, Download } from 'lucide-react';
-import { exportFacultyCSV, exportFacultyPDF } from '@/lib/exports';
+import { FileSpreadsheet, ChevronLeft, BrainCircuit, RefreshCw, BarChart3, ShieldAlert, Download } from 'lucide-react';
+import { exportFacultyCSV, exportFacultyReport, exportFacultyPDF } from '@/lib/exports';
 
 // UA Primitives
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui-ua/card';
@@ -237,6 +237,22 @@ export default function FacultyPreviewClient({ professorId }: FacultyPreviewClie
             >
               <Download className="size-3.5" />
               Export CSV
+            </Button>
+            <Button
+              onClick={() => exportFacultyReport('xlsx', {
+                professor,
+                academicYear,
+                semester,
+                scoreCache,
+                clusterScores,
+                sectionScores,
+                commentsList
+              })}
+              uaVariant="ghost"
+              className="h-10 text-xs flex items-center gap-1.5 font-bold px-3.5 bg-sky-50 text-sky-700 border border-sky-200 hover:bg-sky-100 dark:bg-sky-950/20 dark:text-sky-400 dark:border-sky-900/30 transition-all rounded-lg"
+            >
+              <FileSpreadsheet className="size-3.5" />
+              Export Excel
             </Button>
             <Button
               onClick={() => exportFacultyPDF({

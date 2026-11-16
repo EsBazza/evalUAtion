@@ -3,6 +3,7 @@ import type { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { writeAuditLog } from '@/lib/audit';
 import { requireAdmin } from '@/lib/authz';
+import { withGeminiRetry } from '@/lib/gemini';
 import mammoth from 'mammoth';
 import { EducationLevel } from '@prisma/client';
 import { GoogleGenAI } from '@google/genai';
@@ -156,13 +157,14 @@ EXTRACTION RULES:
 
     let responseText: string;
     try {
-      const response = await ai.models.generateContent({
+      // Retries Google's temporary "high demand" (503) errors before giving up
+      const response = await withGeminiRetry(() => ai.models.generateContent({
         model: GEMINI_MODEL,
         contents: `${systemPrompt}\n\nDocument Text:\n${truncatedText}`,
         config: {
           responseMimeType: 'application/json',
         },
-      });
+      }));
       responseText = response.text ?? '';
     } catch (aiErr: any) {
       console.error('Gemini API error during template import:', aiErr);
