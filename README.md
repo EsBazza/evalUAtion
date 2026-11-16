@@ -192,18 +192,38 @@ npm install
 ### 2. Configure Environment
 Create a `.env` file in the root directory:
 ```env
-DATABASE_URL="postgresql://user:password@localhost:5432/evaluation_db"
-NEXTAUTH_SECRET="your-nextauth-secret-key"
+# Neon: pooled URL for the app, direct (unpooled) URL for Prisma CLI commands
+DATABASE_URL="postgresql://USER:PASS@ep-xxxx-pooler.REGION.aws.neon.tech/neondb?sslmode=require"
+DATABASE_URL_UNPOOLED="postgresql://USER:PASS@ep-xxxx.REGION.aws.neon.tech/neondb?sslmode=require"
+
+AUTH_SECRET="random-secret"              # npx auth secret
+AUTH_URL="https://evaluate.ua-cit.com"    # public URL (production)
 GOOGLE_CLIENT_ID="your-google-oauth-client-id"
 GOOGLE_CLIENT_SECRET="your-google-oauth-client-secret"
-GEMINI_API_KEY="your-gemini-pro-api-key"
+GEMINI_API_KEY="your-gemini-api-key"
+
+# Required. Encrypts audit logs; keep it secret and the same on every server.
+# node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+AUDIT_LOG_KEY="64-hex-characters"
 ```
+The server refuses to start if `DATABASE_URL`, `AUTH_SECRET` or `AUDIT_LOG_KEY` is missing (see `instrumentation.ts`).
 
 ### 3. Database Migration & Setup
 ```bash
 npx prisma generate
 npx prisma db push
-node prisma/seed.js
+node --env-file=.env prisma/seed.js   # TEST DATA ONLY: deletes everything first
+```
+
+After copying data from an older database, run these once (both are safe to re-run):
+```bash
+node --env-file=.env scripts/anonymize-evaluations.mjs   # unlink old evaluations from attendance receipts
+node --env-file=.env scripts/reencrypt-audit-logs.mjs    # move old audit logs onto AUDIT_LOG_KEY
+```
+
+### Tests
+```bash
+npm test   # permission rules and submission validation
 ```
 
 ### 4. Run Development Server

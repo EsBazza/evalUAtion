@@ -1,22 +1,34 @@
 'use server';
 
-import { EducationLevel, Role } from '@prisma/client';
+import { EducationLevel, Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
-import { auth } from '@/auth';
+import { getCurrentUser, requireAdmin, requireProfessorAccess, requireStaff, scopeDepartmentId } from '@/lib/authz';
+import { readSystemSettings } from '@/lib/settings';
+import { getOrComputeScoreCache } from '@/lib/scoring';
 
+/** The signed-in admin/sub admin for the admin console (safe fields only, no password hash). */
 export async function getAdminSessionUser() {
-  const session = await auth();
-  if (!session?.user?.email) return null;
-  const dbUser = await prisma.user.findUnique({
-    where: { email: session.user.email },
-    include: { department: true }
-  });
-  if (dbUser) return dbUser;
-  return session.user || null;
+  const user = await getCurrentUser();
+  if (!user || (user.role !== 'ADMIN' && user.role !== 'SUB_ADMIN')) return null;
+
+  const department = user.departmentId
+    ? await prisma.department.findUnique({ where: { id: user.departmentId } })
+    : null;
+
+  return {
+    email: user.email,
+    name: user.name,
+    role: user.role,
+    departmentId: user.departmentId,
+    department,
+  };
 }
 
 export async function getDepartments() {
+  const user = await requireStaff();
   return prisma.department.findMany({
+    // Sub admins only ever see their own department
+    where: user.role === 'SUB_ADMIN' ? { id: user.departmentId! } : undefined,
     include: {
       sections: true,
       subjects: true,
@@ -26,63 +38,49 @@ export async function getDepartments() {
 }
 
 export async function createDepartment(name: string, level: EducationLevel) {
+  await requireAdmin();
+  if (!name?.trim()) throw new Error("Department name cannot be empty");
   return prisma.department.create({
-    data: { name, level },
+    data: { name: name.trim(), level },
   });
 }
 
 export async function getTemplates() {
+  await requireAdmin();
   return prisma.template.findMany({
     include: {
       department: true,
       clusters: {
         include: {
-          criteria: true,
+          criteria: { orderBy: { order: 'asc' } },
         },
+        orderBy: { order: 'asc' },
       },
     },
   });
 }
 
 export async function createTemplate(title: string, level: EducationLevel, departmentId?: string) {
+  await requireAdmin();
+  if (!title?.trim()) throw new Error("Template title is required");
   return prisma.template.create({
     data: {
-      title,
+      title: title.trim(),
       level,
       departmentId: departmentId || null,
     },
   });
 }
 
-export async function getUsers() {
-  return prisma.user.findMany({
-    include: {
-      department: true,
-    },
-  });
-}
-
-export async function createUser(email: string, name: string, role: Role, departmentId?: string) {
-  return prisma.user.create({
-    data: {
-      email,
-      name,
-      role,
-      departmentId: departmentId || null,
-    },
-  });
-}
-
-import { getOrComputeScoreCache } from './ai';
-import { getSystemSettings } from './settings';
-
-
 export async function getFacultyRankings(academicYear?: string, semester?: string, departmentId?: string) {
+  const user = await requireStaff();
+  departmentId = scopeDepartmentId(user, departmentId);
+
   let termYear = academicYear;
   let termSem = semester;
 
   if (!termYear || !termSem) {
-    const settings = await getSystemSettings();
+    const settings = await readSystemSettings();
     termYear = settings.academicYear;
     termSem = settings.semester;
   }
@@ -134,17 +132,20 @@ export async function getFacultyRankings(academicYear?: string, semester?: strin
 }
 
 export async function recalculateStaleScoreCaches(academicYear?: string, semester?: string) {
+  const user = await requireStaff();
+  const departmentId = scopeDepartmentId(user);
+
   let termYear = academicYear;
   let termSem = semester;
 
   if (!termYear || !termSem) {
-    const settings = await getSystemSettings();
+    const settings = await readSystemSettings();
     termYear = settings.academicYear;
     termSem = settings.semester;
   }
 
   const [professors, scoreCaches] = await Promise.all([
-    prisma.professor.findMany(),
+    prisma.professor.findMany({ where: departmentId ? { departmentId } : undefined }),
     prisma.scoreCache.findMany({
       where: {
         academicYear: termYear,
@@ -195,6 +196,8 @@ export async function recalculateStaleScoreCaches(academicYear?: string, semeste
 
 
 export async function getFacultyFeedback(professorId: string, academicYear?: string, semester?: string) {
+  await requireProfessorAccess(professorId);
+
   let termYear = academicYear;
   let termSem = semester;
 
@@ -243,7 +246,6 @@ export async function getFacultyFeedback(professorId: string, academicYear?: str
 }
 
 
-import { Prisma } from '@prisma/client';
 
 export interface AttendanceLogFilters {
   search?: string;
@@ -256,6 +258,8 @@ export interface AttendanceLogFilters {
 }
 
 export async function getEvaluationAttendanceLogs(filters: AttendanceLogFilters) {
+  await requireAdmin();
+  filters = { ...filters, page: Math.max(1, Math.floor(filters.page) || 1), pageSize: Math.min(500, Math.max(1, Math.floor(filters.pageSize) || 25)) };
   const offset = (filters.page - 1) * filters.pageSize;
   const conditions: Prisma.Sql[] = [];
 
@@ -382,6 +386,7 @@ export async function getEvaluationAttendanceLogs(filters: AttendanceLogFilters)
 }
 
 export async function getEvaluationAttendanceLogsForExport(filters: Omit<AttendanceLogFilters, 'page' | 'pageSize'>) {
+  await requireAdmin();
   const conditions: Prisma.Sql[] = [];
 
   if (filters.search?.trim()) {
@@ -463,6 +468,7 @@ export async function getEvaluationAttendanceLogsForExport(filters: Omit<Attenda
 }
 
 export async function getEvaluationReceiptFilters() {
+  await requireAdmin();
   const years = await prisma.evaluationReceipt.findMany({
     select: { academicYear: true },
     distinct: ['academicYear']

@@ -1,6 +1,7 @@
 import NextAuth from "next-auth";
 
 export const { auth } = NextAuth({
+  trustHost: true, // must match auth.ts, or the proxy can't read sessions
   providers: [],
   callbacks: {
     async jwt({ token }) {

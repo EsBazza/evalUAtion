@@ -2,17 +2,19 @@
 
 import { prisma } from '@/lib/prisma';
 import { EducationLevel, QuestionType } from '@prisma/client';
-import { writeAuditLog } from './audit';
+import { writeAuditLog } from '@/lib/audit';
+import { requireAdmin } from '@/lib/authz';
 
 
 export async function getTemplateDetails(templateId: string) {
+  await requireAdmin();
   return prisma.template.findUnique({
     where: { id: templateId },
     include: {
       department: true,
       clusters: {
         include: {
-          criteria: true,
+          criteria: { orderBy: { order: 'asc' } },
         },
         orderBy: {
           order: 'asc',
@@ -27,6 +29,7 @@ export async function createTemplateAction(
   level: EducationLevel,
   departmentId?: string | null
 ) {
+  await requireAdmin();
   if (!title.trim()) throw new Error("Template title is required");
 
   let depId: string | null = null;
@@ -73,6 +76,7 @@ export async function updateTemplateMetadata(
     departmentId?: string | null;
   }
 ) {
+  await requireAdmin();
   if (!data.title.trim()) throw new Error("Template title is required");
 
   let depId: string | null = null;
@@ -112,6 +116,7 @@ export async function updateTemplateMetadata(
 }
 
 export async function deleteTemplateAction(templateId: string) {
+  await requireAdmin();
   const target = await prisma.template.findUnique({
     where: { id: templateId },
     select: { title: true }
@@ -144,6 +149,7 @@ export async function saveEvaluationTemplate(templateId: string, data: {
     }[];
   }[];
 }) {
+  await requireAdmin();
   // 1. Fetch current database state for diffing
   const existingTemplate = await prisma.template.findUnique({
     where: { id: templateId },
@@ -164,6 +170,12 @@ export async function saveEvaluationTemplate(templateId: string, data: {
   const incomingCriteriaIds = data.clusters
     .flatMap(c => c.criteria.map(q => q.id))
     .filter(Boolean) as string[];
+
+  // Existing ids must belong to THIS template, so a crafted request can't edit another template's questions
+  if (incomingClusterIds.some(id => !existingClusterIds.includes(id)) ||
+      incomingCriteriaIds.some(id => !existingCriteriaIds.includes(id))) {
+    throw new Error("Template data does not match this template. Please reload the page and try again.");
+  }
 
   // 3. Find IDs to delete
   const clusterIdsToDelete = existingClusterIds.filter(id => !incomingClusterIds.includes(id));
@@ -267,6 +279,7 @@ export async function setActiveTemplateAction(
   activationType: 'GLOBAL' | 'OVERRIDE',
   targetDepartmentId?: string
 ) {
+  await requireAdmin();
   const target = await prisma.template.findUnique({
     where: { id: templateId },
     include: {
@@ -363,6 +376,7 @@ export async function setActiveTemplateAction(
 }
 
 export async function deactivateTemplateAction(templateId: string) {
+  await requireAdmin();
   const target = await prisma.template.findUnique({
     where: { id: templateId },
     select: { title: true }

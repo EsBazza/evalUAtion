@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import puppeteer, { Browser } from 'puppeteer-core';
-import chromium from '@sparticuz/chromium';
+import type { Browser } from 'puppeteer-core';
+import { launchBrowser, appOrigin } from '@/lib/browser';
+import { requireProfessorAccess } from '@/lib/authz';
 import fs from 'fs';
 import path from 'path';
 
@@ -16,6 +17,14 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
   const { professorId } = await params;
   const { searchParams } = req.nextUrl;
 
+  // Admins, the professor's department sub admin, or the professor themself
+  try {
+    await requireProfessorAccess(professorId);
+  } catch {
+    return NextResponse.json({ error: 'Not allowed.' }, { status: 403 });
+  }
+  const origin = appOrigin(req.nextUrl.origin);
+
   const academicYear = searchParams.get('academicYear') || '';
   const semester = searchParams.get('semester') || '';
   const subjectId = searchParams.get('subjectId') || 'all';
@@ -29,14 +38,14 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
   // 2. Define branding templates
   const headerTemplate = `
     <div style="font-size: 8px; width: 100%; font-family: 'Inter', sans-serif; box-sizing: border-box; display: flex; flex-direction: column;">
-      <div style="background-color: #ffffff; height: 62px; display: flex; align-items: center; width: 100; padding: 0 24px;">
+      <div style="background-color: #ffffff; height: 62px; display: flex; align-items: center; width: 100%; padding: 0 24px;">
         <!-- LEFT: Report Type -->
         <div style="flex: 0 0 100px;">
           <span style="font-weight: 800; font-size: 7px; letter-spacing: 0.5px; color: #000000; text-transform: uppercase; line-height: 1.3;">Faculty Evaluation<br/>Report</span>
         </div>
         <!-- CENTER: Logo + University Name stacked -->
         <div style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;">
-          ${logoBase64 ? `<img src="${logoBase64}" style="height: 36px; width: 36px; object-fit: contain; border-radius: 50;" />` : ''}
+          ${logoBase64 ? `<img src="${logoBase64}" style="height: 36px; width: 36px; object-fit: contain; border-radius: 50%;" />` : ''}
           <span style="font-weight: 800; font-size: 10px; letter-spacing: 1.5px; color: #F4B400; text-transform: uppercase; margin-top: 2px;">UNIVERSITY OF THE ASSUMPTION</span>
           <span style="font-weight: 500; font-size: 6px; letter-spacing: 0.8px; color: #64748B; margin-top: 1px;">San Fernando, Pampanga</span>
         </div>
@@ -60,11 +69,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
   let browser: Browser | null = null;
   try {
     // 3. Launch headless chromium (serverless-compatible via @sparticuz/chromium)
-    browser = await puppeteer.launch({
-      args: chromium.args,
-      executablePath: await chromium.executablePath(),
-      headless: true,
-    });
+    browser = await launchBrowser();
 
     const page = await browser.newPage();
 
@@ -74,12 +79,12 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       await page.setCookie({
         name: cookie.name,
         value: cookie.value,
-        url: req.nextUrl.origin,
+        url: origin,
       });
     }
 
     // 5. Navigate to the dedicated print page and wait for the network to become idle (Recharts SVGs rendered)
-    const printUrl = `${req.nextUrl.origin}/print/faculty-report/${professorId}?academicYear=${encodeURIComponent(academicYear)}&semester=${encodeURIComponent(semester)}&subjectId=${encodeURIComponent(subjectId)}`;
+    const printUrl = `${origin}/print/faculty-report/${professorId}?academicYear=${encodeURIComponent(academicYear)}&semester=${encodeURIComponent(semester)}&subjectId=${encodeURIComponent(subjectId)}`;
     await page.goto(printUrl, { waitUntil: 'networkidle0' });
 
     // 6. Generate the vector PDF
@@ -102,13 +107,13 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="faculty_report_${professorId}_${academicYear.replace(/\s+/g, '_')}.pdf"`,
+        'Content-Disposition': `attachment; filename="faculty_report_${professorId.replace(/[^\w-]/g, '')}_${academicYear.replace(/[^\w-]/g, '_')}.pdf"`,
       },
     });
-  } catch (err: any) {
+  } catch (err) {
     console.error('Puppeteer PDF export error:', err);
     return NextResponse.json(
-      { error: 'Failed to generate PDF report.', details: err.message },
+      { error: 'Failed to generate PDF report.' },
       { status: 500 }
     );
   } finally {

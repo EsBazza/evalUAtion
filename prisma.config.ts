@@ -1,19 +1,24 @@
-import { defineConfig, env } from '@prisma/config';
+import { defineConfig } from '@prisma/config';
 
 // Load environment variables from .env file
 if (typeof process.loadEnvFile === 'function') {
   try {
     process.loadEnvFile();
-  } catch (e) {
-    // Fallback if env file doesn't exist
+  } catch {
+    // .env is optional (e.g. on Vercel, vars come from the project settings)
   }
+}
+
+// Prisma CLI commands (db push, migrate, studio) must use Neon's DIRECT (unpooled)
+// connection — PgBouncer in transaction mode breaks schema operations.
+// The app runtime (lib/prisma.ts) uses the pooled DATABASE_URL instead.
+const cliUrl = process.env.DATABASE_URL_UNPOOLED || process.env.DATABASE_URL;
+if (!cliUrl) {
+  throw new Error('Set DATABASE_URL_UNPOOLED (direct Neon URL) or DATABASE_URL in .env');
 }
 
 export default defineConfig({
   datasource: {
-    url: env("DATABASE_URL"),
-    // Note: directUrl for migrations is not yet supported in prisma.config.ts (Prisma 7.x).
-    // Use the DATABASE_URL (pooled Supabase URL) for both runtime and migrations.
-    // For running migrations directly, set DATABASE_URL to the direct URL temporarily.
+    url: cliUrl,
   },
 });

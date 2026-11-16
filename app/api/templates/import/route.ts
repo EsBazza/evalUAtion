@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { writeAuditLog } from '@/app/actions/audit';
+import { writeAuditLog } from '@/lib/audit';
+import { requireAdmin } from '@/lib/authz';
 import mammoth from 'mammoth';
 import { EducationLevel } from '@prisma/client';
 import { GoogleGenAI } from '@google/genai';
@@ -49,6 +50,12 @@ async function extractText(file: File): Promise<string> {
 }
 
 export async function POST(request: NextRequest) {
+  try {
+    await requireAdmin();
+  } catch {
+    return NextResponse.json({ success: false, error: 'Not allowed.' }, { status: 403 });
+  }
+
   try {
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
@@ -259,10 +266,10 @@ EXTRACTION RULES:
     });
 
     return NextResponse.json({ success: true, templateId: template.id });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Template import API error:', error);
     return NextResponse.json(
-      { success: false, error: error.message || 'An unexpected error occurred during import.' },
+      { success: false, error: 'An unexpected error occurred during import. Please try again.' },
       { status: 500 }
     );
   }

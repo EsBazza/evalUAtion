@@ -5,6 +5,9 @@ import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  // Self-hosted behind nginx: trust the forwarded Host header (Auth.js only
+  // auto-trusts on Vercel). nginx must pass the real host via proxy_set_header Host.
+  trustHost: true,
   pages: {
     signIn: '/',
   },
@@ -21,37 +24,23 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       },
       async authorize(credentials) {
         const username = typeof credentials?.username === 'string' ? credentials.username.trim() : '';
-        const password = typeof credentials?.password === 'string' ? credentials.password.trim() : '';
-        
-        console.log("AUTHORIZE CREDENTIALS SUBMITTED:", { 
-          username, 
-          hasPassword: !!password, 
-          passwordLength: password.length,
-          passwordMatches: password === "evalmasteradmin67" 
-        });
+        // Passwords are compared exactly as typed (no trimming)
+        const password = typeof credentials?.password === 'string' ? credentials.password : '';
 
-        if (username.toLowerCase() === "masteradmin" && password === "evalmasteradmin67") {
-          console.log("AUTHORIZE FALLBACK MATCHED!");
-          return { id: "masteradmin-1", name: "System Admin", email: "admin@ua.edu.ph", role: "ADMIN" };
-        }
-
-        if (!username || !password) return null;
+        if (!username || !password || username.length > 100 || password.length > 200) return null;
 
         try {
           const user = await prisma.user.findFirst({
-            where: { 
+            where: {
               username: {
                 equals: username,
                 mode: 'insensitive'
               }
             }
           });
-          console.log("DB User found:", user ? user.email : "Not found");
 
           if (user && user.password && (user.role === 'ADMIN' || user.role === 'SUB_ADMIN')) {
-            const isValid = await bcrypt.compare(password, user.password);
-            console.log("Bcrypt validation result:", isValid);
-            if (isValid) {
+            if (await bcrypt.compare(password, user.password)) {
               return { id: user.id, name: user.name, email: user.email, role: user.role };
             }
           }

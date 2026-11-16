@@ -1,11 +1,14 @@
 'use server';
 
 import { prisma } from '@/lib/prisma';
-import { writeAuditLog } from './audit';
-import { generateCodeSegment, buildSectionCode } from '@/lib/codegen';
+import { writeAuditLog } from '@/lib/audit';
+import { requireAdmin, requireProfessorAccess, AuthorizationError } from '@/lib/authz';
+import { readSystemSettings, newSectionCode } from '@/lib/settings';
+import { getOrComputeScoreCache } from '@/lib/scoring';
 
 
 export async function getDepartmentDetails(departmentId: string) {
+  await requireAdmin();
   return prisma.department.findUnique({
     where: { id: departmentId },
     include: {
@@ -32,6 +35,8 @@ export async function getDepartmentDetails(departmentId: string) {
 }
 
 export async function createSection(name: string, departmentId: string) {
+  await requireAdmin();
+  name = name.trim();
   if (!name.trim()) throw new Error("Section name cannot be empty");
 
   const dept = await prisma.department.findUnique({
@@ -39,15 +44,8 @@ export async function createSection(name: string, departmentId: string) {
   });
   if (!dept) throw new Error("Department not found");
 
-  const settings = await prisma.systemSetting.findUnique({
-    where: { id: 'active' }
-  });
-  const academicYear = settings?.academicYear || "2026-2027";
-  const semester = settings?.semester || "1st";
-
-  // Generate random segment and construct formatted code
-  const randomSegment = generateCodeSegment(4);
-  const formattedCode = buildSectionCode(dept.level, dept.name, randomSegment, academicYear, semester);
+  const { academicYear, semester } = await readSystemSettings();
+  const formattedCode = await newSectionCode(dept.level, dept.name, academicYear, semester);
 
   return prisma.section.create({
     data: {
@@ -64,6 +62,11 @@ export async function createProfessor(
   departmentId: string,
   teachingAssignments?: { sectionId: string; subjectId: string }[]
 ) {
+  await requireAdmin();
+  name = name.trim();
+  email = email.trim().toLowerCase();
+  const dept = await prisma.department.findUnique({ where: { id: departmentId }, select: { id: true } });
+  if (!dept) throw new Error("Department not found");
   if (!name.trim() || !email.trim()) throw new Error("Name and Email are required");
   
   // Verify email domain constraint
@@ -105,6 +108,9 @@ export async function updateProfessor(
   email: string,
   teachingAssignments: { sectionId: string; subjectId: string }[]
 ) {
+  await requireAdmin();
+  name = name.trim();
+  email = email.trim().toLowerCase();
   if (!name.trim() || !email.trim()) throw new Error("Name and Email are required");
 
   if (!email.endsWith('@ua.edu.ph')) {
@@ -148,8 +154,6 @@ export async function updateProfessor(
   return prof;
 }
 
-import { getSystemSettings } from './settings';
-import { getOrComputeScoreCache } from './ai';
 
 export async function getFacultyProfileData(
   professorId: string,
@@ -157,11 +161,17 @@ export async function getFacultyProfileData(
   semester?: string,
   subjectId?: string
 ) {
+  const user = await requireProfessorAccess(professorId);
+  if (user.role === 'FACULTY') {
+    const settings = await readSystemSettings();
+    if (!settings.isFacultyPageEnabled) throw new AuthorizationError('The faculty results page is currently disabled.');
+  }
+
   let termYear = academicYear;
   let termSem = semester;
 
   if (!termYear || !termSem) {
-    const settings = await getSystemSettings();
+    const settings = await readSystemSettings();
     termYear = settings.academicYear;
     termSem = settings.semester;
   }
@@ -194,7 +204,7 @@ export async function getFacultyProfileData(
   const scoreCache = await getOrComputeScoreCache(professorId, termYear, termSem);
 
   // 3. Fetch evaluations for cluster and section scores (optionally filtered by subjectId)
-  let evaluationsWhere: any = {
+  const evaluationsWhere: any = {
     professorId,
     academicYear: termYear,
     semester: termSem,
@@ -216,6 +226,8 @@ export async function getFacultyProfileData(
 
   const evaluations = await prisma.evaluation.findMany({
     where: evaluationsWhere,
+    // Random ids, so this order reveals nothing about who submitted when
+    orderBy: { id: 'asc' },
     include: {
       section: true,
       answers: {
@@ -273,8 +285,8 @@ export async function getFacultyProfileData(
   });
 
   // Dynamically calculate scores
-  let dynamicScaleScore = scaleCount > 0 ? Number((totalScaleScore / scaleCount).toFixed(1)) : null;
-  let dynamicAiScore = scoreCache?.aiQualityScore || null;
+  const dynamicScaleScore = scaleCount > 0 ? Number((totalScaleScore / scaleCount).toFixed(1)) : null;
+  const dynamicAiScore = scoreCache?.aiQualityScore || null;
   let dynamicCompositeScore = null;
 
   if (dynamicScaleScore !== null) {
@@ -406,6 +418,7 @@ export async function getFacultyProfileData(
 }
 
 export async function deleteSection(sectionId: string) {
+  await requireAdmin();
   const section = await prisma.section.findUnique({
     where: { id: sectionId },
     include: { department: true }
@@ -430,6 +443,7 @@ export async function deleteSection(sectionId: string) {
 }
 
 export async function deleteFaculty(professorId: string) {
+  await requireAdmin();
   const prof = await prisma.professor.findUnique({
     where: { id: professorId },
     include: { department: true }
@@ -442,9 +456,6 @@ export async function deleteFaculty(professorId: string) {
     }),
     prisma.evaluation.deleteMany({
       where: { professorId }
-    }),
-    prisma.secureEvaluation.deleteMany({
-      where: { facultyId: professorId }
     }),
     prisma.professor.delete({
       where: { id: professorId }
@@ -467,6 +478,7 @@ export async function deleteFaculty(professorId: string) {
 }
 
 export async function createSubject(name: string, code: string, departmentId: string) {
+  await requireAdmin();
   if (!name.trim()) throw new Error("Subject name cannot be empty");
   if (!code.trim()) throw new Error("Subject code cannot be empty");
 
@@ -489,6 +501,7 @@ export async function createSubject(name: string, code: string, departmentId: st
 }
 
 export async function deleteSubject(subjectId: string) {
+  await requireAdmin();
   const subject = await prisma.subject.findUnique({
     where: { id: subjectId },
     include: { department: true }
@@ -505,6 +518,7 @@ export async function deleteSubject(subjectId: string) {
 }
 
 export async function updateSection(sectionId: string, name: string) {
+  await requireAdmin();
   if (!name.trim()) throw new Error("Section name cannot be empty");
 
   const section = await prisma.section.update({
@@ -519,6 +533,7 @@ export async function updateSection(sectionId: string, name: string) {
 }
 
 export async function updateSubject(subjectId: string, name: string, code: string) {
+  await requireAdmin();
   if (!name.trim()) throw new Error("Subject name cannot be empty");
   if (!code.trim()) throw new Error("Subject code cannot be empty");
 

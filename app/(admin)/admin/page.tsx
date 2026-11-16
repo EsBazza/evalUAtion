@@ -31,6 +31,7 @@ import {
   elevateUserToAdmin,
   deleteAdminAction
 } from '@/app/actions/settings';
+import { ChangePasswordCard } from '@/components/admin/ChangePasswordCard';
 
 // UA UI Primitives
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui-ua/card';
@@ -1710,6 +1711,7 @@ function AdminDashboardContent() {
           {activeView === 'settings' && (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               
+              <div className="space-y-8 h-fit">
               {/* Global Registrar Terms settings */}
               <Card className="h-fit">
                 <CardHeader className="border-b border-border/40 pb-4">
@@ -1765,6 +1767,9 @@ function AdminDashboardContent() {
                 </CardContent>
               </Card>
 
+              <ChangePasswordCard />
+              </div>
+
               {/* System Administrators Management */}
               <Card className="lg:col-span-2">
                 <CardHeader className="border-b border-border/45 pb-4 flex flex-col sm:flex-row justify-between sm:items-center gap-4">
@@ -1805,7 +1810,8 @@ function AdminDashboardContent() {
                               type="password"
                               value={newAdminPassword}
                               onChange={(e) => setNewAdminPassword(e.target.value)}
-                              placeholder="••••••••"
+                              placeholder="At least 12 characters"
+                              minLength={12}
                               className="w-full h-8 px-2 text-xs border rounded bg-card text-foreground font-semibold"
                               required
                             />

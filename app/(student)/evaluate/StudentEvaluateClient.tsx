@@ -14,7 +14,6 @@ import { Modal } from '@/components/ui-ua/modal';
 import { motion, AnimatePresence } from 'framer-motion';
 import { signOut } from 'next-auth/react';
 import { Footer } from '@/components/layout/Footer';
-import { generateClientKeyPair, exportPublicKey, deriveSessionKey, encryptPayloadClient } from '@/lib/crypto/ecdh-client';
 import { ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -343,7 +342,7 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
       prevDeptIdRef.current = selectedDepartmentId || '';
 
       getProfessorsBySection(selectedSectionId).then(setProfessors);
-      getCompletedEvaluations(studentEmail, selectedSectionId).then(setCompletedProfs);
+      getCompletedEvaluations(selectedSectionId).then(setCompletedProfs);
       
       if (selectedLevel === 'JHS' || selectedLevel === 'SHS') {
         getDepartments(selectedLevel as any).then((deps) => {
@@ -395,34 +394,11 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
     }));
 
     try {
-      const cryptoSessionRes = await fetch('/api/crypto/session');
-      if (!cryptoSessionRes.ok) {
-        throw new Error('Failed to establish security session with server.');
-      }
-      const { sessionId, publicKey: serverPublicKeyBase64 } = await cryptoSessionRes.json();
-
-      const clientKeyPair = await generateClientKeyPair();
-      const clientPublicKey = await exportPublicKey(clientKeyPair.publicKey);
-      const sessionKey = await deriveSessionKey(clientKeyPair.privateKey, serverPublicKeyBase64);
-
-      const encrypted = await encryptPayloadClient(
-        { answers: formattedAnswers },
-        sessionKey
-      );
-
+      // The server identifies the student from their session and picks the form itself
       const res = await submitProfessorEvaluation({
-        studentEmail,
-        studentName,
         sectionId: selectedSectionId,
         professorId: selectedProf.id,
-        departmentId: sections.find(s => s.id === selectedSectionId)?.departmentId || selectedDepartmentId || departments[0]?.id || "", 
-        templateId: template.id,
         answers: formattedAnswers,
-        encryptedPayload: encrypted.ciphertext,
-        iv: encrypted.iv,
-        authTag: encrypted.authTag,
-        clientPublicKey,
-        sessionId,
       });
 
       if (res && 'success' in res && !res.success) {
@@ -455,14 +431,6 @@ export default function StudentEvaluateClient({ studentEmail, studentName }: Stu
     }
   };
 
-  console.log("DEBUG StudentEvaluateClient showLoading check:", {
-    wizardStep,
-    hasTemplate: !!template,
-    hasSelectedProf: !!selectedProf,
-    template,
-    selectedProf,
-    localStorageData: typeof window !== 'undefined' ? localStorage.getItem('ua_evaluation_progress') : null
-  });
 
   const showLoading = wizardStep > 1 && (!template || !selectedProf);
 

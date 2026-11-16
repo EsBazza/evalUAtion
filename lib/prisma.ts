@@ -2,34 +2,28 @@ import { Pool } from 'pg'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { PrismaClient } from '@prisma/client'
 
+// Runtime connection: Neon's POOLED URL (host contains "-pooler").
+// Neon's pooler (PgBouncer) handles many concurrent serverless connections,
+// so each function instance only needs a small local pool.
 const connectionString = process.env.DATABASE_URL
-const pool = new Pool({ connectionString })
-const adapter = new PrismaPg(pool)
-
-// PrismaClient is attached to the `global` object in development to prevent
-// exhausting your database connection limit.
-//
-// Learn more:
-// https://pris.ly/d/help/next-js-best-practices
-const globalForPrisma = global as unknown as { prisma: PrismaClient }
-
-// Dynamic Cache Buster for hot-reloading development client generation
-if (process.env.NODE_ENV !== 'production' && globalForPrisma.prisma) {
-  const hasScoreCache = 'scoreCache' in globalForPrisma.prisma;
-  const hasAuditLog = 'auditLog' in globalForPrisma.prisma;
-  if (!hasScoreCache || !hasAuditLog) {
-    console.log("Purging Prisma Client cache to load new schema models...");
-    globalForPrisma.prisma = undefined as any;
-    if (typeof require !== 'undefined' && require.cache) {
-      Object.keys(require.cache).forEach((key) => {
-        if (key.includes('@prisma/client') || key.includes('.prisma/client')) {
-          delete require.cache[key];
-        }
-      });
-    }
-  }
+if (!connectionString) {
+  throw new Error('DATABASE_URL is not set')
 }
 
-export const prisma = globalForPrisma.prisma || new PrismaClient({ adapter })
+// Reuse one client per instance (and across dev hot reloads) so we don't
+// open a new pool on every import.
+const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient }
+
+function createPrismaClient() {
+  const pool = new Pool({
+    connectionString,
+    max: 5,
+    idleTimeoutMillis: 10_000,
+    connectionTimeoutMillis: 10_000, // Neon may need a moment to wake a suspended compute
+  })
+  return new PrismaClient({ adapter: new PrismaPg(pool) })
+}
+
+export const prisma = globalForPrisma.prisma ?? createPrismaClient()
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma

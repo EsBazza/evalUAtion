@@ -2,7 +2,9 @@ const { PrismaClient } = require('@prisma/client');
 const { Pool } = require('pg');
 const { PrismaPg } = require('@prisma/adapter-pg');
 
-const connectionString = process.env.DATABASE_URL || "postgresql://postgres:admin@localhost:5432/evaluation_db?schema=public";
+// Seeding runs from the CLI, so prefer Neon's direct (unpooled) URL
+const connectionString = process.env.DATABASE_URL_UNPOOLED || process.env.DATABASE_URL;
+if (!connectionString) throw new Error("Set DATABASE_URL_UNPOOLED or DATABASE_URL");
 const pool = new Pool({ connectionString });
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
@@ -61,10 +63,8 @@ async function main() {
   console.log("Starting database seeding...");
 
   // Clean existing data in correct dependency order
-  await prisma.cryptoSession.deleteMany();
   await prisma.auditLog.deleteMany();
   await prisma.scoreCache.deleteMany();
-  await prisma.secureEvaluation.deleteMany();
   await prisma.aiSummary.deleteMany();
   await prisma.answer.deleteMany();
   await prisma.evaluation.deleteMany();

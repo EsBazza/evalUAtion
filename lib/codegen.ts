@@ -1,17 +1,44 @@
-import { EducationLevel } from '@prisma/client';
+import { randomInt } from 'crypto';
+import type { EducationLevel } from '@prisma/client';
 
 /**
  * Generates a random alphanumeric code segment of the specified length.
  * Uses only unambiguous characters — no O/0/I/1/L to avoid read/type confusion.
+ * Uses a cryptographic RNG: section codes gate who can submit evaluations,
+ * so they must not be predictable.
  */
 const CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 
-export function generateCodeSegment(length: number): string {
+/** 31^6 ≈ 887 million combinations per department/term (was 31^4 ≈ 923 thousand). */
+export const SECTION_CODE_RANDOM_LENGTH = 6;
+
+export function generateCodeSegment(length: number = SECTION_CODE_RANDOM_LENGTH): string {
   let result = '';
   for (let i = 0; i < length; i++) {
-    result += CODE_CHARS.charAt(Math.floor(Math.random() * CODE_CHARS.length));
+    result += CODE_CHARS.charAt(randomInt(CODE_CHARS.length));
   }
   return result;
+}
+
+/**
+ * Builds a section code that is not in `taken` (and adds it), retrying on the
+ * rare collision. `taken` should hold every existing code, upper-cased.
+ */
+export function buildUniqueSectionCode(
+  level: EducationLevel,
+  deptName: string,
+  academicYear: string,
+  semester: string,
+  taken: Set<string>
+): string {
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const code = buildSectionCode(level, deptName, generateCodeSegment(), academicYear, semester);
+    if (!taken.has(code.toUpperCase())) {
+      taken.add(code.toUpperCase());
+      return code;
+    }
+  }
+  throw new Error('Could not generate a unique section code. Please try again.');
 }
 
 /**

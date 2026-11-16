@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import puppeteer, { Browser } from 'puppeteer-core';
-import chromium from '@sparticuz/chromium';
+import type { Browser } from 'puppeteer-core';
+import { launchBrowser, appOrigin } from '@/lib/browser';
+import { requireAdmin, requireStaff } from '@/lib/authz';
 import fs from 'fs';
 import path from 'path';
 
@@ -14,6 +15,16 @@ export async function GET(req: NextRequest) {
   if (!type || !['ratings', 'attendance', 'audit'].includes(type)) {
     return NextResponse.json({ error: 'Invalid print type.' }, { status: 400 });
   }
+
+  // Ratings: admins and sub admins (the print page scopes sub admins to their department).
+  // Attendance and audit logs: full admins only.
+  try {
+    if (type === 'ratings') await requireStaff();
+    else await requireAdmin();
+  } catch {
+    return NextResponse.json({ error: 'Not allowed.' }, { status: 403 });
+  }
+  const origin = appOrigin(req.nextUrl.origin);
 
   // 1. Prepare absolute path to public/ua-logo.png for base64 inlining in header template
   const logoPath = path.join(process.cwd(), 'public', 'ua-logo.png');
@@ -56,11 +67,7 @@ export async function GET(req: NextRequest) {
   let browser: Browser | null = null;
   try {
     // 3. Launch headless chromium (serverless-compatible via @sparticuz/chromium)
-    browser = await puppeteer.launch({
-      args: chromium.args,
-      executablePath: await chromium.executablePath(),
-      headless: true,
-    });
+    browser = await launchBrowser();
 
     const page = await browser.newPage();
 
@@ -70,13 +77,13 @@ export async function GET(req: NextRequest) {
       await page.setCookie({
         name: cookie.name,
         value: cookie.value,
-        url: req.nextUrl.origin,
+        url: origin,
       });
     }
 
     // 5. Navigate to the Print Table page
     const queryParams = searchParams.toString();
-    const printUrl = `${req.nextUrl.origin}/print/table?${queryParams}`;
+    const printUrl = `${origin}/print/table?${queryParams}`;
     await page.goto(printUrl, { waitUntil: 'networkidle0' });
 
     // 6. Generate vector PDF
@@ -103,10 +110,10 @@ export async function GET(req: NextRequest) {
         'Content-Disposition': `attachment; filename="${filename}"`,
       },
     });
-  } catch (err: any) {
+  } catch (err) {
     console.error('Puppeteer PDF table export error:', err);
     return NextResponse.json(
-      { error: 'Failed to generate PDF report.', details: err.message },
+      { error: 'Failed to generate PDF report.' },
       { status: 500 }
     );
   } finally {

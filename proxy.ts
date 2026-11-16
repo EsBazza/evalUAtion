@@ -35,5 +35,7 @@ export default async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/evaluate/:path*', '/faculty/:path*', '/admin/:path*'],
+  // /print pages show ratings and attendance, so they need a session too
+  // (the data functions they call also check the user's role).
+  matcher: ['/evaluate/:path*', '/faculty/:path*', '/admin/:path*', '/print/:path*'],
 };
