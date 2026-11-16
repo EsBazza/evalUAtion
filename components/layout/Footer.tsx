@@ -30,11 +30,18 @@ export function Footer({ className = "" }: FooterProps) {
               alt="UA Logo" 
               className="w-12 h-12 object-contain rounded-full" 
             />
-            <img 
-              src="/cit-logo.png" 
-              alt="CIT Seal" 
-              className="w-[60px] h-[60px] object-contain rounded-full" 
-            />
+            <a 
+              href="https://ua-cit.com" 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="hover:scale-105 transition-transform duration-200"
+            >
+              <img 
+                src="/cit-logo.png" 
+                alt="CIT Seal" 
+                className="w-[60px] h-[60px] object-contain rounded-full" 
+              />
+            </a>
           </div>
           <div className="space-y-1">
             <h4 className="text-xs font-black tracking-widest text-ua-gold uppercase">University of the Assumption</h4>
@@ -99,22 +106,24 @@ export function Footer({ className = "" }: FooterProps) {
         </div>
 
         {/* Column 4: Developed By */}
-        <div className="space-y-3">
-          <div className="flex items-center gap-2">
-            <h4 className="text-xs font-black tracking-widest text-slate-205 text-slate-200 uppercase">Developed by:</h4>
-            <img 
-              src="/how-logo.png" 
-              alt="HOW Logo" 
-              className="h-5 object-contain bg-white/10 rounded px-1 py-0.5" 
-            />
-          </div>
-          
-          <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[10px] font-bold text-slate-300 uppercase tracking-wide">
-            {developers.map((dev) => (
-              <div key={dev} className="hover:text-ua-gold transition-colors duration-100">
-                {dev}
-              </div>
-            ))}
+        <div className="space-y-4">
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <h4 className="text-xs font-black tracking-widest text-slate-200 uppercase">Developed by:</h4>
+              <img 
+                src="/how-logo.png" 
+                alt="HOW Logo" 
+                className="h-5 object-contain bg-white/10 rounded px-1 py-0.5" 
+              />
+            </div>
+            
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[10px] font-bold text-slate-300 uppercase tracking-wide">
+              {developers.map((dev) => (
+                <div key={dev} className="hover:text-ua-gold transition-colors duration-100">
+                  {dev}
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 

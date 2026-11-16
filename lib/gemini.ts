@@ -1,7 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 
 // Use the lightweight model for all AI evaluation work
-export const GEMINI_MODEL = 'gemini-3.1-flash-lite-preview';
+export const GEMINI_MODEL = 'gemini-3.1-flash-lite';
 
 let client: GoogleGenAI | null = null;
 

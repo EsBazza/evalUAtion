@@ -40,14 +40,20 @@ export async function calculateScaleScore(professorId: string, academicYear: str
   return count > 0 ? Number((total / count).toFixed(2)) : null;
 }
 
-/** Regenerates the AI summary and sentiment rating, then refreshes the score cache. */
-export async function computeFacultySummary(professorId: string, academicYear?: string, semester?: string) {
+/**
+ * Regenerates the AI summary and sentiment rating. For the whole term ("all" subjects)
+ * it also refreshes the score cache used by rankings; per-subject summaries only
+ * store the narrative for that subject.
+ */
+export async function computeFacultySummary(professorId: string, academicYear?: string, semester?: string, subjectId?: string) {
   const { termYear, termSem } = await resolveTerm(academicYear, semester);
+  const targetSubjectId = subjectId && subjectId !== 'all' ? subjectId : 'all';
+  const subjectFilter = targetSubjectId === 'all' ? {} : { subjectId: targetSubjectId };
 
   const answers = await prisma.answer.findMany({
     where: {
       criterion: { type: 'TEXT_LONG' },
-      evaluation: { professorId, academicYear: termYear, semester: termSem },
+      evaluation: { professorId, academicYear: termYear, semester: termSem, ...subjectFilter },
     },
     select: { textVal: true },
   });
@@ -58,7 +64,7 @@ export async function computeFacultySummary(professorId: string, academicYear?: 
   }
 
   const evaluations = await prisma.evaluation.findMany({
-    where: { professorId, academicYear: termYear, semester: termSem },
+    where: { professorId, academicYear: termYear, semester: termSem, ...subjectFilter },
     include: { answers: { include: { criterion: { include: { cluster: true } } } } },
   });
 
@@ -130,10 +136,16 @@ export async function computeFacultySummary(professorId: string, academicYear?: 
   }
 
   await prisma.aiSummary.upsert({
-    where: { professorId_academicYear_semester: { professorId, academicYear: termYear, semester: termSem } },
+    where: { professorId_academicYear_semester_subjectId: { professorId, academicYear: termYear, semester: termSem, subjectId: targetSubjectId } },
     update: { summaryText, ratingScore },
-    create: { professorId, academicYear: termYear, semester: termSem, summaryText, ratingScore },
+    create: { professorId, academicYear: termYear, semester: termSem, subjectId: targetSubjectId, summaryText, ratingScore },
   });
+
+  // Rankings use the whole-term score; a single subject's narrative must not overwrite it
+  if (targetSubjectId !== 'all') {
+    await writeAuditLog('AI_SUMMARY_GENERATED', { professorId, academicYear: termYear, semester: termSem, subjectId: targetSubjectId });
+    return { success: true };
+  }
 
   const scaleScore = await calculateScaleScore(professorId, termYear, termSem);
 

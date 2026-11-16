@@ -52,6 +52,13 @@ export async function getProfessorsBySection(sectionId: string) {
   await requireUser();
   return prisma.professor.findMany({
     where: { sections: { some: { id: sectionId } } },
+    // Subjects each professor teaches in this section (students evaluate per subject)
+    include: {
+      teachingAssignments: {
+        where: { sectionId },
+        include: { subject: true },
+      },
+    },
   });
 }
 
@@ -60,16 +67,16 @@ export async function getEvaluationTemplate(level: EducationLevel, departmentId?
   return findActiveTemplate(level, departmentId);
 }
 
-/** Professors the signed-in student has already evaluated in this section this term. */
+/** "professorId-subjectId" pairs the signed-in student has already evaluated in this section this term. */
 export async function getCompletedEvaluations(sectionId: string) {
   const student = await requireRole('STUDENT');
   const { academicYear, semester } = await readSystemSettings();
 
   const receipts = await prisma.evaluationReceipt.findMany({
     where: { studentEmail: student.email, sectionId, academicYear, semester },
-    select: { professorId: true },
+    select: { professorId: true, subjectId: true },
   });
-  return receipts.map(r => r.professorId);
+  return receipts.map(r => `${r.professorId}-${r.subjectId}`);
 }
 
 export async function submitProfessorEvaluation(input: unknown) {
@@ -84,19 +91,20 @@ export async function submitProfessorEvaluation(input: unknown) {
   if (!parsed.success) {
     return { success: false, error: 'Your submission was incomplete or invalid. Please review your answers.' };
   }
-  const { sectionId, professorId, answers } = parsed.data;
+  const { sectionId, professorId, subjectId, answers } = parsed.data;
 
   try {
     const { academicYear, semester } = await readSystemSettings();
 
-    // The professor must actually be assigned to this section
-    const section = await prisma.section.findFirst({
-      where: { id: sectionId, professors: { some: { id: professorId } } },
-      include: { department: true },
+    // The professor must actually teach this subject to this section
+    const assignment = await prisma.teachingAssignment.findUnique({
+      where: { professorId_sectionId_subjectId: { professorId, sectionId, subjectId } },
+      include: { section: { include: { department: true } } },
     });
-    if (!section) {
-      return { success: false, error: 'This professor is not assigned to your section.' };
+    if (!assignment) {
+      return { success: false, error: 'This professor is not assigned to teach that subject in your section.' };
     }
+    const section = assignment.section;
 
     // The server picks the template; the client can't choose a different one
     const template = await findActiveTemplate(section.department.level, section.departmentId);
@@ -120,7 +128,7 @@ export async function submitProfessorEvaluation(input: unknown) {
 
       // Attendance receipt (who submitted). The unique constraint blocks duplicates, even under races.
       await tx.evaluationReceipt.create({
-        data: { studentEmail: student.email, professorId, sectionId, academicYear, semester },
+        data: { studentEmail: student.email, professorId, sectionId, subjectId, academicYear, semester },
       });
 
       await tx.scoreCache.upsert({
@@ -137,6 +145,7 @@ export async function submitProfessorEvaluation(input: unknown) {
           createdAt: anonymizedEvaluationDate(),
           sectionId,
           professorId,
+          subjectId,
           departmentId: section.departmentId,
           templateId: template.id,
           academicYear,
@@ -157,7 +166,7 @@ export async function submitProfessorEvaluation(input: unknown) {
     return { success: true };
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
-      return { success: false, error: 'You have already evaluated this professor for this section in the current term.' };
+      return { success: false, error: 'You have already evaluated this professor for this subject in the current term.' };
     }
     console.error('Error submitting evaluation:', error);
     return { success: false, error: 'Failed to submit evaluation due to an internal error. Please try again.' };

@@ -30,5 +30,9 @@ export async function launchBrowser(): Promise<Browser> {
 /** The app's own origin for the headless browser to load print pages from. */
 export function appOrigin(requestOrigin: string): string {
   // Prefer the configured public URL over the request's Host header
-  return new URL(process.env.AUTH_URL || requestOrigin).origin;
+  const origin = new URL(process.env.AUTH_URL || requestOrigin).origin;
+  // The server's own localhost has no TLS certificate, so talk to it over plain HTTP
+  const url = new URL(origin);
+  const isLocal = url.hostname === 'localhost' || url.hostname === '127.0.0.1';
+  return url.protocol === 'https:' && isLocal ? origin.replace(/^https:/, 'http:') : origin;
 }

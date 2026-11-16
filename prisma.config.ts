@@ -12,7 +12,8 @@ if (typeof process.loadEnvFile === 'function') {
 // Prisma CLI commands (db push, migrate, studio) must use Neon's DIRECT (unpooled)
 // connection — PgBouncer in transaction mode breaks schema operations.
 // The app runtime (lib/prisma.ts) uses the pooled DATABASE_URL instead.
-const cliUrl = process.env.DATABASE_URL_UNPOOLED || process.env.DATABASE_URL;
+// DIRECT_URL is accepted too (the name used in older setups).
+const cliUrl = process.env.DATABASE_URL_UNPOOLED || process.env.DIRECT_URL || process.env.DATABASE_URL;
 if (!cliUrl) {
   throw new Error('Set DATABASE_URL_UNPOOLED (direct Neon URL) or DATABASE_URL in .env');
 }

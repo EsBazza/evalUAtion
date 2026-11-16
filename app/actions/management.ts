@@ -1,6 +1,7 @@
 'use server';
 
 import { prisma } from '@/lib/prisma';
+import { EducationLevel } from '@prisma/client';
 import { writeAuditLog } from '@/lib/audit';
 import { requireAdmin, requireProfessorAccess, AuthorizationError } from '@/lib/authz';
 import { readSystemSettings, newSectionCode } from '@/lib/settings';
@@ -211,17 +212,7 @@ export async function getFacultyProfileData(
   };
 
   if (subjectId && subjectId !== 'all') {
-    const assignments = await prisma.teachingAssignment.findMany({
-      where: {
-        professorId,
-        subjectId,
-      },
-      select: {
-        sectionId: true,
-      },
-    });
-    const sectionIds = assignments.map(a => a.sectionId);
-    evaluationsWhere.sectionId = { in: sectionIds };
+    evaluationsWhere.subjectId = subjectId;
   }
 
   const evaluations = await prisma.evaluation.findMany({
@@ -361,12 +352,14 @@ export async function getFacultyProfileData(
   }));
 
   // 5. Fetch AI Narrative Summary
+  const summarySubjectId = (subjectId && subjectId !== 'all') ? subjectId : "all";
   const aiSummary = await prisma.aiSummary.findUnique({
     where: {
-      professorId_academicYear_semester: {
+      professorId_academicYear_semester_subjectId: {
         professorId,
         academicYear: termYear,
         semester: termSem,
+        subjectId: summarySubjectId,
       },
     },
   });
@@ -547,6 +540,58 @@ export async function updateSubject(subjectId: string, name: string, code: strin
   await writeAuditLog('SUBJECT_UPDATED', { desc: `Updated subject ${subject.name} (${subject.code}) under department ${subject.department.name}` });
 
   return subject;
+}
+
+export async function updateDepartment(departmentId: string, name: string, level: EducationLevel) {
+  await requireAdmin();
+  if (!name.trim()) throw new Error("Department name cannot be empty");
+
+  const dept = await prisma.department.findUnique({
+    where: { id: departmentId },
+  });
+  if (!dept) throw new Error("Department not found");
+
+  if ((dept.level === 'JHS' || dept.level === 'SHS') && (level !== dept.level)) {
+    throw new Error("Cannot change education level of core school divisions (JHS/SHS).");
+  }
+
+  const updated = await prisma.department.update({
+    where: { id: departmentId },
+    data: {
+      name: name.trim(),
+      level,
+    },
+  });
+
+  await writeAuditLog('DEPARTMENT_UPDATED', { desc: `Updated department ${updated.name} (${updated.level})` });
+
+  return updated;
+}
+
+export async function deleteDepartment(departmentId: string) {
+  await requireAdmin();
+  const dept = await prisma.department.findUnique({
+    where: { id: departmentId },
+  });
+  if (!dept) throw new Error("Department not found");
+
+  await prisma.$transaction(async (tx) => {
+    // Evaluations and receipts reference the department's sections/faculty without
+    // cascading, so remove them first or the delete fails on a foreign key.
+    const sectionIds = (await tx.section.findMany({ where: { departmentId }, select: { id: true } })).map(s => s.id);
+    await tx.evaluation.deleteMany({ where: { OR: [{ departmentId }, { sectionId: { in: sectionIds } }] } }); // answers cascade
+    await tx.evaluationReceipt.deleteMany({ where: { sectionId: { in: sectionIds } } });
+
+    // Keep templates and accounts, just unlink them (a sub admin left without a department gets no access)
+    await tx.template.updateMany({ where: { departmentId }, data: { departmentId: null } });
+    await tx.user.updateMany({ where: { departmentId }, data: { departmentId: null } });
+
+    await tx.department.delete({ where: { id: departmentId } }); // cascades sections, subjects, faculty
+  }, { timeout: 30000 });
+
+  await writeAuditLog('DEPARTMENT_DELETED', { desc: `Deleted department ${dept.name} (${dept.level})` });
+
+  return { success: true };
 }
 
 

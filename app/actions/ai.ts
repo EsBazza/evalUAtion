@@ -13,14 +13,18 @@ export async function getFacultyProfessorId() {
   return prof?.id || null;
 }
 
-/** Regenerates the AI summary for one professor (admins, their sub admin, or the professor). */
-export async function processFacultyEvaluationSummary(professorId: string, academicYear?: string, semester?: string) {
+/**
+ * Regenerates the AI summary for one professor (admins, their sub admin, or the professor),
+ * optionally for a single subject ("all" or omitted = every subject).
+ */
+export async function processFacultyEvaluationSummary(professorId: string, academicYear?: string, semester?: string, subjectId?: string) {
   await requireProfessorAccess(professorId);
-  return computeFacultySummary(professorId, academicYear, semester);
+  return computeFacultySummary(professorId, academicYear, semester, subjectId);
 }
 
-export async function getFacultySummary(professorId: string, academicYear?: string, semester?: string) {
+export async function getFacultySummary(professorId: string, academicYear?: string, semester?: string, subjectId?: string) {
   await requireProfessorAccess(professorId);
+  const targetSubjectId = subjectId && subjectId !== 'all' ? subjectId : 'all';
 
   let termYear = academicYear;
   let termSem = semester;
@@ -31,7 +35,7 @@ export async function getFacultySummary(professorId: string, academicYear?: stri
   }
 
   return prisma.aiSummary.findUnique({
-    where: { professorId_academicYear_semester: { professorId, academicYear: termYear, semester: termSem } },
+    where: { professorId_academicYear_semester_subjectId: { professorId, academicYear: termYear, semester: termSem, subjectId: targetSubjectId } },
   });
 }
 

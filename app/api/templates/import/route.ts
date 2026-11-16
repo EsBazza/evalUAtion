@@ -9,7 +9,7 @@ import { EducationLevel } from '@prisma/client';
 import { GoogleGenAI } from '@google/genai';
 
 // Use the lightweight preview model for all AI template work
-const GEMINI_MODEL = 'gemini-3.1-flash-lite-preview';
+const GEMINI_MODEL = 'gemini-3.1-flash-lite';
 
 const ALLOWED_EXTENSIONS = ['.txt', '.docx'] as const;
 const ALLOWED_MIME_TYPES = [
@@ -261,6 +261,8 @@ EXTRACTION RULES:
       }
 
       return createdTemplate;
+    }, {
+      timeout: 25000 // 25 seconds timeout to avoid expiry on slow DB writes
     });
 
     await writeAuditLog('TEMPLATE_IMPORT', {

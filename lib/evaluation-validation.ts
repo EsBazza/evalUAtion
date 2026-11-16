@@ -7,6 +7,7 @@ export const MAX_TEXT_LENGTH = 2000;
 export const submissionSchema = z.object({
   sectionId: z.string().min(1).max(64),
   professorId: z.string().min(1).max(64),
+  subjectId: z.string().min(1).max(64),
   answers: z
     .array(
       z.object({
